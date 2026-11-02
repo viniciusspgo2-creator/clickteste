@@ -1,0 +1,1 @@
+{"extends":"../../tsconfig.json","compilerOptions":{"incremental":false,"plugins":[]},"include":["../../src/components/tools/mockup/**/*.ts","../../src/components/tools/mockup/**/*.tsx"],"exclude":["../../node_modules"]}

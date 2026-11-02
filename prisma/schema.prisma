@@ -1,0 +1,127 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model WhatsAppLink {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  phone     String
+  message   String   @default("")
+  title     String   @default("")
+  clicks    Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+/**
+ * ---------------- Acesso PREMIUM (Mockup Studio) ----------------
+ */
+
+model AccessCode {
+  id               String          @id @default(cuid())
+  code             String          @unique
+  note             String          @default("")
+  clientName       String          @default("")
+  clientType       String          @default("library")
+  browserHash      String?
+  sessionHash      String?
+  sessionExpiresAt DateTime?
+  maxUses          Int             @default(1)
+  accessMode       String          @default("individual") // individual | universal
+  active           Boolean         @default(true)
+  expiresAt        DateTime?
+  createdAt        DateTime        @default(now())
+  uses             AccessCodeUse[]
+
+  @@index([sessionHash])
+}
+
+model AccessCodeUse {
+  id       String     @id @default(cuid())
+  codeId   String
+  code     AccessCode @relation(fields: [codeId], references: [id], onDelete: Cascade)
+  deviceId String
+  usedAt           DateTime   @default(now())
+  createdAt        DateTime   @default(now())
+  sessionHash      String?
+  sessionExpiresAt DateTime?
+
+  @@unique([codeId, deviceId])
+  @@index([usedAt])
+  @@index([sessionHash])
+}
+
+/**
+ * ---------------- Contador de visitas ----------------
+ */
+
+model Visit {
+  id        String   @id @default(cuid())
+  day       String // "2026-10-13" (America/Sao_Paulo)
+  path      String
+  sid       String // id de sessão anônima
+  createdAt DateTime @default(now())
+
+  @@index([day])
+  @@index([day, path])
+}
+
+/**
+ * ---------------- Configurações (SEO etc.) ----------------
+ */
+
+model SiteConfig {
+  key       String   @id
+  value     String // JSON serializado
+  updatedAt DateTime @updatedAt
+}
+
+/** Independent catalog for the static Mockup de Cenários editor.
+ * Binary assets are durable in Postgres, including on serverless hosting.
+ * List queries explicitly omit imageBytes. No filesystem uploads in production.
+ */
+model MockupSceneItem {
+  id         String   @id @default(cuid())
+  kind       String
+  name       String
+  category   String
+  tags       String   @default("[]")
+  status     String   @default("draft")
+  surface    String?
+  imageBytes Bytes
+  thumbnailBytes Bytes?
+  mimeType   String
+  width      Int
+  height     Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([kind, status, category, createdAt])
+  @@index([kind, status, createdAt])
+}
+
+/** Biblioteca administrativa separada: somente materiais enviados pelo administrador.
+ * Arquivos binarios residem em R2; uploads de clientes nunca chegam a esta tabela.
+ */
+model CreativeAsset {
+  id         String   @id @default(cuid())
+  kind       String   // template | element | background | font | animation
+  name       String
+  category   String   @default("Geral")
+  tags       String   @default("[]")
+  status     String   @default("published")
+  order      Int      @default(0)
+  mimeType   String
+  storageKey String   @unique
+  bytes      Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([kind, status, category, order])
+  @@index([status, createdAt])
+}

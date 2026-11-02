@@ -1,0 +1,22 @@
+CLICKTOOLS — BOCAO E CONFLITOS DO GITHUB DESKTOP
+
+Este ZIP contem o projeto completo com os ajustes de interface e rotacao do Bocao,
+mais um corretor para os 3 conflitos mostrados no seu GitHub Desktop.
+
+SE O GITHUB DESKTOP ESTA EXIBINDO "Resolve conflicts before Merge":
+1. Extraia o ZIP em uma pasta qualquer.
+2. Execute o arquivo CORRIGIR_CONFLITOS_CLICKTOOLS_1_CLIQUE.cmd que esta na raiz.
+   Ele procura seu repositorio Documentos\GitHub\clicktools, faz backup e resolve
+   os tres arquivos sem apagar outras alteracoes.
+3. Se aparecer SUCESSO, basta usar Push origin no GitHub Desktop.
+
+IMPORTANTE: somente extrair os arquivos do projeto nao conclui o merge ativo: o
+Git precisa marcar os conflitos resolvidos. Por isso o corretor esta incluso.
+Nao copie toda a pasta clicktools-main sobre a pasta com merge pendente.
+
+O corretor interrompe sem forcar alteracoes se encontrar versoes desconhecidas.
+Nao realiza push, deploy, reset, nem altera o banco.
+
+O projeto completo esta na pasta clicktools-main/
+
+Testes de build completo e WebGL em producao nao foram homologados.
