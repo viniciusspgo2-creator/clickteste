@@ -1,5 +1,6 @@
+
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "npm ci --no-audit --no-fund",
-  "buildCommand": "npm run build"
+  "buildCommand": "npx prisma db push && npm run build"
 }
