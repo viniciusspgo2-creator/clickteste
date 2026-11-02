@@ -6,7 +6,7 @@ export function baseExportSize(outputSide:number,maxTextureSize:number,pieces:nu
  return Math.max(1,Math.floor(Math.min(maxTextureSize,4096,Math.max(1024,outputSide),Math.sqrt(budget/Math.max(1,pieces)))));
 }
 /** Draw from the retained original, with the same defaults used in old projects. */
-export function renderBaseArt(art:ArtState,mug:MugState,side=1024):HTMLCanvasElement|null {
+export function renderBaseArt(art:ArtState,mug:Pick<MugState, "baseColor" | "bodyColor">,side=1024):HTMLCanvasElement|null {
  const entry=getArtImage(art.baseImageId??null);if(!entry)return null;
  const c=document.createElement('canvas');c.width=c.height=side;const ctx=c.getContext('2d')!;
  ctx.fillStyle=mug.baseColor??mug.bodyColor;ctx.fillRect(0,0,side,side);

@@ -29,7 +29,12 @@ export function BaseArtPanel() {
   useEffect(() => {
     const canvas = preview.current;
     if (!canvas || !mug || !art.baseImageId) return;
-    const rendered = renderBaseArt(art, mug, 320);
+    // CompanionMug can omit color overrides: inherit them from the primary mug.
+    // Base-art rendering needs only the two colors, not all MugState fields.
+    const rendered = renderBaseArt(art, {
+      baseColor: mug.baseColor ?? st.mug.baseColor,
+      bodyColor: mug.bodyColor ?? st.mug.bodyColor,
+    }, 320);
     if (!rendered) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
