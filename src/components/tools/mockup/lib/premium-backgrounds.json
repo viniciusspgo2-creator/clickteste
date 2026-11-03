@@ -1,0 +1,212 @@
+[
+  {
+    "id": "01-madeira-nogueira",
+    "category": "Mesa de madeira",
+    "scene": "Warm walnut tabletop in neutral kitchen",
+    "label": "Nogueira acolhedora",
+    "src": "/mockup/backgrounds/01-madeira-nogueira.jpg"
+  },
+  {
+    "id": "02-carvalho",
+    "category": "Mesa de madeira",
+    "scene": "pale oak tabletop in sunlit Scandinavian room, linen curtains",
+    "label": "Carvalho escandinavo",
+    "src": "/mockup/backgrounds/02-carvalho.jpg"
+  },
+  {
+    "id": "03-rustica",
+    "category": "Mesa de madeira",
+    "scene": "aged rustic timber tabletop in countryside farmhouse, morning light",
+    "label": "Madeira rústica",
+    "src": "/mockup/backgrounds/03-rustica.jpg"
+  },
+  {
+    "id": "04-marmore-branco",
+    "category": "Mármore",
+    "scene": "white Calacatta marble tabletop, ivory plaster wall, diffuse large softbox left",
+    "label": "Calacatta branco",
+    "src": "/mockup/backgrounds/04-marmore-branco.jpg"
+  },
+  {
+    "id": "05-marmore-preto",
+    "category": "Mármore",
+    "scene": "black Marquina marble tabletop, charcoal wall, elegant long softbox reflections",
+    "label": "Mármore Marquina",
+    "src": "/mockup/backgrounds/05-marmore-preto.jpg"
+  },
+  {
+    "id": "06-travertino",
+    "category": "Mármore",
+    "scene": "sand travertine tabletop, warm architectural niche, warm neutral daylight",
+    "label": "Travertino natural",
+    "src": "/mockup/backgrounds/06-travertino.jpg"
+  },
+  {
+    "id": "07-cozinha-clara",
+    "category": "Cozinha",
+    "scene": "white kitchen quartz island, soft white cabinetry blurred rear, neutral morning light",
+    "label": "Cozinha luminosa",
+    "src": "/mockup/backgrounds/07-cozinha-clara.jpg"
+  },
+  {
+    "id": "08-cozinha-verde",
+    "category": "Cozinha",
+    "scene": "sage green kitchen, beige stone counter, plants at far edge, daylight",
+    "label": "Cozinha sálvia",
+    "src": "/mockup/backgrounds/08-cozinha-verde.jpg"
+  },
+  {
+    "id": "09-cozinha-industrial",
+    "category": "Cozinha",
+    "scene": "industrial kitchen dark steel counter, brick background, soft neutral side light",
+    "label": "Cozinha industrial",
+    "src": "/mockup/backgrounds/09-cozinha-industrial.jpg"
+  },
+  {
+    "id": "10-escritorio",
+    "category": "Escritório",
+    "scene": "minimal office birch desk, blurred monitor far left and plant far right",
+    "label": "Mesa criativa",
+    "src": "/mockup/backgrounds/10-escritorio.jpg"
+  },
+  {
+    "id": "11-home-office",
+    "category": "Escritório",
+    "scene": "warm home office walnut desk, books blurred rear, diffuse daylight",
+    "label": "Home office",
+    "src": "/mockup/backgrounds/11-home-office.jpg"
+  },
+  {
+    "id": "12-executivo",
+    "category": "Escritório",
+    "scene": "executive dark desk, grey architectural background, precise softbox",
+    "label": "Escritório executivo",
+    "src": "/mockup/backgrounds/12-executivo.jpg"
+  },
+  {
+    "id": "13-cafe-manha",
+    "category": "Café da manhã",
+    "scene": "breakfast table in soft daylight, small croissant and berries confined far left edge",
+    "label": "Bom dia",
+    "src": "/mockup/backgrounds/13-cafe-manha.jpg"
+  },
+  {
+    "id": "14-cafeteria",
+    "category": "Café da manhã",
+    "scene": "cafe oak tabletop, blurred coffee bar in rear, morning window light",
+    "label": "Cafeteria",
+    "src": "/mockup/backgrounds/14-cafeteria.jpg"
+  },
+  {
+    "id": "15-varanda",
+    "category": "Café da manhã",
+    "scene": "breakfast balcony pale timber table, blurred garden foliage, soft sunlight",
+    "label": "Varanda de verão",
+    "src": "/mockup/backgrounds/15-varanda.jpg"
+  },
+  {
+    "id": "16-studio-creme",
+    "category": "Estúdio",
+    "scene": "seamless warm cream studio cyclorama, perfectly matte continuous horizontal support plane",
+    "label": "Estúdio creme",
+    "src": "/mockup/backgrounds/16-studio-creme.jpg"
+  },
+  {
+    "id": "17-studio-laranja",
+    "category": "Estúdio",
+    "scene": "seamless muted terracotta studio cyclorama, elegant soft gradient and continuous support plane",
+    "label": "Estúdio terracota",
+    "src": "/mockup/backgrounds/17-studio-laranja.jpg"
+  },
+  {
+    "id": "18-studio-grafite",
+    "category": "Estúdio",
+    "scene": "seamless charcoal graphite studio cyclorama, neutral softboxes and continuous horizontal plane",
+    "label": "Estúdio grafite",
+    "src": "/mockup/backgrounds/18-studio-grafite.jpg"
+  },
+  {
+    "id": "19-natal-verde",
+    "category": "Natal",
+    "scene": "Christmas forest green scene, light timber table, pine sprigs and gold baubles only at extreme edges",
+    "label": "Natal verde e dourado",
+    "src": "/mockup/backgrounds/19-natal-verde.jpg"
+  },
+  {
+    "id": "20-natal-neve",
+    "category": "Natal",
+    "scene": "Christmas winter white scene, white table, soft snowy tree bokeh in far rear",
+    "label": "Natal de inverno",
+    "src": "/mockup/backgrounds/20-natal-neve.jpg"
+  },
+  {
+    "id": "21-natal-rustico",
+    "category": "Natal",
+    "scene": "Christmas warm rustic table, tiny red ribbon and fir at edges, amber fairy bokeh rear",
+    "label": "Natal aconchegante",
+    "src": "/mockup/backgrounds/21-natal-rustico.jpg"
+  },
+  {
+    "id": "22-maes-rosa",
+    "category": "Dia das Mães",
+    "scene": "Mother's Day blush pink plaster table, delicate pink flowers extreme side edges, tender daylight",
+    "label": "Mães · rosa",
+    "src": "/mockup/backgrounds/22-maes-rosa.jpg"
+  },
+  {
+    "id": "23-maes-lavanda",
+    "category": "Dia das Mães",
+    "scene": "Mother's Day lavender linen table, subtle lilac flowers far edge, soft daylight",
+    "label": "Mães · lavanda",
+    "src": "/mockup/backgrounds/23-maes-lavanda.jpg"
+  },
+  {
+    "id": "24-maes-natural",
+    "category": "Dia das Mães",
+    "scene": "Mother's Day cream stone table, neutral dried flowers far rear, beautiful window light",
+    "label": "Mães · natural",
+    "src": "/mockup/backgrounds/24-maes-natural.jpg"
+  },
+  {
+    "id": "25-namorados",
+    "category": "Dia dos Namorados",
+    "scene": "romantic burgundy table, subtle rose petals and two small candles only far rear corners",
+    "label": "Romance bordô",
+    "src": "/mockup/backgrounds/25-namorados.jpg"
+  },
+  {
+    "id": "26-namorados-rosa",
+    "category": "Dia dos Namorados",
+    "scene": "romantic pale rose tabletop, small red roses extreme edge, soft diffused pink backdrop",
+    "label": "Romance delicado",
+    "src": "/mockup/backgrounds/26-namorados-rosa.jpg"
+  },
+  {
+    "id": "27-pais",
+    "category": "Dia dos Pais",
+    "scene": "Father's Day dark walnut desk, leather notebook and pen only far left edge, neutral sidelight",
+    "label": "Pais · nogueira",
+    "src": "/mockup/backgrounds/27-pais.jpg"
+  },
+  {
+    "id": "28-pais-azul",
+    "category": "Dia dos Pais",
+    "scene": "Father's Day navy blue studio table, sophisticated slate background, clean softbox",
+    "label": "Pais · azul",
+    "src": "/mockup/backgrounds/28-pais-azul.jpg"
+  },
+  {
+    "id": "29-pascoa",
+    "category": "Páscoa",
+    "scene": "Easter pastel sage table, tiny painted eggs and twigs extreme edges, soft spring daylight",
+    "label": "Páscoa suave",
+    "src": "/mockup/backgrounds/29-pascoa.jpg"
+  },
+  {
+    "id": "30-black-friday",
+    "category": "Black Friday",
+    "scene": "black friday dramatic graphite studio table, subtle amber edge rim, no graphics or signage",
+    "label": "Black Friday âmbar",
+    "src": "/mockup/backgrounds/30-black-friday.jpg"
+  }
+]

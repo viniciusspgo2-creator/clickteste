@@ -1,0 +1,40 @@
+{
+  "changed_original_files": [
+    "docs/MOCKUP-STUDIO.md",
+    "src/components/tools/mockup/exporters/batch-exporter.ts",
+    "src/components/tools/mockup/exporters/frame-capture.ts",
+    "src/components/tools/mockup/exporters/image-exporter.ts",
+    "src/components/tools/mockup/exporters/template-exporter.ts",
+    "src/components/tools/mockup/exporters/video-exporter.ts",
+    "src/components/tools/mockup/lib/art-canvas.ts",
+    "src/components/tools/mockup/lib/art-registry.ts",
+    "src/components/tools/mockup/lib/background-registry.ts",
+    "src/components/tools/mockup/lib/config.ts",
+    "src/components/tools/mockup/lib/projects-db.ts",
+    "src/components/tools/mockup/mockup-studio.tsx",
+    "src/components/tools/mockup/scene/bg-image.tsx",
+    "src/components/tools/mockup/scene/camera-rig.tsx",
+    "src/components/tools/mockup/scene/mug-geometry.ts",
+    "src/components/tools/mockup/scene/mug.tsx",
+    "src/components/tools/mockup/scene/postfx.tsx",
+    "src/components/tools/mockup/scene/studio-refs.ts",
+    "src/components/tools/mockup/scene/studio-scene.tsx",
+    "src/components/tools/mockup/scene/studio.tsx",
+    "src/components/tools/mockup/state/store.ts",
+    "src/components/tools/mockup/types/gifenc.d.ts",
+    "src/components/tools/mockup/ui/controls.tsx",
+    "src/components/tools/mockup/ui/panels-extra.tsx",
+    "src/components/tools/mockup/ui/panels.tsx",
+    "src/components/tools/mockup/ui/projects-dialog.tsx"
+  ],
+  "missing_original_files": [],
+  "outside_scope": [],
+  "protected_files": {
+    "package.json": "2fe3fde9ebc3a786c3646dfdd2fec22ced8c269b00a5caaced1b8880d313ef44",
+    "package-lock.json": "ae5b8084b287f8198c047da89f4793ea7d444dcad145cb174da47792367d1b56",
+    "bun.lock": "3f3534c5b176765b2aeff22f884eeb7cdd496c8dbaa7193105143f39a028eacc",
+    "next.config.ts": "0e807f6b40f50412801fa90dfe3980ed6a2a627f2261b271054a90cbf48f0d3c",
+    "tsconfig.json": "5627b3f441adc62af9e6420045fa0452d7c02bfcea664ec5758db46504631609",
+    "eslint.config.mjs": "31da13583c3419ca59f556d2ef0d5b02c86f5d0514e624cfb9488849706859c7"
+  }
+}

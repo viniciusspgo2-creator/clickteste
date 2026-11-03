@@ -1,0 +1,51 @@
+{
+  "format": "clickgruda-studio",
+  "version": 1,
+  "state": {
+    "projectName": "Fixture legado — uma peça",
+    "art": {
+      "imageId": "art-lateral",
+      "baseImageId": "art-base",
+      "baseRotation": 15,
+      "name": "artwork.svg",
+      "width": 1200,
+      "height": 600,
+      "scale": 1,
+      "offsetX": 0,
+      "offsetY": 0,
+      "rotation": 0,
+      "fit": "contain",
+      "repeat": 1,
+      "mirror": false,
+      "areaMode": "padrao",
+      "text": ""
+    },
+    "mug": {
+      "model": "classic",
+      "variant": "white",
+      "bodyColor": "#ffffff",
+      "interiorColor": "#ffffff",
+      "handleColor": "#ffffff",
+      "rotationY": 55,
+      "scale": 1,
+      "posX": 0,
+      "posY": 0,
+      "posZ": 0
+    },
+    "companions": [],
+    "exportSettings": {
+      "ratioId": "sq",
+      "scale": 1,
+      "format": "png",
+      "quality": 0.92,
+      "background": "scene",
+      "transparent": false
+    }
+  },
+  "assets": {
+    "art-lateral": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjAwIiBoZWlnaHQ9IjYwMCIgdmlld0JveD0iMCAwIDEyMDAgNjAwIj4KICA8cmVjdCB4PSIyMCIgeT0iMjAiIHdpZHRoPSIxMTYwIiBoZWlnaHQ9IjU2MCIgcng9IjI0IiBmaWxsPSJ3aGl0ZSIvPgogIDxwYXRoIGZpbGw9IiNmMDAiIGQ9Ik00MCA0MGgyMDB2NDAwSDQweiIvPjxwYXRoIGZpbGw9IiMwYTAiIGQ9Ik0yNDAgNDBoMjAwdjQwMEgyNDB6Ii8+CiAgPHBhdGggZmlsbD0iIzAwZiIgZD0iTTQ0MCA0MGgyMDB2NDAwSDQ0MHoiLz48cGF0aCBmaWxsPSIjODg4IiBkPSJNNjQwIDQwaDIwMHY0MDBINjQweiIvPgogIDxwYXRoIGZpbGw9IiMwMDAiIGQ9Ik04NDAgNDBoMzAwdjQwMEg4NDB6Ii8+CiAgPHRleHQgeD0iNjAiIHk9IjUyMCIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMzQiPkZpeHR1cmUgc2ludMOpdGljYSDigJQgdGV4dG8gZSBsaW5oYXMgZmluYXM8L3RleHQ+CiAgPHBhdGggZD0iTTQwIDU1MGgxMTAwTTYwMCA0MHY0MDAiIHN0cm9rZT0iYmxhY2siIHN0cm9rZS13aWR0aD0iMSIvPgo8L3N2Zz4K",
+    "art-base": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4MDAiIGhlaWdodD0iODAwIiB2aWV3Qm94PSIwIDAgODAwIDgwMCI+CiAgPGNpcmNsZSBjeD0iNDAwIiBjeT0iNDAwIiByPSIzNDAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzcyMjZhZiIgc3Ryb2tlLXdpZHRoPSI0Ii8+CiAgPHBhdGggZD0iTTE1MCA0MDBoNTAwTTQwMCAxNTB2NTAwIiBzdHJva2U9IiM3MjI2YWYiIHN0cm9rZS13aWR0aD0iMiIvPgogIDx0ZXh0IHg9IjQwMCIgeT0iMzgwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSI0OCIgZmlsbD0iIzcyMjZhZiI+QkFTRSDigJQgVEVTVEU8L3RleHQ+CiAgPHRleHQgeD0iNDAwIiB5PSI0NTAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjIyIj5JbWFnZW0gaW5mZXJpb3IgaW5kZXBlbmRlbnRlPC90ZXh0Pgo8L3N2Zz4K"
+  },
+  "background": null,
+  "environment": null
+}
