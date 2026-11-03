@@ -40,11 +40,14 @@ export function StudioConcierge({area,onClose,onAction}:{area:Area;onClose:()=>v
  const {language}=usePlatformLanguage();
  const [aiAvailable,setAiAvailable]=useState<boolean|null>(null);
  const [providerUnavailable,setProviderUnavailable]=useState(false);
- useEffect(()=>{let mounted=true;void fetch('/api/creative-assistant',{cache:'no-store'})
-  .then(res=>res.ok?res.json():Promise.reject(new Error('status unavailable')))
-  .then(status=>{if(mounted)setAiAvailable(Boolean(status.aiEnabled));})
-  .catch(()=>{if(mounted)setAiAvailable(false);});
-  return()=>{mounted=false;};},[]);
+ useEffect(()=>{let mounted=true;const controller=new AbortController();
+  const deadline=setTimeout(()=>controller.abort(),6_000);
+  void fetch('/api/creative-assistant',{cache:'no-store',signal:controller.signal})
+   .then(res=>res.ok?res.json():Promise.reject(new Error('status unavailable')))
+   .then(status=>{if(mounted)setAiAvailable(Boolean(status.aiEnabled));})
+   .catch(()=>{if(mounted)setAiAvailable(false);})
+   .finally(()=>clearTimeout(deadline));
+  return()=>{mounted=false;controller.abort();clearTimeout(deadline);};},[]);
  const [isAnswering,setIsAnswering]=useState(false);
  const [query,setQuery]=useState('');const [reply,setReply]=useState('Pergunte sobre impressão, Studio 3D, templates ou Editor. Posso abrir ferramentas disponíveis mediante sua confirmação.');
  const [pending,setPending]=useState<{action:Action;label:string}|null>(null);const [conversation,setConversation]=useState<string[]>([]);
@@ -58,7 +61,7 @@ export function StudioConcierge({area,onClose,onAction}:{area:Area;onClose:()=>v
   requestRef.current.controller?.abort();
   const controller=new AbortController();const version=++requestRef.current.version;
   requestRef.current.controller=controller;
-  const current=()=>requestRef.current.version===version&&!controller.signal.aborted;
+  const latest=()=>requestRef.current.version===version;
   setPending(null);setConversation(c=>[...c,text].slice(-6));setQuery('');setIsAnswering(true);
   // A instalação sem chave de API responde imediatamente pelo guia local.
   if(aiAvailable===false){
@@ -66,19 +69,22 @@ export function StudioConcierge({area,onClose,onAction}:{area:Area;onClose:()=>v
    setPending(match?.action&&match.label&&actionAllowed(area,match.action)?{action:match.action,label:match.label}:null);
    requestRef.current.controller=null;setIsAnswering(false);return;
   }
+  // A connection that never answers must not leave the assistant stuck loading.
+  const deadline=setTimeout(()=>controller.abort(),20_000);
   try{
    const response=await fetch('/api/creative-assistant',{method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({question:text,area,locale:language,history:previousQuestions})});
    const info=await response.json();
-   if(!current())return;
+   if(!latest())return;
+   if(controller.signal.aborted)throw new Error('A resposta da IA ultrapassou o tempo limite.');
    if(info?.ok&&typeof info.reply==='string'&&info.reply.trim()){
     setProviderUnavailable(false);
     setReply(info.reply);
     setPending(actionAllowed(area,info.action)&&typeof info.label==='string'&&info.label.trim()?{action:info.action,label:info.label}:null);
     return;
    }
-  }catch{if(!current())return;/* fallback local sem expor credenciais */}
-  finally{if(current()){requestRef.current.controller=null;setIsAnswering(false);}}
-  if(!current())return;
+  }catch{if(!latest())return;/* fallback local sem expor credenciais */}
+  finally{clearTimeout(deadline);if(latest()){requestRef.current.controller=null;setIsAnswering(false);}}
+  if(!latest())return;
   setProviderUnavailable(true);
   setReply(language==='pt'?(match?.message||generalHelp[language]):generalHelp[language]);
   setPending(match?.action&&match.label&&actionAllowed(area,match.action)?{action:match.action,label:match.label}:null);

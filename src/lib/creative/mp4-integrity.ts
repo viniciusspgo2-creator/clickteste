@@ -35,6 +35,66 @@ function requireBox(items:Box[],type:string){
  return match;
 }
 const children=(view:DataView,box:Box)=>boxes(view,box.payload,box.end);
+/** Read all sample sizes and chunk offsets so that a plausible stsz count alone
+ * cannot conceal missing/corrupted video bytes. The editor generates a single
+ * non-fragmented AVC track, so the full sample table must be present. */
+function assertVideoSamplesInsideMdat(
+ view:DataView,table:Box[],mdat:Box,frameCount:number,
+):void{
+ const stsz=requireBox(table,'stsz');
+ if(stsz.end-stsz.payload<12)throw new Error('MP4 com tabela de quadros incompleta.');
+ const defaultSize=view.getUint32(stsz.payload+4);
+ const declaredCount=view.getUint32(stsz.payload+8);
+ if(declaredCount!==frameCount)throw new Error('MP4 com contagem de amostras divergente.');
+ if(defaultSize===0&&stsz.end-stsz.payload<12+frameCount*4)
+  throw new Error('MP4 com tabela de tamanhos truncada.');
+ const sizeAt=(i:number)=>defaultSize||view.getUint32(stsz.payload+12+i*4);
+ const stsc=requireBox(table,'stsc');
+ if(stsc.end-stsc.payload<8)throw new Error('MP4 com mapa de chunks incompleto.');
+ const mapCount=view.getUint32(stsc.payload+4);
+ if(mapCount<1||stsc.end-stsc.payload<8+mapCount*12)
+  throw new Error('MP4 com mapa de chunks truncado.');
+ const offsetBox=table.find(b=>b.type==='stco'||b.type==='co64');
+ if(!offsetBox)throw new Error('MP4 sem tabela de offsets de vídeo.');
+ if(offsetBox.end-offsetBox.payload<8)throw new Error('MP4 com offsets incompletos.');
+ const is64=offsetBox.type==='co64';
+ const offsetCount=view.getUint32(offsetBox.payload+4);
+ if(offsetCount<1||offsetBox.end-offsetBox.payload<8+offsetCount*(is64?8:4))
+  throw new Error('MP4 com tabela de offsets truncada.');
+ const offsetAt=(i:number):number=>{
+  if(!is64)return view.getUint32(offsetBox.payload+8+i*4);
+  const value=view.getBigUint64(offsetBox.payload+8+i*8);
+  if(value>BigInt(Number.MAX_SAFE_INTEGER))throw new Error('MP4 com offset de vídeo inválido.');
+  return Number(value);
+ };
+ let sampleIndex=0,mapIndex=0,previousFirstChunk=0;
+ const maps:{firstChunk:number;samplesPerChunk:number}[]=[];
+ for(let i=0;i<mapCount;i++){
+  const pos=stsc.payload+8+i*12;
+  const firstChunk=view.getUint32(pos);
+  const samplesPerChunk=view.getUint32(pos+4);
+  const descriptionIndex=view.getUint32(pos+8);
+  if(firstChunk<=previousFirstChunk||firstChunk>offsetCount||samplesPerChunk<1||descriptionIndex<1)
+   throw new Error('MP4 com mapa de chunks inválido.');
+  maps.push({firstChunk,samplesPerChunk});previousFirstChunk=firstChunk;
+ }
+ if(maps[0].firstChunk!==1)throw new Error('MP4 com primeiro chunk inválido.');
+ for(let chunk=1;chunk<=offsetCount;chunk++){
+  if(mapIndex+1<maps.length&&maps[mapIndex+1].firstChunk===chunk)mapIndex++;
+  const chunkOffset=offsetAt(chunk-1);
+  const sampleCount=maps[mapIndex].samplesPerChunk;
+  if(sampleIndex+sampleCount>frameCount)throw new Error('MP4 declara mais amostras do que quadros.');
+  let totalBytes=0;
+  for(let i=0;i<sampleCount;i++){
+   const sampleBytes=sizeAt(sampleIndex++);
+   if(sampleBytes===0)throw new Error('MP4 contém quadro H.264 sem dados.');
+   totalBytes+=sampleBytes;
+  }
+  if(chunkOffset<mdat.payload||chunkOffset+totalBytes>mdat.end)
+   throw new Error('MP4 com quadro fora da área de dados mdat. O arquivo pode estar incompleto.');
+ }
+ if(sampleIndex!==frameCount)throw new Error('MP4 sem offsets para todos os quadros H.264.');
+}
 export function inspectRenderedMp4(
  buffer:ArrayBuffer,expected:{width:number;height:number;frames:number},
 ):Mp4IntegrityReport{
@@ -76,5 +136,6 @@ export function inspectRenderedMp4(
   throw new Error(`MP4 com resolução inesperada (${width}×${height}; esperado ${expected.width}×${expected.height}).`);
  if(frames!==expected.frames)
   throw new Error(`MP4 com quadros incompletos (${frames} de ${expected.frames}). A exportação foi interrompida.`);
+ assertVideoSamplesInsideMdat(view,stblChildren,mdat,frames);
  return {width,height,frames,codec:sample.type as 'avc1'|'avc3',bytes:buffer.byteLength};
 }

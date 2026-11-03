@@ -58,7 +58,7 @@ test('MP4: não entrega arquivo se encoder emitir menos quadros que o necessári
 test('Assistente: requisições anteriores são canceladas e ações são limitadas por módulo',()=>{
  const source=readFileSync(resolve(root,'src/components/creative/studio-concierge.tsx'),'utf8');
  assert.match(source,/requestRef\.current\.controller\?\.abort\(\)/);
- assert.match(source,/const current=\(\)=>requestRef\.current\.version===version&&!controller\.signal\.aborted/);
+ assert.match(source,/const latest=\(\)=>requestRef\.current\.version===version/);
  assert.match(source,/setPending\(null\);setConversation/);
  assert.match(source,/actionAllowed\(area,info\.action\)/);
  assert.match(source,/const actionsByArea:Record<Area,readonly Action\[]>/);

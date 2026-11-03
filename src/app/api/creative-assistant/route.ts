@@ -5,6 +5,7 @@
 import {NextRequest,NextResponse} from 'next/server';
 import {readAssistantBody,AssistantRequestError} from '@/lib/creative/assistant-request';
 import {sanitizeAssistantHistory} from '@/lib/creative/assistant-history';
+import {readAssistantProviderResponse} from '@/lib/creative/provider-response';
 export const runtime='nodejs';
 /** Disponibilidade sem expor chave, modelo ou informações privadas. */
 export function GET(){return NextResponse.json({ok:true,aiEnabled:Boolean(process.env.OPENAI_API_KEY)},{headers:{'Cache-Control':'no-store'}});}
@@ -48,11 +49,16 @@ export async function POST(req:NextRequest){
   const candidateLocale=(body as {locale?:unknown})?.locale;const locale=candidateLocale==='en'||candidateLocale==='es'?candidateLocale:'pt';
   if(!question||question.length>600)return NextResponse.json({ok:false,reason:'invalid_question'},{status:400});
   const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),15000);
-  let result:Response;
-  try{result=await fetch('https://api.openai.com/v1/chat/completions',{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},signal:controller.signal,body:JSON.stringify({model:process.env.CREATIVE_ASSISTANT_MODEL||'gpt-4o-mini',response_format:{type:'json_object'},temperature:.2,max_tokens:500,messages:[{role:'system',content:knowledge},{role:'user',content:JSON.stringify({area,locale,question,previousQuestions})}]})});}finally{clearTimeout(timer)}
-  if(!result.ok)return NextResponse.json({ok:false,reason:'provider_error'},{status:502});
-  const provider=await result.json();const content=provider?.choices?.[0]?.message?.content;
-  const output=JSON.parse(typeof content==='string'?content:'{}');
+  let output:Record<string,unknown>;
+  try{
+   const result=await fetch('https://api.openai.com/v1/chat/completions',{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},signal:controller.signal,body:JSON.stringify({model:process.env.CREATIVE_ASSISTANT_MODEL||'gpt-4o-mini',response_format:{type:'json_object'},temperature:.2,max_tokens:500,messages:[{role:'system',content:knowledge},{role:'user',content:JSON.stringify({area,locale,question,previousQuestions})}]})});
+   if(!result.ok)return NextResponse.json({ok:false,reason:'provider_error'},{status:502});
+   // Headers alone are not completion: bound and abort the full response body.
+   const provider=await readAssistantProviderResponse(result,controller.signal) as {choices?:{message?:{content?:unknown}}[]};
+   const content=provider?.choices?.[0]?.message?.content;
+   const parsed=JSON.parse(typeof content==='string'?content:'{}') as unknown;
+   output=parsed&&typeof parsed==='object'&&!Array.isArray(parsed)?parsed as Record<string,unknown>:{};
+  }finally{clearTimeout(timer)}
   const reply=typeof output.reply==='string'?output.reply.slice(0,1400):'Consulte o guia da ferramenta.';
   const allowed:readonly string[]=actionsByArea[area];
   const action=allowed.find(a=>a===output.action)||null;

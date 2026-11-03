@@ -1,7 +1,9 @@
-import {ensureDesignFonts} from './typefaces';
+import {ensureDesignFonts,waitForFontLayout} from './typefaces';
 import {animateDesignNode,type MotionPoint} from './animation';
 import {PixelBoundedCache,effectKey,clearAssetTokens} from './effect-cache';
 import {drawOutputWithMirror} from './export-transform';
+import {loadImageWithTimeout} from './async-image-load';
+import {assertExportBlobFormat, addPngDpiMetadata} from './image-export-integrity';
 /** Editor local: documento, desenho e exportação. Nada do usuário é enviado ao servidor. */
 export type NodeKind='text'|'image'|'rect'|'circle';
 export type DesignNode={id:string;kind:NodeKind;x:number;y:number;w:number;h:number;angle:number;opacity:number;
@@ -21,9 +23,13 @@ const images=new Map<string,Promise<HTMLImageElement>>();
 // Shared only between local renders; a 14-million-pixel budget is about 56 MB in RGBA.
 const rasterEffectCache=new PixelBoundedCache<HTMLCanvasElement>();
 export function imageFor(src:string){
- if(!images.has(src))images.set(src,new Promise((resolve,reject)=>{
-  const img=new Image();img.decoding='async';img.crossOrigin='anonymous';img.onload=()=>resolve(img);img.onerror=()=>{images.delete(src);reject(new Error('Não foi possível carregar a imagem.'));};img.src=src;
- }));return images.get(src)!;
+ const cached=images.get(src);if(cached)return cached;
+ const loading=loadImageWithTimeout(src);
+ images.set(src,loading);
+ // A failed request can be retried. If the cache was reset while it was
+ // pending, never remove a newer successful request for the same URL.
+ void loading.catch(()=>{if(images.get(src)===loading)images.delete(src);});
+ return loading;
 }
 export function invalidateImage(src:string){images.delete(src)}
 /** Free local image and mask buffers when a project is reset. Saved projects are untouched. */
@@ -89,7 +95,8 @@ export async function assertDesignAssetsReady(doc:DesignDocument):Promise<void>{
 }
 export async function drawDesign(canvas:HTMLCanvasElement,doc:DesignDocument,timeSeconds?:number,options?:{strict?:boolean}){
  const renderedNodes=(timeSeconds===undefined?doc.nodes:doc.nodes.map(n=>animateDesignNode(n,timeSeconds))).filter(n=>n.visible!==false);
- await ensureDesignFonts(renderedNodes.filter(x=>x.kind==='text').map(x=>x.font||'')).catch(()=>{});
+ const fontLoad=ensureDesignFonts(renderedNodes.filter(x=>x.kind==='text').map(x=>x.font||''));
+ if(options?.strict)await fontLoad;else await fontLoad.catch(()=>{});
  if(canvas.width!==doc.width)canvas.width=doc.width;if(canvas.height!==doc.height)canvas.height=doc.height;
  const ctx=canvas.getContext('2d');if(!ctx)throw new Error('Canvas indisponível');
  ctx.clearRect(0,0,doc.width,doc.height);
@@ -181,33 +188,17 @@ export async function asDataUrl(file:Blob,maxSide=4800):Promise<string>{
 export async function exportDesign(doc:DesignDocument,format:ExportFormat,scale:number,mirrorHorizontal=false):Promise<Blob>{
  const w=Math.round(doc.width*scale),h=Math.round(doc.height*scale);
  if(w>8192||h>8192||w*h>35_000_000)throw new Error('Resolução acima do limite seguro de exportação.');
- await assertDesignAssetsReady(doc);await document.fonts.ready;const base=document.createElement('canvas');await drawDesign(base,doc,undefined,{strict:true});
+ await assertDesignAssetsReady(doc);await waitForFontLayout();const base=document.createElement('canvas');await drawDesign(base,doc,undefined,{strict:true});
  const out=document.createElement('canvas');out.width=w;out.height=h;
  const ctx=out.getContext('2d');if(!ctx)throw new Error('Canvas indisponível');
  if(format==='jpeg'){ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);}
  drawOutputWithMirror(ctx,base,w,h,mirrorHorizontal);
  const blob=await new Promise<Blob>((resolve,reject)=>out.toBlob(b=>b?resolve(b):reject(new Error('Não foi possível gerar o arquivo.')),`image/${format}`,0.94));
+ // Alguns navegadores devolvem PNG mesmo quando WebP/JPEG foi solicitado.
+ // Verifique os bytes reais antes de gravar com a extensão escolhida.
+ await assertExportBlobFormat(blob,format);
  // Inclui pHYs com resolução física de 300 DPI nas estampas de caneca (escala 100%).
- return format==='png'&&scale===1&&((doc.width===2480&&doc.height===1122)||(doc.width===2244&&doc.height===1004))?await withPngDpi(blob,300):blob;
+ return format==='png'&&scale===1&&((doc.width===2480&&doc.height===1122)||(doc.width===2244&&doc.height===1004))?await addPngDpiMetadata(blob,300):blob;
 }
 export function saveBlob(blob:Blob,name:string){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60_000);}
 
-/** Insere metadados PNG pHYs (pixels por metro) sem alterar os pixels ou transferir dados. */
-async function withPngDpi(blob:Blob,dpi:number):Promise<Blob>{
- const bytes=new Uint8Array(await blob.arrayBuffer());
- if(bytes.length<33||bytes[0]!==137||bytes[1]!==80||bytes[2]!==78||bytes[3]!==71)return blob;
- const view=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);const meters=Math.round(dpi/0.0254);
- const chunk=new Uint8Array(21),cv=new DataView(chunk.buffer);
- cv.setUint32(0,9);chunk.set([112,72,89,115],4);cv.setUint32(8,meters);cv.setUint32(12,meters);chunk[16]=1;
- let crc=0xffffffff;for(let i=4;i<17;i++){crc^=chunk[i];for(let b=0;b<8;b++)crc=(crc>>>1)^(crc&1?0xedb88320:0);}
- cv.setUint32(17,(crc^0xffffffff)>>>0);
- // Localiza o fim do IHDR. O próprio browser gera PNGs válidos com IHDR inicial.
- if(view.getUint32(8)!==13||String.fromCharCode(...bytes.subarray(12,16))!=='IHDR')return blob;
- const end=8+12+view.getUint32(8);if(end>bytes.length)return blob;
- // Remova o pHYs nativo (quando presente) para manter um único valor coerente.
- if(end+21<=bytes.length&&view.getUint32(end)===9&&String.fromCharCode(...bytes.subarray(end+4,end+8))==='pHYs'){
-  const clone=new Uint8Array(bytes);clone.set(chunk,end);return new Blob([clone],{type:'image/png'});
- }
- const merged=new Uint8Array(bytes.length+chunk.length);merged.set(bytes.subarray(0,end));merged.set(chunk,end);merged.set(bytes.subarray(end),end+chunk.length);
- return new Blob([merged],{type:'image/png'});
-}

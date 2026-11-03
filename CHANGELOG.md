@@ -1,3 +1,81 @@
+## V5.14 — Integridade das imagens exportadas e 300 DPI (staging)
+
+- Exportação PNG/JPEG/WebP confere assinatura real antes do download; impede salvar PNG fallback com extensão `.webp` ou `.jpg`.
+- Metadados PNG de estampa: um único chunk `pHYs` correto com 300 DPI, removendo DPI antigo mesmo depois de outros chunks; mantém IDAT e demais metadados, recalcula CRC e rejeita PNG estruturalmente truncado.
+- 10 novos testes, inclusive `exportDesign` integrado; 193/193 testes aprovados, 676 imports relativos sem problemas e prova real no Chromium com bytes, metadados e pixel intacto.
+- Sem alterações de schema, API, produção ou configuração de variáveis. Build Next.js completo e homologação integrada ainda pendentes em CI/`clickteste` (Prisma local indisponível).
+- Relatório: `docs/CLICKGRUDA-V5-14-INTEGRIDADE-IMAGENS-DPI.md`.
+
+## V5.13 — Timeout completo no recebimento de perguntas do assistente (staging)
+
+- O corpo da solicitação do assistente agora tem **prazo máximo de 8 segundos**, inclusive uploads fragmentados sem `Content-Length`. Conexões interrompidas também liberam a leitura e retornam HTTP 408 quando o servidor ainda pode responder.
+- Preserva o limite de 4096 bytes para perguntas, validação JSON/MIME e a privacidade do projeto; limpa leitores, listeners e timer nas falhas.
+- Sete novos testes de regressão, incluindo uma chamada real do handler da rota com corpo suspenso e confirmação de que o provedor não foi chamado. **183/183 testes aprovados, 675 imports locais resolvidos, tipagem estrita isolada aprovada.**
+- Sem alterações Neon/R2 e sem deploy; build Next.js completo, API real e cenários browser end-to-end continuam pendentes.
+- Relatório: `docs/CLICKGRUDA-V5-13-REQUESTS-ASSISTENTE.md`.
+
+## V5.12 — Resiliência real do assistente IA (staging)
+
+- Timeout de 15 s do endpoint agora protege desde a conexão até o **final do corpo HTTP** da resposta do provedor, inclusive JSON fragmentado.
+- Leitura de resposta limitada a 16 KiB, inclusive quando o provedor não envia `Content-Length`; UTF-8/JSON inválidos geram fallback seguro sem expor credenciais.
+- Interface do assistente: POST limitado a 20 s, GET de disponibilidade limitado a 6 s, sem spinner preso ou respostas antigas sobrescrevendo perguntas recentes.
+- 9 testes de regressão novos e integração com provedor simulado: **176/176** testes aprovados, **675** imports internos resolvidos, tipagem isolada do novo módulo aprovada.
+- Nenhuma migração Neon, nenhuma nova variável, nenhum deploy realizado. Build Next.js completo e conexão com API real ainda precisam de homologação na `clickteste`.
+- Relatório: `docs/CLICKGRUDA-V5-12-ASSISTENTE-RESILIENCIA.md`.
+
+## V5.11 — Fontes confiáveis e intervalo MP4 seguro (staging)
+
+- Carregamento de fontes premium com prazo de 12 segundos, detecção de fonte ausente, limpeza do recurso em falhas e repetição após erro.
+- O Editor mantém prévias tolerantes, mas exportação em modo `strict` deixa de aceitar silenciosamente uma fonte substituta quando a fonte pedida falha.
+- Espera por `document.fonts.ready` limitada; exportação passa a informar erro claro em conexões instáveis.
+- MP4 com início do trecho fora da duração real agora é rejeitado em vez de exportar um clipe inesperado dos últimos instantes.
+- 167 testes automatizados aprovados, 674 imports verificados, tipagem isolada aprovada e prova de timeout/erro no Chromium.
+- **Limite:** build Next.js e reprodução MP4 real ainda pendentes de homologação na `clickteste`. Sem migração Neon, sem alteração de variáveis e sem deploy.
+- Relatório: `docs/CLICKGRUDA-V5-11-FONTES-MP4-HOMOLOGACAO.md`.
+
+## V5.10 — carregamento de imagens com tempo limite e recuperação segura (staging)
+
+- Cria `src/lib/creative/async-image-load.ts` com carregamento de imagem limitado a 15 segundos por recurso e falha explícita para imagem sem dimensões. Um recurso inacessível não mantém a prévia, a exportação ou a restauração do projeto pendentes indefinidamente.
+- `design.ts`: utiliza carregador compartilhado, permite tentar novamente após erro e protege o cache: uma solicitação antiga não apaga a promessa de carregamento mais recente após limpar a sessão.
+- `project-media-check.ts`: limita a 12 segundos o diagnóstico de cada imagem ou máscara durante a abertura de projetos `.cgdesign` ou recuperação local; continua preservando a arte atual se houver falha de mídia.
+- Oito testes de regressão novos, incluindo timeout, imagem sem dimensões, falha de rede simulada, resposta tardia, projeto com máscara quebrada e limpeza de cache após troca de documento.
+- Teste em Chromium real com PNG válido, PNG inválido e imagem simulada sem resposta. **Nenhum deploy foi executado.**
+- Não altera Neon/Prisma, variáveis de ambiente, Studio 3D, formatos de exportação nem configuração de infraestrutura.
+
+## V5.9 — Integridade real de amostras MP4 (staging)
+
+- A validação final do vídeo agora cruza `stsz` (tamanho dos quadros), `stsc` (mapa de chunks), `stco`/`co64` (offsets) e `mdat` (dados reais), impedindo download quando quadros declarados extrapolam os bytes do arquivo.
+- Aceita arquivos MP4 H.264 legítimos com `moov` antes ou depois de `mdat`, sem assumir a ordem das caixas.
+- Status de progresso 100% apenas depois da verificação do MP4, evitando mensagem enganosa antes da conclusão.
+- Oito testes novos cobrem vídeos reais, amostras adulteradas e regressão. Sem alteração de banco ou variáveis.
+- O verificador estrutural não decodifica o fluxo H.264 completo: reprodução real continua dependendo de homologação no navegador.
+
+## V5.8 — Segurança de importações e seleção de arquivos (staging)
+
+- Sessões de composição invalidam uploads assíncronos quando o usuário reseta, abre outro arquivo ou troca para um novo template; decodificação tardia de imagem não insere camadas num projeto novo.
+- Máscaras e arquivos MP4 locais, PDFs/PSDs e carregamento de fontes respeitam a mesma proteção. Fontes são aplicadas ao texto inicialmente selecionado, se ele ainda existir.
+- Consultas antigas à biblioteca administrativa não sobrescrevem resultados de buscas mais recentes.
+- Transferência Studio → Editor protegida contra resultado atrasado, preservando URLs com preset e handoff juntos.
+- Dez novos testes de regressão; 140/140 aprovados. 270 arquivos de código e 672 imports verificados. Sem migração/variáveis novas.
+- Build Next.js completo ainda não foi executado localmente: dependências npm/Prisma indisponíveis.
+
+## V5.7 — Rascunhos protegidos contra gravações concorrentes (staging)
+
+- Serializa salvamentos automáticos e exclusão do IndexedDB; invalida gravações antigas após reset ou troca de projeto.
+- Restauração automática só aplica o rascunho se a composição não foi editada enquanto os dados eram carregados.
+- Inspeção de imagem/máscara antes de restaurar rascunhos; referências temporárias obsoletas são descartadas com aviso.
+- 130/130 testes locais; 671 imports resolvidos; prova isolada de concorrência no Chromium. Build Next.js completo ainda pendente de dependências.
+- Relatório: `docs/CLICKGRUDA-V5-7-HOMOLOGACAO-RASCUNHOS.md`.
+
+## V5.6 — Recuperação segura de projetos e prevenção de perda de trabalho (staging)
+
+- Pré-verificação de imagens, máscaras e vídeo antes de abrir backups `.cgdesign` e projetos do histórico local; falhas nas camadas impedem substituir a arte corrente.
+- Resultado de importação obsoleto é descartado caso o usuário tenha editado a arte ou iniciado outro carregamento.
+- Confirmação ao abrir outro projeto sobre uma composição em andamento e ao sair da tela com alterações não salvas.
+- Decodificação paralela limitada a três mídias, reutilizando checagem de referências repetidas.
+- 124 testes automatizados aprovados, 670 imports internos verificados e prova visual isolada no Chromium. Build Next.js completo pendente.
+- Relatório: `docs/CLICKGRUDA-V5-6-RECUPERACAO-SEGURA.md`.
+
 ## V5.5 — Proteção do backup local e projetos portáteis (staging)
 
 - Exportação `.cgdesign` agora incorpora imagens, máscaras e vídeos que utilizam referências `blob:`/HTTPS, com erro explícito para recursos não recuperáveis.

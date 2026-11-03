@@ -53,7 +53,7 @@ test('V5.4: template loader guards admin, local and demonstration imports',()=>{
  assert.match(source,/canCommitAsyncTemplate\(request,templateRequestRef\.current,captured,stateRef\.current/);
  assert.match(source,/commitSmartTemplate\(request,captured,template\)/);
  assert.match(source,/commitSmartTemplate\(request,captured,a\)/);
- assert.match(source,/\+\+templateRequestRef\.current;const base=makeBuiltInPreset/);
+ assert.match(source,/\+\+templateRequestRef\.current;documentSessionRef\.current\.replace\(\);const base=makeBuiltInPreset/);
  assert.doesNotMatch(source,/isStillCurrentDocument\(/);
 });
 test('V5.4: GitHub pipeline runs tests, generates Prisma Client and checks types before build',()=>{

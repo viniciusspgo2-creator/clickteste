@@ -6,6 +6,9 @@ import { asDataUrl,blankDocument,clearDesignRenderCache,drawDesign,exportDesign,
 import { readHandoff } from '@/lib/creative/handoff';
 import {detachAutomaticSmartMask,replaceFlatScene,canCommitAsyncTemplate} from '@/lib/creative/template-transition';
 import {validateProjectDocument} from '@/lib/creative/validate-project';
+import {canApplyLoadedProject,inspectProjectMedia} from '@/lib/creative/project-media-check';
+import {DraftWriteQueue} from '@/lib/creative/draft-write-queue';
+import {DocumentSession} from '@/lib/creative/document-session';
 import {createPortableProjectBlob,makePortableDocument,hasTemporaryMedia} from '@/lib/creative/portable-project';
 import {builtInPresets,makeBuiltInPreset,type PresetId} from '@/lib/creative/presets';
 import {resizeFromCorner,type Corner} from '@/lib/creative/geometry';
@@ -39,8 +42,15 @@ export function CreativeEditor(){
  const [history,setHistory]=useState<DesignDocument[]>([blankDocument()]);
  const [step,setStep]=useState(0);
  const stateRef=useRef({history,step});
+ // Última composição que teve um backup local ou rascunho concluído de verdade.
+ const savedDocumentRef=useRef<DesignDocument>(history[0]);
  // Um pedido mais recente invalida qualquer carregamento de template ainda pendente.
  const templateRequestRef=useRef(0);
+ const projectLoadRef=useRef(0);
+ const assetsRequestRef=useRef(0);
+ const autoDraftQueueRef=useRef<DraftWriteQueue>(new DraftWriteQueue());
+ // Cancels late media/font imports when a different document has been opened.
+ const documentSessionRef=useRef<DocumentSession>(new DocumentSession());
  const doc=history[step];
  const [selected,setSelected]=useState<string|null>(null);
  const [panel,setPanel]=useState<Panel>('templates');
@@ -98,14 +108,18 @@ export function CreativeEditor(){
  const put=(node:DesignNode)=>{update(d=>({...d,nodes:[...d.nodes,node]}));setSelected(node.id);};
  const addText=(value='Seu texto aqui')=>{const n:DesignNode={id:uid(),kind:'text',aspectLock:true,x:doc.width*.1,y:doc.height*.39,w:doc.width*.8,h:150,angle:0,opacity:1,text:value,font:'Arial',size:Math.round(doc.width*.065),bold:true,fill:'#ffffff',shadow:0};put(n);};
  const addShape=(kind:'rect'|'circle')=>{put({id:uid(),kind,x:doc.width*.25,y:doc.height*.36,w:doc.width*.5,h:doc.width*.35,angle:0,opacity:1,fill:'#ff8525',radius:24,shadow:6});};
- const addImage=useCallback(async(src:string,preselect=true,role:'content'|'mockup'='content')=>{
-  try{const image=await imageFor(src);const id=uid();
+ const addImage=useCallback(async(src:string,preselect=true,role:'content'|'mockup'='content',expectedSession?:number)=>{
+  const session=expectedSession??documentSessionRef.current.capture();
+  if(!documentSessionRef.current.isCurrent(session))return;
+  try{const image=await imageFor(src);
+   if(!documentSessionRef.current.isCurrent(session))return;
+   const id=uid();
    update(d=>{const slot=role==='mockup'?d.smartTemplate?.slot:undefined;
     const f=slot?Math.min(slot.w/image.naturalWidth,slot.h/image.naturalHeight):Math.min(1,d.width*.72/image.naturalWidth,d.height*.8/image.naturalHeight);
     const w=image.naturalWidth*f,h=image.naturalHeight*f;
     const n:DesignNode={id,kind:'image',role,aspectLock:true,src,x:slot?slot.x+(slot.w-w)/2:(d.width-w)/2,y:slot?slot.y+(slot.h-h)/2:(d.height-h)/2,w,h,maskSrc:slot?d.smartTemplate?.maskSrc:undefined,maskMode:slot?d.smartTemplate?.maskMode:undefined,maskInvert:slot?d.smartTemplate?.maskInvert:undefined,maskSpace:slot?'canvas':undefined,angle:0,opacity:1,shadow:role==='mockup'?0:12,brightness:100,contrast:100,saturation:100};
     return {...d,nodes:[...d.nodes,n]};});if(preselect)setSelected(id);
-  }catch(e){setNotice(e instanceof Error?e.message:'Não foi possível abrir o arquivo.');}
+  }catch(e){if(documentSessionRef.current.isCurrent(session))setNotice(e instanceof Error?e.message:'Não foi possível abrir o arquivo.');}
  },[update]);
  const applyTemplate=useCallback(async(src:string,role:'template'|'background'='template')=>{
    const captured=stateRef.current.history[stateRef.current.step];
@@ -126,10 +140,11 @@ export function CreativeEditor(){
    if(request===templateRequestRef.current)setNotice('A arte mudou durante a importação. Selecione o template novamente para preservar suas alterações.');
    return false;
   }
+  documentSessionRef.current.replace();
   update(()=>result.document);setSelected(null);setPanel('layers');setNotice(result.warning);
   return true;
  };
- const applyPreset=(preset:PresetId)=>{++templateRequestRef.current;const base=makeBuiltInPreset(preset);update(d=>{
+ const applyPreset=(preset:PresetId)=>{++templateRequestRef.current;documentSessionRef.current.replace();const base=makeBuiltInPreset(preset);update(d=>{
    const keep=detachAutomaticSmartMask(d).filter(n=>n.role!=='template'&&n.role!=='background'&&n.role!=='foreground');
    // O layout troca. O mockup e os elementos do usuário são mantidos e adaptados à nova tela.
    const f=Math.min(base.width/d.width,base.height/d.height);const ox=(base.width-d.width*f)/2,oy=(base.height-d.height*f)/2;
@@ -142,12 +157,19 @@ export function CreativeEditor(){
   }catch(e){setNotice(e instanceof Error?e.message:'Não foi possível ler estas fontes.');}finally{setBusy(false)}
  };
  const chooseFont=async(name:string,asset?:Pick<Asset,'id'|'name'|'url'>)=>{
+  const session=documentSessionRef.current.capture();
+  const targetId=active?.kind==='text'?active.id:null;
   try{
    if(asset){const face=new FontFace(asset.name,`url("${asset.url}")`);await face.load();document.fonts.add(face);}
    else if(isCuratedTypeface(name))await loadCuratedTypeface(name);
-   if(active?.kind==='text')patch(active.id,{font:name});else{addText('Sua frase especial');const selectedId=stateRef.current.history[stateRef.current.step].nodes.at(-1)?.id;if(selectedId)patch(selectedId,{font:name});}
+   if(!documentSessionRef.current.isCurrent(session))return;
+   if(targetId){
+    // A fonte pertence ao texto selecionado quando a importação começou.
+    if(!stateRef.current.history[stateRef.current.step].nodes.some(n=>n.id===targetId&&n.kind==='text'))return;
+    patch(targetId,{font:name});
+   }else{addText('Sua frase especial');const selectedId=stateRef.current.history[stateRef.current.step].nodes.at(-1)?.id;if(selectedId)patch(selectedId,{font:name});}
    setNotice(`Fonte ${name} selecionada para sua arte.`);
-  }catch{setNotice('Não foi possível carregar essa fonte. Confira sua conexão e o arquivo.');}
+  }catch{if(documentSessionRef.current.isCurrent(session))setNotice('Não foi possível carregar essa fonte. Confira sua conexão e o arquivo.');}
  };
  const setVideoTemplate=(src:string,name:string)=>{
   update(d=>({...d,background:'transparent',video:{src,name,start:0}}));
@@ -176,11 +198,13 @@ export function CreativeEditor(){
   }else void addImage(a.url);
  };
  const loadAssets=useCallback(async(page:number,append=false)=>{
-  if(!kind){setAssets([]);return;}
+  const request=++assetsRequestRef.current;
+  if(!kind){setAssets([]);setAssetTotal(0);return;}
   try{const q=new URLSearchParams({kind,page:String(page),q:assetQuery});if(panel==='personagens')q.set('category','Personagens');const res=await fetch(`/api/creative-assets?${q}`,{cache:'no-store'});
-   const data=await res.json();if(!data.ok)throw new Error(data.error);
+   const data=await res.json();if(request!==assetsRequestRef.current)return;
+   if(!data.ok)throw new Error(data.error);
    setAssets(prev=>append?[...prev,...data.items]:data.items);setAssetTotal(data.total);setAssetPage(page);
-  }catch{setAssets([]);setAssetTotal(0);setNotice('Biblioteca administrativa indisponível; seus arquivos locais continuam funcionando.');}
+  }catch{if(request===assetsRequestRef.current){setAssets([]);setAssetTotal(0);setNotice('Biblioteca administrativa indisponível; seus arquivos locais continuam funcionando.');}}
  },[kind,assetQuery,panel]);
  useEffect(()=>{void loadAssets(1);},[loadAssets]);
  useEffect(()=>{
@@ -195,18 +219,41 @@ export function CreativeEditor(){
   return()=>{renderId.current++};
  },[doc,fontRevision,previewSecond]);
  // Handoff: dados binários ficam exclusivamente no IndexedDB do navegador.
- useEffect(()=>{let mounted=true;void (async()=>{
+ useEffect(()=>{let mounted=true;let initialSession=documentSessionRef.current.capture();void (async()=>{
   try{
    const params=new URLSearchParams(window.location.search);
    const preset=params.get('preset');
    if(preset&&builtInPresets.some(p=>p.id===preset)){
     const d=makeBuiltInPreset(preset as PresetId);
-    stateRef.current={history:[d],step:0};setHistory([d]);setStep(0);
+    documentSessionRef.current.replace();
+    initialSession=documentSessionRef.current.capture();
+    stateRef.current={history:[d],step:0};savedDocumentRef.current=d;setHistory([d]);setStep(0);
    }
    const handoff=params.get('from')==='mockup'?await readHandoff():null;
    // Handoff and links to templates win over the last automatic draft.
-   if(!handoff&&!preset&&!params.has('asset')&&mounted){try{const saved=await readCreativeProject(LOCAL_DRAFT_ID);if(saved&&Date.now()-saved.updatedAt<14*24*3600000){validateProjectDocument(saved.document);stateRef.current={history:[saved.document],step:0};setHistory([saved.document]);setStep(0);setNotice('Rascunho deste navegador restaurado.');}}catch{/* use a blank document when local storage is unavailable */}}
-   if(handoff&&mounted){const data=await asDataUrl(handoff);if(mounted){
+   if(!handoff&&!preset&&!params.has('asset')&&mounted){
+    const captured=stateRef.current.history[stateRef.current.step],request=projectLoadRef.current;
+    try{
+     const saved=await readCreativeProject(LOCAL_DRAFT_ID);
+     if(saved&&Date.now()-saved.updatedAt<14*24*3600000){
+      validateProjectDocument(saved.document);
+      if(hasTemporaryMedia(saved.document))throw new Error('O rascunho contém mídias temporárias que não podem ser restauradas.');
+      const issues=await inspectProjectMedia(saved.document);
+      if(mounted&&canApplyLoadedProject(request,projectLoadRef.current,captured,stateRef.current.history[stateRef.current.step])){
+       const broken=issues.filter(issue=>issue.severity==='error');
+       if(broken.length)setNotice(`Rascunho automático não restaurado: ${broken.map(issue=>issue.name).join(', ')}. A arte atual foi preservada.`);
+       else{
+        const d=saved.document;
+        documentSessionRef.current.replace();
+        stateRef.current={history:[d],step:0};savedDocumentRef.current=d;setHistory([d]);setStep(0);
+        setNotice(issues.length?'Rascunho restaurado, mas o vídeo precisa ser reimportado.':'Rascunho deste navegador restaurado.');
+       }
+      }
+     }
+    }catch{if(mounted&&canApplyLoadedProject(request,projectLoadRef.current,captured,stateRef.current.history[stateRef.current.step]))setNotice('O rascunho antigo não pôde ser recuperado. A arte atual foi preservada.');}
+   }
+   if(handoff&&mounted&&documentSessionRef.current.isCurrent(initialSession)){const data=await asDataUrl(handoff);if(mounted&&documentSessionRef.current.isCurrent(initialSession)){
+    documentSessionRef.current.replace();
     update(d=>({...d,width:1080,height:1350,background:'#141112'}));await addImage(data,true,'mockup');setPanel('templates');
     // Remove o gatilho da URL para não sobrescrever um rascunho após recarregar.
     params.delete('from');const query=params.toString();
@@ -222,7 +269,23 @@ export function CreativeEditor(){
  // eslint-disable-next-line react-hooks/exhaustive-deps
  },[]);
  // Rascunho local temporário, sem requisições à API. Navegador pode apagar dados automaticamente.
- useEffect(()=>{if(!draftReady||hasTemporaryMedia(doc))return;const timer=window.setTimeout(()=>{void saveCreativeProject(doc,'Rascunho automático',LOCAL_DRAFT_ID).catch(()=>{/* Quota indisponível: o usuário ainda pode exportar .cgdesign */});},4500);return()=>clearTimeout(timer);},[doc,draftReady]);
+ useEffect(()=>{if(!draftReady||hasTemporaryMedia(doc))return;const snapshot=doc;const timer=window.setTimeout(()=>{
+   void autoDraftQueueRef.current.save(
+    ()=>stateRef.current.history[stateRef.current.step]===snapshot,
+    async()=>{await saveCreativeProject(snapshot,'Rascunho automático',LOCAL_DRAFT_ID);},
+   ).then(committed=>{
+    if(committed)savedDocumentRef.current=snapshot;
+   }).catch(()=>{/* Quota indisponível: o usuário ainda pode exportar .cgdesign */});
+  },4500);return()=>clearTimeout(timer);},[doc,draftReady]);
+ // O navegador decide como exibir o aviso. Jamais armazena uma arte sem o usuário saber.
+ useEffect(()=>{const beforeUnload=(event:BeforeUnloadEvent)=>{
+  const current=stateRef.current.history[stateRef.current.step];
+  if(current!==savedDocumentRef.current&&(current.nodes.length>0||Boolean(current.video)||Boolean(current.smartTemplate))){event.preventDefault();event.returnValue='';}
+ };window.addEventListener('beforeunload',beforeUnload);return()=>window.removeEventListener('beforeunload',beforeUnload);},[]);
+ const confirmLeaveEditor=()=>{
+  const current=stateRef.current.history[stateRef.current.step];
+  return current===savedDocumentRef.current||(!current.nodes.length&&!current.video&&!current.smartTemplate)||window.confirm('Existem alterações ainda não salvas. Exporte um .cgdesign antes de sair para preservar sua arte. Deseja sair mesmo assim?');
+ };
  // Catálogo administrativo: o arquivo binário é carregado apenas ao escolher a fonte.
  const [fontAssets,setFontAssets]=useState<Asset[]>([]);
  useEffect(()=>{void fetch('/api/creative-assets?kind=font').then(r=>r.json()).then(d=>setFontAssets((d.items||[]) as Asset[])).catch(()=>{});},[]);
@@ -285,11 +348,28 @@ export function CreativeEditor(){
  };
  const undo=()=>{const state=stateRef.current;const newStep=Math.max(0,state.step-1);stateRef.current={...state,step:newStep};setStep(newStep);setSelected(null)};
  const redo=()=>{const state=stateRef.current;const newStep=Math.min(state.history.length-1,state.step+1);stateRef.current={...state,step:newStep};setStep(newStep);setSelected(null)};
- const resetDocument=()=>{clearDesignRenderCache();const next=blankDocument();stateRef.current={history:[next],step:0};setHistory([next]);setStep(0);setSelected(null);setSceneDragId(null);setPanel('backgrounds');setGuides(true);setEyedropper(null);setResetOpen(false);void deleteAutomaticDraft().catch(()=>{});setNotice('Projeto reiniciado. Arquivos salvos anteriormente no seu navegador continuam disponíveis em Histórico local.');};
+ const resetDocument=()=>{++projectLoadRef.current;documentSessionRef.current.replace();setBusy(false);clearDesignRenderCache();const next=blankDocument();stateRef.current={history:[next],step:0};savedDocumentRef.current=next;setHistory([next]);setStep(0);setSelected(null);setSceneDragId(null);setPanel('backgrounds');setGuides(true);setEyedropper(null);setResetOpen(false);void autoDraftQueueRef.current.reset(deleteAutomaticDraft).catch(()=>{setNotice('Arte reiniciada, mas não foi possível apagar o rascunho antigo do navegador.');});setNotice('Projeto reiniciado. Arquivos salvos anteriormente no seu navegador continuam disponíveis em Histórico local.');};
  const refreshLocalProjects=async()=>{try{setLocalProjects((await listCreativeProjects()).filter(p=>p.id!==LOCAL_DRAFT_ID));}catch{setNotice('O histórico local deste navegador está indisponível.');}};
  const openHistory=()=>{setHistoryOpen(true);void refreshLocalProjects()};
- const saveLocal=async()=>{try{const snapshot=hasTemporaryMedia(doc)?await makePortableDocument(doc):doc;const project=await saveCreativeProject(snapshot,`Arte de caneca · ${new Date().toLocaleDateString('pt-BR')}`);setNotice('Projeto salvo no navegador. Salve também um .cgdesign para ter uma cópia segura.');}catch(e){setNotice(e instanceof Error?e.message:'Não foi possível salvar no navegador.');}};
- const restoreLocal=async(id:string)=>{try{const project=await readCreativeProject(id);if(!project)return;const d=project.document;validateProjectDocument(d);stateRef.current={history:[d],step:0};setHistory([d]);setStep(0);setSelected(null);setHistoryOpen(false);setNotice('Projeto do histórico local recuperado.');}catch{setNotice('Não foi possível recuperar este projeto.');}};
+ const saveLocal=async()=>{try{const snapshot=hasTemporaryMedia(doc)?await makePortableDocument(doc):doc;const project=await saveCreativeProject(snapshot,`Arte de caneca · ${new Date().toLocaleDateString('pt-BR')}`);if(stateRef.current.history[stateRef.current.step]===doc)savedDocumentRef.current=doc;setNotice('Projeto salvo no navegador. Salve também um .cgdesign para ter uma cópia segura.');}catch(e){setNotice(e instanceof Error?e.message:'Não foi possível salvar no navegador.');}};
+ const restoreLocal=async(id:string)=>{
+  const captured=stateRef.current.history[stateRef.current.step],request=++projectLoadRef.current;
+  setBusy(true);
+  try{
+   const project=await readCreativeProject(id);if(!project)return;
+   const d=project.document;validateProjectDocument(d);
+   const issues=await inspectProjectMedia(d);
+   if(!canApplyLoadedProject(request,projectLoadRef.current,captured,stateRef.current.history[stateRef.current.step])){setNotice('A composição mudou durante a recuperação. Abra o projeto novamente para não perder suas alterações.');return;}
+   const broken=issues.filter(i=>i.severity==='error');
+   if(broken.length)throw new Error(`O projeto contém mídias inacessíveis: ${broken.map(i=>i.name).join(', ')}. Reimporte os arquivos antes de continuar.`);
+   ++templateRequestRef.current;
+   documentSessionRef.current.replace();
+   void autoDraftQueueRef.current.reset(deleteAutomaticDraft).catch(()=>{});
+   stateRef.current={history:[d],step:0};savedDocumentRef.current=d;setHistory([d]);setStep(0);setSelected(null);setHistoryOpen(false);
+   setNotice(issues.length?'Projeto recuperado, mas o vídeo precisa ser reimportado para pré-visualização.':'Projeto do histórico local recuperado.');
+  }catch(e){if(request===projectLoadRef.current)setNotice(e instanceof Error?e.message:'Não foi possível recuperar este projeto.');}
+  finally{if(request===projectLoadRef.current)setBusy(false);}
+ };
  const applyColor=(color:string,target:'background'|'element')=>{if(target==='background')update(d=>({...d,background:color}));else if(active)patch(active.id,active.kind==='image'?{tint:color}:{fill:color});};
  const pickScreenColor=async(target:'background'|'element')=>{
   try{const C=(window as typeof window & {EyeDropper?:new()=>{open:()=>Promise<{sRGBHex:string}>}}).EyeDropper;
@@ -322,19 +402,31 @@ export function CreativeEditor(){
  // callbacks intentionally track the latest state
  // eslint-disable-next-line react-hooks/exhaustive-deps
  },[doc,step,selected,history]);
- const loadLayeredDocument=(next:DesignDocument,info:string)=>{
-  if(doc.nodes.length&&!window.confirm('A importação substituirá a composição atual. Você poderá desfazer com Ctrl+Z. Continuar?'))return;
+ const loadLayeredDocument=(next:DesignDocument,info:string,expectedSession:number)=>{
+  if(!documentSessionRef.current.isCurrent(expectedSession))return false;
+  const current=stateRef.current.history[stateRef.current.step];
+  if(current.nodes.length&&!window.confirm('A importação substituirá a composição atual. Você poderá desfazer com Ctrl+Z. Continuar?'))return false;
+  if(!documentSessionRef.current.isCurrent(expectedSession))return false;
+  documentSessionRef.current.replace();
   update(()=>next);setSelected(null);setNotice(info);
+  return true;
  };
  const readMask=async(file?:File)=>{if(!file||!active||active.kind!=='image')return;
-  try{const src=await readLocalAsset(file);patch(active.id,{maskSrc:src,maskMode:active.maskMode||'luminance',maskInvert:active.maskInvert??false,maskSpace:'element'});setNotice('Máscara aplicada localmente. Escolha o modo branco/preto ou transparência nos controles do objeto.');}
-  catch(e){setNotice(e instanceof Error?e.message:'Máscara inválida');}
-  if(maskRef.current)maskRef.current.value='';
+  const session=documentSessionRef.current.capture();const targetId=active.id;
+  try{const src=await readLocalAsset(file);
+   if(!documentSessionRef.current.isCurrent(session))return;
+   const target=stateRef.current.history[stateRef.current.step].nodes.find(n=>n.id===targetId&&n.kind==='image');
+   if(!target)return;
+   patch(targetId,{maskSrc:src,maskMode:target.maskMode||'luminance',maskInvert:target.maskInvert??false,maskSpace:'element'});setNotice('Máscara aplicada localmente. Escolha o modo branco/preto ou transparência nos controles do objeto.');}
+  catch(e){if(documentSessionRef.current.isCurrent(session))setNotice(e instanceof Error?e.message:'Máscara inválida');}
+  finally{if(maskRef.current)maskRef.current.value='';}
  };
  const upload=async(files:FileList|null)=>{
   if(!files?.length)return;
+  let session=documentSessionRef.current.capture();
   setBusy(true);try{
    for(const file of Array.from(files).slice(0,8)){
+    if(!documentSessionRef.current.isCurrent(session))break;
     if(/\.pdf$/i.test(file.name)){
      // Conta páginas sem renderizar a primeira em alta resolução desnecessariamente.
      const pages=await inspectPdfPageCount(file);
@@ -345,10 +437,10 @@ export function CreativeEditor(){
       if(!Number.isInteger(page)||page<1||page>pages)throw new Error('Número de página PDF inválido');
      }
      const extracted=await importPdfEditable(file,page);
-     loadLayeredDocument(extracted.document,`PDF: ${extracted.count} trechos de texto separados. ${extracted.warning}`);
+     if(loadLayeredDocument(extracted.document,`PDF: ${extracted.count} trechos de texto separados. ${extracted.warning}`,session))session=documentSessionRef.current.capture();
     }else if(/\.psd$/i.test(file.name)){
      const extracted=await importPsdLayers(file);
-     loadLayeredDocument(extracted.document,`PSD: ${extracted.count} camadas raster móveis. ${extracted.warning}`);
+     if(loadLayeredDocument(extracted.document,`PSD: ${extracted.count} camadas raster móveis. ${extracted.warning}`,session))session=documentSessionRef.current.capture();
     }else if(/\.cgtemplate$/i.test(file.name)){
      const captured=stateRef.current.history[stateRef.current.step];
      const request=++templateRequestRef.current;
@@ -357,10 +449,10 @@ export function CreativeEditor(){
     }else if(/\.mp4$/i.test(file.name)){
      if(file.size>30*1024*1024)throw new Error('Vídeo acima de 30 MB; otimize o MP4 antes de importar.');
      const src=await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=()=>reject(new Error('Vídeo inválido'));reader.readAsDataURL(file)});
-     setVideoTemplate(src,file.name);
-    }else{const src=await readLocalAsset(file);await addImage(src);}
+     if(documentSessionRef.current.isCurrent(session))setVideoTemplate(src,file.name);
+    }else{const src=await readLocalAsset(file);await addImage(src,true,'content',session);}
    }
-  }catch(e){setNotice(e instanceof Error?e.message:'Falha ao importar arquivo');}finally{setBusy(false);if(fileRef.current)fileRef.current.value='';}
+  }catch(e){if(documentSessionRef.current.isCurrent(session))setNotice(e instanceof Error?e.message:'Falha ao importar arquivo');}finally{setBusy(false);if(fileRef.current)fileRef.current.value='';}
  };
  const checkVideoCompatibility=async()=>{
   if(!doc.video)return;
@@ -389,21 +481,37 @@ export function CreativeEditor(){
   setBusy(true);try{const blob=await exportDesign(doc,format,scale,mirrorPrint);saveBlob(blob,`click-gruda-criativo-${doc.width*scale}x${doc.height*scale}${mirrorPrint?'-espelhado':''}.${format==='jpeg'?'jpg':format}`);setExportOpen(false);}
   catch(e){setNotice(e instanceof Error?e.message:'Erro ao exportar');}finally{setBusy(false);}
  };
- const saveProject=async()=>{setBusy(true);try{const blob=await createPortableProjectBlob(doc);saveBlob(blob,'meu-projeto-clickgruda.cgdesign');setNotice('Backup portátil gerado neste navegador, com imagens e vídeos incorporados.');}catch(e){setNotice(e instanceof Error?e.message:'Não foi possível criar o backup portátil.');}finally{setBusy(false);}};
+ const saveProject=async()=>{setBusy(true);try{const blob=await createPortableProjectBlob(doc);saveBlob(blob,'meu-projeto-clickgruda.cgdesign');if(stateRef.current.history[stateRef.current.step]===doc)savedDocumentRef.current=doc;setNotice('Backup portátil gerado neste navegador, com imagens e vídeos incorporados.');}catch(e){setNotice(e instanceof Error?e.message:'Não foi possível criar o backup portátil.');}finally{setBusy(false);}};
  const readProject=async(file?:File)=>{
-  if(!file)return;try{if(file.size>45*1024*1024)throw new Error('Projeto excede 45 MB');const json=JSON.parse(await file.text());
+  if(!file)return;
+  const current=stateRef.current.history[stateRef.current.step];
+  if((current.nodes.length>0||current.video||current.smartTemplate)&&!window.confirm('Abrir outro projeto substituirá sua arte atual. Exporte um .cgdesign se quiser preservá-la. Continuar?')){if(projectRef.current)projectRef.current.value='';return;}
+  const captured=current,request=++projectLoadRef.current;
+  setBusy(true);
+  try{
+   if(file.size>45*1024*1024)throw new Error('Projeto excede 45 MB');
+   const json=JSON.parse(await file.text());
    if(json.format!=='cgdesign'||json.version!==1||!json.document||!Array.isArray(json.document.nodes))throw new Error('Arquivo de projeto incompatível');
    const d=json.document as DesignDocument;
    validateProjectDocument(d);
    if(hasTemporaryMedia(d))throw new Error('Este .cgdesign contém referências temporárias de outra sessão. Reimporte as mídias originais ou abra um backup portátil atualizado.');
-   stateRef.current={history:[d],step:0};setHistory([d]);setStep(0);setSelected(null);setNotice('Projeto carregado localmente.');
-  }catch(e){setNotice(e instanceof Error?e.message:'Não foi possível abrir o projeto.');}if(projectRef.current)projectRef.current.value='';
+   const issues=await inspectProjectMedia(d);
+   if(!canApplyLoadedProject(request,projectLoadRef.current,captured,stateRef.current.history[stateRef.current.step])){setNotice('A arte mudou durante a importação. Selecione novamente o arquivo para preservar seu trabalho.');return;}
+   const broken=issues.filter(i=>i.severity==='error');
+   if(broken.length)throw new Error(`Não foi possível abrir: ${broken.map(i=>i.name).join(', ')}. O projeto atual foi preservado.`);
+   ++templateRequestRef.current;
+   documentSessionRef.current.replace();
+   void autoDraftQueueRef.current.reset(deleteAutomaticDraft).catch(()=>{});
+   stateRef.current={history:[d],step:0};savedDocumentRef.current=d;setHistory([d]);setStep(0);setSelected(null);
+   setNotice(issues.length?'Projeto aberto. O vídeo não pôde ser pré-visualizado neste navegador.':'Projeto carregado localmente.');
+  }catch(e){if(request===projectLoadRef.current)setNotice(e instanceof Error?e.message:'Não foi possível abrir o projeto.');}
+  finally{if(request===projectLoadRef.current)setBusy(false);if(projectRef.current)projectRef.current.value='';}
  };
  const resize=useCallback(()=>{const el=zoneRef.current;if(!el)return;const width=el.clientWidth-40,height=el.clientHeight-40;
   setZoom(Math.min(1.25,Math.max(.08,Math.min(width/doc.width,height/doc.height))));},[doc.width,doc.height]);
  useEffect(()=>{resize();const observer=new ResizeObserver(resize);if(zoneRef.current)observer.observe(zoneRef.current);return()=>observer.disconnect();},[resize]);
  return <div className="cg-creative">
-  <header className="cr-head"><Link href="/" className="cr-mark"><ArrowLeft size={17}/><span>Click <b>&</b> Gruda</span></Link><span className="cr-separator"/><div className="cr-head-title"><strong>{t('Editor de Artes').toUpperCase()}</strong><small>{t('100% para canecas · uploads temporários somente neste navegador')}</small></div>
+  <header className="cr-head"><Link href="/" className="cr-mark" onClick={e=>{if(!confirmLeaveEditor())e.preventDefault();}}><ArrowLeft size={17}/><span>Click <b>&</b> Gruda</span></Link><span className="cr-separator"/><div className="cr-head-title"><strong>{t('Editor de Artes').toUpperCase()}</strong><small>{t('100% para canecas · uploads temporários somente neste navegador')}</small></div>
    <div className="cr-head-actions"><button onClick={()=>setShowAgent(v=>!v)} title="Assistente de sublimação"><BookOpen size={16}/> Ajuda</button><button onClick={undo} disabled={step===0} title="Desfazer (Ctrl+Z) · sem limite fixo de etapas enquanto a aba permanecer aberta"><Undo2 size={18}/></button><button onClick={redo} disabled={step>=history.length-1} title="Refazer (Ctrl+Y)"><Redo2 size={18}/></button><span className="cr-separator"/>
     {hasTemporaryMedia(doc)&&<span role="status" title="Mídia temporária no navegador: faça um backup .cgdesign para preservá-la. O rascunho automático não inclui vídeos blob:." style={{fontSize:11,color:'#ffb868',maxWidth:160}}>Mídia temporária · faça backup</span>}
     <button onClick={()=>setResetOpen(true)} className="cr-reset-action" title="Reinicia a arte com confirmação"><RotateCcw size={16}/><span>{t('Resetar projeto')}</span></button><button onClick={openHistory}><History size={16}/><span>{t('Histórico local')}</span></button><button onClick={()=>void saveLocal()} title="Salvar temporariamente neste navegador"><Save size={16}/><span>{t('Salvar no navegador')}</span></button><button onClick={()=>projectRef.current?.click()}><FolderOpen size={16}/><span>{t('Abrir projeto')}</span></button><button onClick={()=>void saveProject()} disabled={busy} title="Criar backup portátil com os arquivos do projeto"><Download size={16}/><span>.cgdesign</span></button><button className="cr-primary" onClick={()=>setExportOpen(true)}><Download size={17}/> Exportar</button>{doc.video&&<button title="Configurar e exportar MP4 H.264 local (720p ou Full HD; até 20 segundos e sem áudio)" onClick={()=>setExportOpen(true)} disabled={busy}><Download size={16}/> {videoProgress!==null?`${videoProgress}%`:'MP4'}</button>}{videoProgress!==null&&<button onClick={()=>videoAbort.current?.abort()} title="Interromper renderização do vídeo">Cancelar MP4</button>}</div>

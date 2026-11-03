@@ -154,7 +154,11 @@ export function resolveVideoInterval(
  if(!Number.isFinite(duration)||duration<=0)throw new Error('A duração do MP4 não foi identificada. Utilize um arquivo completo.');
  if(source.start!==undefined&&(!Number.isFinite(source.start)||source.start<0))throw new Error('Início do vídeo inválido.');
  if(source.end!==undefined&&(!Number.isFinite(source.end)||source.end<=0))throw new Error('Fim do vídeo inválido.');
- const start=Math.max(0,Math.min(source.start??0,Math.max(0,duration-.1)));
+ // Never silently move the selected clip to the final tenth of a short video.
+ // Such a fallback created a playable but unrelated MP4 when an old project
+ // still contained timestamps from a longer source file.
+ const start=source.start??0;
+ if(start>=duration)throw new Error('O início selecionado ultrapassa a duração real do vídeo. Ajuste a linha do tempo.');
  const end=Math.min(duration,source.end??duration,start+20);
  if(!Number.isFinite(end)||end<=start)throw new Error('Defina um intervalo válido de vídeo.');
  return {start,end};
@@ -253,11 +257,12 @@ export async function renderMp4Template(doc:DesignDocument,onProgress?:(n:number
   }
   await flushVideoEncoder(encoder,signal);if(encodingError)throw encodingError;abortIfNeeded(signal);
   if(encodedChunks!==frames)throw new Error(`O vídeo foi codificado de forma incompleta (${encodedChunks} de ${frames} quadros). Nenhum arquivo parcial foi salvo.`);
-  muxer.finalize();onProgress?.(100);
+  muxer.finalize();
   if(!target.buffer||target.buffer.byteLength<128)throw new Error('O codificador não produziu um arquivo MP4 válido. Nenhum arquivo parcial foi salvo.');
   // Validate MP4 container, H.264 sample table and frame count before download.
   // A successful encoder.flush() alone does not guarantee a playable MP4.
   inspectRenderedMp4(target.buffer as ArrayBuffer,{width:w,height:h,frames});
+  abortIfNeeded(signal);onProgress?.(100);
   return new Blob([target.buffer as ArrayBuffer],{type:'video/mp4'});
  }finally{if(encoder&&encoder.state!=='closed')encoder.close();video.removeAttribute('src');video.load();}
 }

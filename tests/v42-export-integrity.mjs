@@ -37,10 +37,11 @@ test('PNG/JPEG/WebP export refuses incomplete visible images and masks',async()=
  class FakeImage {
   naturalWidth=32;naturalHeight=32;
   set src(s){queueMicrotask(()=>{if(s.includes('broken'))this.onerror?.();else this.onload?.();});}
+  removeAttribute(){}
  }
  const oldImage=globalThis.Image;globalThis.Image=FakeImage;
  try{
-  const design=transpiled('src/lib/creative/design.ts',{'./typefaces':{ensureDesignFonts:async()=>{}},'./animation':{animateDesignNode:n=>n},'./effect-cache':effect,'./export-transform':transpiled('src/lib/creative/export-transform.ts')});
+  const design=transpiled('src/lib/creative/design.ts',{'./typefaces':{ensureDesignFonts:async()=>{}},'./animation':{animateDesignNode:n=>n},'./effect-cache':effect,'./export-transform':transpiled('src/lib/creative/export-transform.ts'),'./async-image-load':transpiled('src/lib/creative/async-image-load.ts'),'./image-export-integrity':{assertExportBlobFormat:async()=>{},addPngDpiMetadata:async blob=>blob}});
   const node=(src,maskSrc,visible=true)=>({id:'x',kind:'image',role:'mockup',layerName:'Caneca 325ml',src,maskSrc,visible,x:0,y:0,w:32,h:32,angle:0,opacity:1});
   await design.assertDesignAssetsReady({nodes:[node('good','also-good')]});
   await assert.rejects(design.assertDesignAssetsReady({nodes:[node('broken-image')]}),/imagem.*Caneca 325ml/);
@@ -51,7 +52,7 @@ test('PNG/JPEG/WebP export refuses incomplete visible images and masks',async()=
 test('Strict mode applies to static and animated video layers, while preview remains tolerant',()=>{
  const design=readFileSync(resolve(root,'src/lib/creative/design.ts'),'utf8');
  const video=readFileSync(resolve(root,'src/lib/creative/video-templates.ts'),'utf8');
- assert.match(design,/await assertDesignAssetsReady\(doc\);await document\.fonts\.ready/);
+ assert.match(design,/await assertDesignAssetsReady\(doc\);await waitForFontLayout\(\)/);
  assert.match(design,/if\(options\?\.strict\)throw new Error/);
  assert.match(video,/await assertDesignAssetsReady\(doc\)/);
  assert.match(video,/i\/fps,\{strict:true\}/);

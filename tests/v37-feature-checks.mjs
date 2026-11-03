@@ -40,12 +40,14 @@ test('MP4 mantém WebCodecs e anima objeto a cada quadro',()=>{
 test('Proteção do agente restringe ações ao módulo e bloqueia origem externa',async()=>{
  const js=parse('src/app/api/creative-assistant/route.ts');const mod={exports:{}};
  const api={NextResponse:{json:(body,opts={})=>({body,status:opts.status??200})}};
- const responder=async(_url,opts)=>({ok:true,json:async()=>({choices:[{message:{content:JSON.stringify({reply:'Ok',action:JSON.parse(opts.body).messages[1].content.includes('editor')?'models':'models',label:'Produto'})}}]})});
+ const responder=async(_url,opts)=>new Response(JSON.stringify({choices:[{message:{content:JSON.stringify({reply:'Ok',action:'models',label:'Produto'})}}]}),{status:200,headers:{'Content-Type':'application/json'}});
  const helper={exports:{}};
  new Function('module','exports','require',parse('src/lib/creative/assistant-request.ts'))(helper,helper.exports,()=>{});
  const history={exports:{}};
  new Function('module','exports','require',parse('src/lib/creative/assistant-history.ts'))(history,history.exports,()=>{});
- new Function('module','exports','require','process','fetch',js)(mod,mod.exports,name=>name==='@/lib/creative/assistant-request'?helper.exports:name==='@/lib/creative/assistant-history'?history.exports:api,{env:{OPENAI_API_KEY:'test-mock-not-real'}},responder);
+ const provider={exports:{}};
+ new Function('module','exports','require',parse('src/lib/creative/provider-response.ts'))(provider,provider.exports,()=>{});
+ new Function('module','exports','require','process','fetch',js)(mod,mod.exports,name=>name==='@/lib/creative/assistant-request'?helper.exports:name==='@/lib/creative/assistant-history'?history.exports:name==='@/lib/creative/provider-response'?provider.exports:api,{env:{OPENAI_API_KEY:'test-mock-not-real'}},responder);
  const req=(area,origin)=>{const request=new Request('https://clickgruda.test/api/creative-assistant',{method:'POST',headers:{origin,'content-type':'application/json','x-forwarded-for':`test-${area}-${origin}`},body:JSON.stringify({area,locale:'pt',question:'Abra produto'})});request.nextUrl={host:'clickgruda.test'};return request;};
  const invalid=await mod.exports.POST(req('editor','https://evil.test'));assert.equal(invalid.status,403);
  const editor=await mod.exports.POST(req('editor','https://clickgruda.test'));assert.equal(editor.body.action,null);
