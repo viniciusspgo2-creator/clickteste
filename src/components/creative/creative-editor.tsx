@@ -1,22 +1,24 @@
 "use client";
 import { useCallback,useEffect,useMemo,useRef,useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Undo2, Redo2, ImagePlus, Type, Shapes, Layers3, Trash2, Copy, ChevronUp, ChevronDown, Download, SlidersHorizontal, Search, Upload, RectangleHorizontal, Circle, Sparkles, FolderOpen, Save, WandSparkles, X, Plus, Maximize, FlipHorizontal2, FlipVertical2, Crop, LockKeyhole, Users, Eye, RotateCcw, BookOpen, Sticker, Shapes as ObjectsIcon, Paintbrush, Pipette, RotateCw, ShieldCheck, History, AlertTriangle } from 'lucide-react';
-import { asDataUrl,blankDocument,drawDesign,exportDesign,formats,imageFor,saveBlob,uid,type DesignDocument,type DesignNode,type ExportFormat } from '@/lib/creative/design';
+import { ArrowLeft, Undo2, Redo2, ImagePlus, Type, Shapes, Layers3, Trash2, Copy, ChevronUp, ChevronDown, Download, SlidersHorizontal, Search, Upload, RectangleHorizontal, Circle, Sparkles, FolderOpen, Save, WandSparkles, X, Plus, Maximize, FlipHorizontal2, FlipVertical2, Crop, LockKeyhole, Users, Eye, EyeOff, Lock, Unlock, Layers2, RotateCcw, BookOpen, Sticker, Shapes as ObjectsIcon, Paintbrush, Pipette, RotateCw, ShieldCheck, History, AlertTriangle } from 'lucide-react';
+import { asDataUrl,blankDocument,clearDesignRenderCache,drawDesign,exportDesign,formats,imageFor,saveBlob,uid,type DesignDocument,type DesignNode,type ExportFormat } from '@/lib/creative/design';
 import { readHandoff } from '@/lib/creative/handoff';
 import {validateProjectDocument} from '@/lib/creative/validate-project';
 import {builtInPresets,makeBuiltInPreset,type PresetId} from '@/lib/creative/presets';
 import {resizeFromCorner,type Corner} from '@/lib/creative/geometry';
-import {reorderNodes,mirrorNode,type LayerMove} from '@/lib/creative/node-actions';
+import {reorderNodes,mirrorNode,canSelectOnCanvas,type LayerMove} from '@/lib/creative/node-actions';
 import {backgroundKits,backgroundSvg} from '@/lib/creative/backgrounds';
 import {StudioConcierge} from '@/components/creative/studio-concierge';
 import {FontLibrary} from '@/components/creative/font-library';
 import {StockLibrary} from '@/components/creative/stock-library';
 import {loadCuratedTypeface,isCuratedTypeface,ensureDesignFonts,typefaces} from '@/lib/creative/typefaces';
 import {readLocalAsset} from '@/lib/creative/user-uploads';
+import {checkRasterQuality} from '@/lib/creative/image-quality';
+import type {PrintMessage} from '@/lib/creative/print-check';
 import {importPdfEditable} from '@/lib/creative/pdf-layers';
 import {importPsdLayers} from '@/lib/creative/psd-import';
-import {importSmartTemplate} from '@/lib/creative/smart-templates';
+import {importSmartTemplate,fitMockupIntoSlot} from '@/lib/creative/smart-templates';
 import {motionPreset,withMotionPoint,type MotionPreset} from '@/lib/creative/animation';
 import {loadBrowserFonts,type LocalTypeface} from '@/lib/creative/browser-fonts';
 import {saveCreativeProject,readCreativeProject,listCreativeProjects,deleteCreativeProject,deleteAutomaticDraft,LOCAL_DRAFT_ID,type SavedCreativeProject} from '@/lib/creative/browser-projects';
@@ -24,7 +26,7 @@ import {usePlatformLanguage} from '@/components/platform/language-provider';
 import './creative.css';
 
 type Asset={id:string;kind:string;name:string;category:string;mimeType:string;url:string;tags?:string[]};
-type Panel='templates'|'elements'|'personagens'|'texts'|'backgrounds'|'uploads'|'icons'|'objects'|'effects';
+type Panel='templates'|'layers'|'elements'|'personagens'|'texts'|'backgrounds'|'uploads'|'icons'|'objects'|'effects';
 type Gesture={kind:'move'|'resize'|'rotate';corner?:Corner;id:string;x:number;y:number;initial:DesignNode;before:DesignDocument;rotationOrigin?:number};
 const clamp=(n:number,min:number,max:number)=>Math.max(min,Math.min(max,n));
 const initials=(name:string)=>name.split(' ').slice(0,2).map(x=>x[0]).join('').toUpperCase();
@@ -52,12 +54,27 @@ export function CreativeEditor(){
  const videoAbort=useRef<AbortController|null>(null);
  const [previewSecond,setPreviewSecond]=useState(0);
  const [eyedropper,setEyedropper]=useState<'background'|'element'|null>(null);
+ const [sceneDragId,setSceneDragId]=useState<string|null>(null);
 
  const videoRef=useRef<HTMLVideoElement>(null);
  const canvasRef=useRef<HTMLCanvasElement>(null),zoneRef=useRef<HTMLDivElement>(null),fileRef=useRef<HTMLInputElement>(null),projectRef=useRef<HTMLInputElement>(null),maskRef=useRef<HTMLInputElement>(null);
  const gesture=useRef<Gesture|null>(null);
  const renderId=useRef(0);
  const active=doc.nodes.find(n=>n.id===selected)||null;
+ const printChecks=useMemo(()=>checkBeforeExport(doc),[doc]);
+ const [qualityChecks,setQualityChecks]=useState<PrintMessage[]>([]);
+ const [checkingQuality,setCheckingQuality]=useState(false);
+ useEffect(()=>{
+  if(!exportOpen)return;
+  let cancelled=false;
+  setQualityChecks([]);setCheckingQuality(true);
+  void checkRasterQuality(doc,async src=>{
+   const image=await imageFor(src);
+   return {width:image.naturalWidth,height:image.naturalHeight};
+  }).then(items=>{if(!cancelled)setQualityChecks(items);}).catch(()=>{if(!cancelled)setQualityChecks([{kind:'warning',message:'Não foi possível avaliar a qualidade das imagens.'}]);})
+   .finally(()=>{if(!cancelled)setCheckingQuality(false);});
+  return()=>{cancelled=true;};
+ },[exportOpen,doc]);
  const kind=panel==='templates'?'template':panel==='elements'||panel==='personagens'?'element':panel==='backgrounds'?'background':null;
  const update=useCallback((f:(d:DesignDocument)=>DesignDocument)=>{
   const prior=stateRef.current;
@@ -65,7 +82,7 @@ export function CreativeEditor(){
   stateRef.current={history:next,step:next.length-1};
   setHistory(next);setStep(next.length-1);
  },[]);
- const patch=useCallback((id:string,p:Partial<DesignNode>)=>update(d=>({...d,nodes:d.nodes.map(n=>n.id===id?{...n,...p}:n)})),[update]);
+ const patch=useCallback((id:string,p:Partial<DesignNode>)=>update(d=>({...d,nodes:d.nodes.map(n=>n.id===id&&!n.locked?{...n,...p}:n)})),[update]);
  const put=(node:DesignNode)=>{update(d=>({...d,nodes:[...d.nodes,node]}));setSelected(node.id);};
  const addText=(value='Seu texto aqui')=>{const n:DesignNode={id:uid(),kind:'text',aspectLock:true,x:doc.width*.1,y:doc.height*.39,w:doc.width*.8,h:150,angle:0,opacity:1,text:value,font:'Arial',size:Math.round(doc.width*.065),bold:true,fill:'#ffffff',shadow:0};put(n);};
  const addShape=(kind:'rect'|'circle')=>{put({id:uid(),kind,x:doc.width*.25,y:doc.height*.36,w:doc.width*.5,h:doc.width*.35,angle:0,opacity:1,fill:'#ff8525',radius:24,shadow:6});};
@@ -112,7 +129,7 @@ export function CreativeEditor(){
  };
  const useAsset=(a:Asset)=>{
   if(a.mimeType==='application/x-clickgruda-template'){
-   void fetch(a.url).then(async r=>{if(!r.ok)throw Error('Pacote não encontrado');const file=new File([await r.blob()],`${a.name}.cgtemplate`);return importSmartTemplate(file,doc)}).then(template=>{update(()=>template.document);setSelected(null);setNotice(template.warning)}).catch(()=>setNotice('Não foi possível abrir o template inteligente.'));return;
+   void fetch(a.url).then(async r=>{if(!r.ok)throw Error('Pacote não encontrado');const file=new File([await r.blob()],`${a.name}.cgtemplate`);return importSmartTemplate(file,doc)}).then(template=>{update(()=>template.document);setSelected(null);setPanel('layers');setNotice(template.warning)}).catch(()=>setNotice('Não foi possível abrir o template inteligente.'));return;
   }
   if(a.mimeType.startsWith('video/')){setVideoTemplate(a.url,a.name);return;}
   if(a.kind==='animation'){setNotice('Animações JSON estão no acervo. A edição e exportação animada não fazem parte desta fase.');return;}
@@ -189,25 +206,25 @@ export function CreativeEditor(){
  };
  const startCorner=(evt:React.PointerEvent<HTMLButtonElement>,corner:Corner,n:DesignNode)=>{
   evt.stopPropagation();evt.preventDefault();if(evt.button!==0||n.locked)return;
-  const p=cursorPoint(evt);gesture.current={kind:'resize',corner,id:n.id,x:p.x,y:p.y,initial:{...n},before:structuredClone(doc)};
+  const p=cursorPoint(evt);gesture.current={kind:'resize',corner,id:n.id,x:p.x,y:p.y,initial:{...n},before:doc};
   evt.currentTarget.setPointerCapture(evt.pointerId);
  };
  const startRotate=(evt:React.PointerEvent<HTMLButtonElement>,n:DesignNode)=>{
   evt.stopPropagation();evt.preventDefault();if(evt.button!==0||n.locked)return;
   const p=cursorPoint(evt),cx=n.x+n.w/2,cy=n.y+n.h/2;
-  gesture.current={kind:'rotate',id:n.id,x:p.x,y:p.y,rotationOrigin:Math.atan2(p.y-cy,p.x-cx),initial:{...n},before:structuredClone(doc)};
+  gesture.current={kind:'rotate',id:n.id,x:p.x,y:p.y,rotationOrigin:Math.atan2(p.y-cy,p.x-cx),initial:{...n},before:doc};
   evt.currentTarget.setPointerCapture(evt.pointerId);
  };
  const hit=(x:number,y:number)=>doc.nodes.slice().reverse().find(n=>{
   const cx=n.x+n.w/2,cy=n.y+n.h/2,a=-n.angle*Math.PI/180;
   const dx=x-cx,dy=y-cy,lx=dx*Math.cos(a)-dy*Math.sin(a),ly=dx*Math.sin(a)+dy*Math.cos(a);
-  return Math.abs(lx)<n.w/2+12&&Math.abs(ly)<n.h/2+12;
+  return (canSelectOnCanvas(n)||(sceneDragId===n.id&&n.visible!==false&&!n.locked))&&Math.abs(lx)<n.w/2+12&&Math.abs(ly)<n.h/2+12;
  });
  const down=(evt:React.PointerEvent<HTMLCanvasElement>)=>{
   if(evt.button!==0)return;const p=cursorPoint(evt);
   if(eyedropper){const ctx=canvasRef.current?.getContext('2d',{willReadFrequently:true});if(!ctx)return;const data=ctx.getImageData(Math.round(p.x),Math.round(p.y),1,1).data;if(data[3]<10){setNotice('Selecione uma área com cor para capturar.');return;}const hex='#'+Array.from(data.slice(0,3)).map(v=>v.toString(16).padStart(2,'0')).join('');applyColor(hex,eyedropper);setEyedropper(null);return;}
   const n=hit(p.x,p.y);setSelected(n?.id||null);
-  if(n&&!n.locked){gesture.current={kind:'move',id:n.id,x:p.x,y:p.y,initial:{...n},before:structuredClone(doc)};
+  if(n&&!n.locked){gesture.current={kind:'move',id:n.id,x:p.x,y:p.y,initial:{...n},before:doc};
    evt.currentTarget.setPointerCapture(evt.pointerId);}
  };
  const move=(evt:React.PointerEvent<HTMLElement>)=>{
@@ -231,13 +248,13 @@ export function CreativeEditor(){
  };
  const up=()=>{const g=gesture.current;if(!g)return;gesture.current=null;
   const current=stateRef.current;
-  const result=structuredClone(current.history[current.step]);
+  const result=current.history[current.step];
   const next=[...current.history.slice(0,current.step),g.before,result];
   stateRef.current={history:next,step:next.length-1};setHistory(next);setStep(next.length-1);
  };
  const undo=()=>{const state=stateRef.current;const newStep=Math.max(0,state.step-1);stateRef.current={...state,step:newStep};setStep(newStep);setSelected(null)};
  const redo=()=>{const state=stateRef.current;const newStep=Math.min(state.history.length-1,state.step+1);stateRef.current={...state,step:newStep};setStep(newStep);setSelected(null)};
- const resetDocument=()=>{const next=blankDocument();stateRef.current={history:[next],step:0};setHistory([next]);setStep(0);setSelected(null);setPanel('backgrounds');setGuides(true);setEyedropper(null);setResetOpen(false);void deleteAutomaticDraft().catch(()=>{});setNotice('Projeto reiniciado. Arquivos salvos anteriormente no seu navegador continuam disponíveis em Histórico local.');};
+ const resetDocument=()=>{clearDesignRenderCache();const next=blankDocument();stateRef.current={history:[next],step:0};setHistory([next]);setStep(0);setSelected(null);setSceneDragId(null);setPanel('backgrounds');setGuides(true);setEyedropper(null);setResetOpen(false);void deleteAutomaticDraft().catch(()=>{});setNotice('Projeto reiniciado. Arquivos salvos anteriormente no seu navegador continuam disponíveis em Histórico local.');};
  const refreshLocalProjects=async()=>{try{setLocalProjects((await listCreativeProjects()).filter(p=>p.id!==LOCAL_DRAFT_ID));}catch{setNotice('O histórico local deste navegador está indisponível.');}};
  const openHistory=()=>{setHistoryOpen(true);void refreshLocalProjects()};
  const saveLocal=async()=>{try{const project=await saveCreativeProject(doc,`Arte de caneca · ${new Date().toLocaleDateString('pt-BR')}`);setNotice('Projeto salvo no navegador. Salve também um .cgdesign para ter uma cópia segura.');}catch(e){setNotice(e instanceof Error?e.message:'Não foi possível salvar no navegador.');}};
@@ -249,14 +266,17 @@ export function CreativeEditor(){
   }catch{return;}
   setEyedropper(target);setNotice('Clique em um ponto colorido dentro da arte para capturar a cor. Esc cancela.');
  };
- const duplicate=()=>{if(!active)return;put({...active,id:uid(),x:active.x+36,y:active.y+36});};
- const remove=()=>{if(!selected)return;update(d=>({...d,nodes:d.nodes.filter(n=>n.id!==selected)}));setSelected(null);};
+ const duplicate=()=>{if(!active||active.locked)return;put({...active,id:uid(),x:active.x+36,y:active.y+36});};
+ const remove=()=>{if(!selected||active?.locked)return;update(d=>({...d,nodes:d.nodes.filter(n=>n.id!==selected)}));setSelected(null);};
  const layer=(mode:LayerMove)=>{
-  if(!active)return;
+  if(!active||active.locked)return;
   update(d=>({...d,nodes:reorderNodes(d.nodes,active.id,mode)}));
  };
+ const toggleLayer=(id:string,property:'locked'|'visible')=>update(d=>({...d,nodes:d.nodes.map(n=>n.id!==id?n:{...n,[property]:property==='visible'?n.visible===false:!n.locked})}));
+ const moveLayerById=(id:string,mode:LayerMove)=>update(d=>({...d,nodes:reorderNodes(d.nodes,id,mode)}));
+ const layerLabel=(node:DesignNode,index:number)=>node.layerName||({mockup:'Caneca / Mockup',foreground:'Primeiro plano',background:'Fundo',template:'Template',content:'Elemento'}[node.role||'content'])+` ${index+1}`;
  const mirror=(direction:'horizontal'|'vertical')=>{
-  if(!active)return;
+  if(!active||active.locked)return;
   const mirrored=mirrorNode(active,direction);
   patch(active.id,direction==='horizontal'?{flipX:mirrored.flipX}:{flipY:mirrored.flipY});
  };
@@ -297,7 +317,7 @@ export function CreativeEditor(){
      loadLayeredDocument(extracted.document,`PSD: ${extracted.count} camadas raster móveis. ${extracted.warning}`);
     }else if(/\.cgtemplate$/i.test(file.name)){
      const template=await importSmartTemplate(file,doc);
-     update(()=>template.document);setSelected(null);setNotice(template.warning);
+     update(()=>template.document);setSelected(null);setPanel('layers');setNotice(template.warning);
     }else if(/\.mp4$/i.test(file.name)){
      if(file.size>30*1024*1024)throw new Error('Vídeo acima de 30 MB; otimize o MP4 antes de importar.');
      const src=await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=()=>reject(new Error('Vídeo inválido'));reader.readAsDataURL(file)});
@@ -335,15 +355,32 @@ export function CreativeEditor(){
     <button onClick={()=>setResetOpen(true)} className="cr-reset-action" title="Reinicia a arte com confirmação"><RotateCcw size={16}/><span>{t('Resetar projeto')}</span></button><button onClick={openHistory}><History size={16}/><span>{t('Histórico local')}</span></button><button onClick={()=>void saveLocal()} title="Salvar temporariamente neste navegador"><Save size={16}/><span>{t('Salvar no navegador')}</span></button><button onClick={()=>projectRef.current?.click()}><FolderOpen size={16}/><span>{t('Abrir projeto')}</span></button><button onClick={saveProject}><Download size={16}/><span>.cgdesign</span></button><button className="cr-primary" onClick={()=>setExportOpen(true)}><Download size={17}/> Exportar</button>{doc.video&&<button title="Exportar MP4 com sobreposição de objetos; vídeo sem áudio" onClick={()=>void doVideoExport()} disabled={busy}><Download size={16}/> {videoProgress!==null?`${videoProgress}%`:'MP4'}</button>}{videoProgress!==null&&<button onClick={()=>videoAbort.current?.abort()} title="Interromper renderização do vídeo">Cancelar MP4</button>}</div>
   </header>
   <div className="cr-shell"><nav className="cr-rail" aria-label="Ferramentas">
-   {([['templates','Layouts',Layers3],['elements','Elementos',Shapes],['personagens','Personagens',Users],['texts','Textos',Type],['backgrounds','Fundos',ImagePlus],['uploads','Uploads',Upload],['icons','Ícones',Sticker],['objects','Objetos',ObjectsIcon],['effects','Efeitos',Sparkles]] as const).map(([id,label,Icon])=><button key={id} aria-current={panel===id?'page':undefined} onClick={()=>setPanel(id)}><Icon size={21}/><small>{t(label)}</small></button>)}
-  </nav><aside className="cr-left"><div className="cr-panel-head"><h2>{t(panel==='templates'?'Templates':panel==='elements'?'Elementos':panel==='texts'?'Tipografia':panel==='backgrounds'?'Fundos':panel==='personagens'?'Personagens & Emojis':panel==='icons'?'Biblioteca de Ícones':panel==='objects'?'Objetos Vetoriais':panel==='effects'?'Filtros & Efeitos':'Seus arquivos')}</h2><span>{t('CRIAR COM LIBERDADE')}</span></div>
+   {([['templates','Layouts',Layers3],['layers','Camadas',Layers2],['elements','Elementos',Shapes],['personagens','Personagens',Users],['texts','Textos',Type],['backgrounds','Fundos',ImagePlus],['uploads','Uploads',Upload],['icons','Ícones',Sticker],['objects','Objetos',ObjectsIcon],['effects','Efeitos',Sparkles]] as const).map(([id,label,Icon])=><button key={id} aria-current={panel===id?'page':undefined} onClick={()=>setPanel(id)}><Icon size={21}/><small>{t(label)}</small></button>)}
+  </nav><aside className="cr-left"><div className="cr-panel-head"><h2>{t(panel==='templates'?'Templates':panel==='layers'?'Camadas':panel==='elements'?'Elementos':panel==='texts'?'Tipografia':panel==='backgrounds'?'Fundos':panel==='personagens'?'Personagens & Emojis':panel==='icons'?'Biblioteca de Ícones':panel==='objects'?'Objetos Vetoriais':panel==='effects'?'Filtros & Efeitos':'Seus arquivos')}</h2><span>{t('CRIAR COM LIBERDADE')}</span></div>
    {kind&&<><div className="cr-search"><Search size={16}/><input placeholder="Buscar no acervo..." value={assetQuery} onChange={e=>setAssetQuery(e.target.value)}/></div>
     {panel==='templates'&&<><div className="cr-feature" role="note"><Sparkles size={18}/><div><strong>{t('Comece por um layout')}</strong><p>{t('Escolha um dos 4 layouts editáveis ou use templates publicados pelo admin.')}</p></div></div>
-    <div className="cr-feature" role="note"><Layers3 size={18}/><div><strong>Template inteligente · máscaras e profundidade</strong><p>Importe um pacote .cgtemplate pela aba Uploads ou experimente o modelo demonstrativo. Sua caneca permanece independente.</p><button type="button" className="cr-primary" onClick={()=>{void fetch('/templates/template-inteligente-demonstracao.cgtemplate').then(async r=>{if(!r.ok)throw Error('Template indisponível');return importSmartTemplate(new File([await r.blob()],'demonstracao.cgtemplate'),doc)}).then(a=>{update(()=>a.document);setSelected(null);setNotice(a.warning)}).catch(()=>setNotice('Não foi possível abrir a demonstração.'));}}>Experimentar template com máscara</button></div></div><p className="cr-section-label">{t('LAYOUTS EDITÁVEIS INCLUSOS')}</p><div className="cr-preset-list">{builtInPresets.map(p=><button key={p.id} onClick={()=>applyPreset(p.id)}><span className={`cr-preset-thumb ${p.id}`}>{p.name}</span><span><strong>{p.name}</strong><small>{p.description}</small></span></button>)}</div></>}
+    <div className="cr-feature" role="note"><Layers3 size={18}/><div><strong>Template inteligente · máscaras e profundidade</strong><p>Importe um pacote .cgtemplate pela aba Uploads ou experimente o modelo demonstrativo. Sua caneca permanece independente.</p><button type="button" className="cr-primary" onClick={()=>{void fetch('/templates/template-inteligente-demonstracao.cgtemplate').then(async r=>{if(!r.ok)throw Error('Template indisponível');return importSmartTemplate(new File([await r.blob()],'demonstracao.cgtemplate'),doc)}).then(a=>{update(()=>a.document);setSelected(null);setPanel('layers');setNotice(a.warning)}).catch(()=>setNotice('Não foi possível abrir a demonstração.'));}}>Experimentar template com máscara</button></div></div><p className="cr-section-label">{t('LAYOUTS EDITÁVEIS INCLUSOS')}</p><div className="cr-preset-list">{builtInPresets.map(p=><button key={p.id} onClick={()=>applyPreset(p.id)}><span className={`cr-preset-thumb ${p.id}`}>{p.name}</span><span><strong>{p.name}</strong><small>{p.description}</small></span></button>)}</div></>}
     {panel==='backgrounds'&&<><p className="cr-section-label">{t('FUNDOS PRONTOS SEM TEXTO · PARA SUBLIMAÇÃO')}</p><div className="cr-background-grid">{backgroundKits.map(b=><button key={b.id} title={b.name} onClick={()=>void applyTemplate(backgroundSvg(b.id,doc.width,doc.height),'background')}><span style={{background:`linear-gradient(130deg,${b.a},${b.b} 68%,${b.c})`}}/><small>{b.name}</small></button>)}</div><p className="cr-section-label">{t('CORES & TRANSPARÊNCIA')}</p><div className="cr-background-custom"><label>{t('Cor do fundo')} <input type="color" value={doc.background==='transparent'?'#ffffff':doc.background} onChange={e=>update(d=>({...d,background:e.target.value}))}/></label><button type="button" onClick={()=>void pickScreenColor('background')}><Pipette size={16}/> {t('Conta-gotas')}</button></div><div className="cr-colors">{backgroundPresets.map(c=><button key={c} title={c} aria-label={`Fundo ${c}`} onClick={()=>update(d=>({...d,background:c}))} className={doc.background===c?'active':''} style={{background:c==='transparent'?'conic-gradient(#eee 25%,#ccc 0 50%,#eee 0 75%,#ccc 0) 0 0/20px 20px':c}}/>)}</div></>}
     <p className="cr-section-label">{t('ACERVO ADMINISTRATIVO')} · {assetTotal} ITENS</p><div className="cr-assets">{assets.map(a=><button key={a.id} title={a.name} onClick={()=>useAsset(a)} className="cr-asset">{a.mimeType.startsWith('image/')?<img src={a.url} alt="" loading="lazy"/>:<div className="cr-asset-generic">{initials(a.name)}</div>}<span>{a.name}</span></button>)}
     {!assets.length&&<div className="cr-empty">{t('Sem itens publicados nessa categoria. Adicione materiais pelo Painel Admin.')}</div>}
     </div>{assets.length<assetTotal&&<button className="cr-outlined" onClick={()=>void loadAssets(assetPage+1,true)}>{t('Carregar mais')}</button>}</>}
+   {panel==='layers'&&<div className="cr-layer-panel">
+    <div className="cr-feature"><Layers2 size={18}/><div><strong>{t('Camadas da composição')}</strong><p>{t('Selecione a caneca, o primeiro plano ou o fundo. Olho: ocultar sem apagar. Cadeado: proteger contra alterações.')}</p></div></div>
+    <div className="cr-layer-list" role="list" aria-label="Camadas da composição (frente para trás)">
+     {doc.nodes.length===0&&<div className="cr-empty">Adicione uma caneca, texto, fundo ou personagem para começar.</div>}
+     {[...doc.nodes].reverse().map((node,reverseIndex)=><div role="listitem" className={`cr-layer-item ${selected===node.id?'active':''} ${node.visible===false?'hidden-layer':''}`} key={node.id}>
+      <button type="button" className="cr-layer-select" aria-pressed={selected===node.id} title="Selecionar esta camada" onClick={()=>{setSelected(node.id);setSceneDragId(null)}}><span>{node.kind==='text'?'T':node.kind==='image'?'◧':'▣'}</span><strong>{layerLabel(node,doc.nodes.length-reverseIndex-1)}</strong><small>{node.role==='mockup'?'Mockup':node.kind==='text'?'Texto':node.role==='foreground'?'Primeiro plano':node.role==='background'?'Fundo':node.kind==='image'?'Imagem':'Forma'}</small></button>
+      <div className="cr-layer-tools">
+       <button type="button" aria-label={node.visible===false?'Mostrar camada':'Ocultar camada'} title={node.visible===false?'Mostrar':'Ocultar'} onClick={()=>toggleLayer(node.id,'visible')}>{node.visible===false?<EyeOff size={15}/>:<Eye size={15}/>}</button>
+       <button type="button" aria-label={node.locked?'Desbloquear camada':'Bloquear camada'} title={node.locked?'Desbloquear':'Bloquear'} onClick={()=>toggleLayer(node.id,'locked')}>{node.locked?<Lock size={15}/>:<Unlock size={15}/>}</button>
+       <button type="button" aria-label="Subir uma camada" title="Subir" disabled={reverseIndex===0} onClick={()=>moveLayerById(node.id,'forward')}><ChevronUp size={15}/></button>
+       <button type="button" aria-label="Descer uma camada" title="Descer" disabled={reverseIndex===doc.nodes.length-1} onClick={()=>moveLayerById(node.id,'backward')}><ChevronDown size={15}/></button>
+      </div>
+     </div>)}
+    </div>
+    {active&&['foreground','background'].includes(active.role||'')&&!active.locked&&active.visible!==false&&<button type="button" className={`cr-scene-drag ${sceneDragId===active.id?'active':''}`} onClick={()=>setSceneDragId(v=>v===active.id?null:active.id)}>{sceneDragId===active.id?'Concluir movimento do cenário':'Mover esta camada de cenário no palco'}</button>}
+    <p className="cr-helper">{t('Camadas ocultas não aparecem na exportação. Selecione fundo e primeiro plano aqui, mesmo quando ocuparem a tela inteira.')}</p>
+   </div>}
    {panel==='texts'&&<><div className="cr-text-shortcuts"><button onClick={()=>addText('Seu título aqui')}>+ Título</button><button onClick={()=>addText('Feliz aniversário')}>+ Mensagem</button></div><FontLibrary assets={fontAssets} localFonts={localFonts} onImport={files=>void importLocalFonts(files)} onChoose={(name,asset)=>void chooseFont(name,asset)}/></>}
    {panel==='elements'&&<div className="cr-shapes"><button onClick={()=>addShape('rect')}><RectangleHorizontal size={32}/>Retângulo</button><button onClick={()=>addShape('circle')}><Circle size={32}/>Elipse</button></div>}
    {panel==='icons'&&<><div className="cr-asset-color"><span>{t('COR DOS ÍCONES')}</span><input type="color" value={assetColor} onChange={e=>setAssetColor(e.target.value)}/></div><StockLibrary kind="icons" color={assetColor} add={src=>addImage(src)}/></>}
@@ -360,17 +397,20 @@ export function CreativeEditor(){
    {panel==='personagens'&&<p className="cr-helper">Personagens, desenhos, cartoons, emojis e temas que você cadastrar em <b>Admin → Elementos → categoria Personagens</b> aparecem aqui. Publique somente arquivos com direito de uso na plataforma.</p>}
    {panel==='uploads'&&<div className="cr-upload"><ImagePlus size={28}/><h3>{t('Seus arquivos, seu navegador')}</h3><p className="cr-privacy-note"><ShieldCheck size={18}/> PRIVACIDADE: o upload NÃO vai para o servidor. Sua composição fica temporariamente no navegador até você exportar ou apagar; o navegador pode limpar o armazenamento sem aviso.</p><p>PNG, JPEG/JFIF, SVG, WebP, AVIF, BMP, GIF (primeiro quadro), PDF com extração aproximada de textos, PSD RGB/8 bits com camadas raster, template inteligente .cgtemplate e vídeo MP4 (até 30 MB). Todo arquivo permanece neste navegador.</p><button className="cr-primary" onClick={()=>fileRef.current?.click()}><Plus size={16}/>{t('Adicionar imagens')}</button><small>PDF e PSD têm limitações: efeitos e fontes podem não ser reproduzidos. Antes de imprimir, confira cada camada.</small></div>}
   </aside>
-  <main className="cr-canvas-shell"><div className="cr-canvas-top"><div><span className="cr-dot"/> Editor de Sublimação de Canecas <span className="cr-micro">{doc.width} × {doc.height} px</span></div><div className="cr-canvas-actions">{doc.video&&<><span title="Segundos de início para o MP4">Início <input type="number" min={0} max={600} step={.5} style={{width:62}} value={doc.video.start} onChange={e=>update(d=>({...d,video:d.video?{...d.video,start:Math.max(0,Number(e.target.value))}:undefined}))}/></span><span title="Segundo final opcional; até 20 segundos de exportação">Fim <input type="number" min={0} max={600} step={.5} style={{width:62}} value={doc.video.end??0} onChange={e=>update(d=>({...d,video:d.video?{...d.video,end:Number(e.target.value)||undefined}:undefined}))}/></span><button onClick={()=>update(d=>({...d,video:undefined,background:'#ffffff'}))}>Remover vídeo</button></>}<select aria-label="Formato do documento" value={`${doc.width}x${doc.height}`} onChange={e=>{const f=formats.find(f=>`${f.w}x${f.h}`===e.target.value);if(f)update(d=>({...d,width:f.w,height:f.h}));}}>{formats.map(f=><option key={f.label} value={`${f.w}x${f.h}`}>{f.label}</option>)}</select><button onClick={()=>setGuides(v=>!v)} title="Mostrar/ocultar área segura (não sai na exportação)" aria-pressed={guides}><Eye size={16}/> Guias</button><button onClick={resize} title="Encaixar na tela"><Maximize size={16}/></button></div></div>
+  <main className="cr-canvas-shell"><div className="cr-canvas-top"><div><span className="cr-dot"/> Editor de Sublimação de Canecas <span className="cr-micro">{doc.width} × {doc.height} px</span></div><div className="cr-canvas-actions">{doc.video&&<><span title="Segundos de início para o MP4">Início <input type="number" min={0} max={600} step={.5} style={{width:62}} value={doc.video.start} onChange={e=>update(d=>({...d,video:d.video?{...d.video,start:Math.max(0,Number(e.target.value))}:undefined}))}/></span><span title="Segundo final opcional; até 20 segundos de exportação">Fim <input type="number" min={0} max={600} step={.5} style={{width:62}} value={doc.video.end??0} onChange={e=>update(d=>({...d,video:d.video?{...d.video,end:Number(e.target.value)||undefined}:undefined}))}/></span><label title="Como enquadrar o vídeo no template" style={{display:'inline-flex',alignItems:'center',gap:6}}>Enquadramento <select aria-label="Enquadramento do vídeo" value={doc.video.fit||'cover'} onChange={e=>update(d=>({...d,video:d.video?{...d.video,fit:e.target.value as 'cover'|'contain'}:undefined}))}><option value="cover">Preencher (cortar bordas)</option><option value="contain">Mostrar inteiro</option></select></label><button onClick={()=>update(d=>({...d,video:undefined,background:'#ffffff'}))}>Remover vídeo</button></>}<select aria-label="Formato do documento" value={`${doc.width}x${doc.height}`} onChange={e=>{const f=formats.find(f=>`${f.w}x${f.h}`===e.target.value);if(f)update(d=>({...d,width:f.w,height:f.h}));}}>{formats.map(f=><option key={f.label} value={`${f.w}x${f.h}`}>{f.label}</option>)}</select><button onClick={()=>setGuides(v=>!v)} title="Mostrar/ocultar área segura (não sai na exportação)" aria-pressed={guides}><Eye size={16}/> Guias</button><button onClick={resize} title="Encaixar na tela"><Maximize size={16}/></button></div></div>
    {doc.video&&<div className="cr-motion-timeline"><span>LINHA DO TEMPO</span><button type="button" onClick={()=>{if(!videoRef.current)return;if(videoRef.current.paused)void videoRef.current.play();else videoRef.current.pause();}} aria-label="Reproduzir ou pausar vídeo">▶ / II</button><input aria-label="Posição do vídeo em segundos" type="range" min={0} max={Math.min(20,Math.max(.5,(doc.video.end??20)-(doc.video.start||0)))} step={.1} value={Math.min(previewSecond,Math.min(20,Math.max(.5,(doc.video.end??20)-(doc.video.start||0))))} onChange={e=>{const second=Number(e.target.value);setPreviewSecond(second);if(videoRef.current){videoRef.current.pause();videoRef.current.currentTime=(doc.video?.start||0)+second;}}}/><output>{previewSecond.toFixed(1)}s</output><small>Selecione um objeto para animar posição, escala e opacidade.</small></div>}
-   <div className="cr-canvas-zone" ref={zoneRef}><div className="cr-stage" style={{width:doc.width*zoom,height:doc.height*zoom}}>{doc.video&&<video ref={videoRef} key={doc.video.src} className="cr-video-preview" src={doc.video.src} autoPlay muted loop playsInline preload="metadata" onTimeUpdate={e=>{const seconds=Math.max(0,e.currentTarget.currentTime-(doc.video?.start||0));setPreviewSecond(seconds);}}/>}
+   <div className="cr-canvas-zone" ref={zoneRef}><div className="cr-stage" style={{width:doc.width*zoom,height:doc.height*zoom}}>{doc.video&&<video ref={videoRef} key={doc.video.src} className="cr-video-preview" style={{objectFit:doc.video.fit==='contain'?'contain':'cover',background:'#ffffff'}} src={doc.video.src} autoPlay muted loop playsInline preload="metadata" onLoadedMetadata={e=>{const start=doc.video?.start||0;if(start>0&&start<e.currentTarget.duration)e.currentTarget.currentTime=start;}} onTimeUpdate={e=>{const el=e.currentTarget;const start=doc.video?.start||0;const end=Math.min(el.duration,doc.video?.end??el.duration,start+20);if(end>start&&el.currentTime>=end){el.currentTime=Math.min(start,Math.max(0,el.duration-.1));return;}setPreviewSecond(Math.max(0,el.currentTime-start));}}/>}
     <canvas ref={canvasRef} style={{width:'100%',height:'100%'}} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} aria-label="Tela de criação: selecione, arraste e redimensione os elementos pelo canto inferior direito"/>
     {guides&&doc.width===2480&&doc.height===1122&&<div className="cr-print-guides" aria-hidden="true" style={{left:Math.round((doc.width-2244)/2)*zoom,top:Math.round((doc.height-1004)/2)*zoom,width:2244*zoom,height:1004*zoom}}><span>ÁREA VISÍVEL · 19 × 8,5 cm</span></div>}
-    {active&&!active.locked&&<div className="cr-selection" style={{left:active.x*zoom,top:active.y*zoom,width:active.w*zoom,height:active.h*zoom,transform:`rotate(${active.angle}deg)`}}>{(['nw','ne','sw','se'] as Corner[]).map(c=><button key={c} type="button" className={`cr-handle cr-handle-${c}`} aria-label={`Redimensionar ${c} com proporção preservada`} title="Arraste para diminuir ou aumentar mantendo as proporções" onPointerDown={e=>startCorner(e,c,active)} onPointerMove={move} onPointerUp={up} onPointerCancel={up}/>)}<button type="button" className="cr-rotate-handle" title="Arraste para girar livremente" aria-label="Girar objeto com o mouse" onPointerDown={e=>startRotate(e,active)} onPointerMove={move} onPointerUp={up} onPointerCancel={up}><RotateCw size={17}/></button></div>}
+    {active&&active.visible!==false&&!active.locked&&<div className="cr-selection" style={{left:active.x*zoom,top:active.y*zoom,width:active.w*zoom,height:active.h*zoom,transform:`rotate(${active.angle}deg)`}}>{(['nw','ne','sw','se'] as Corner[]).map(c=><button key={c} type="button" className={`cr-handle cr-handle-${c}`} aria-label={`Redimensionar ${c} com proporção preservada`} title="Arraste para diminuir ou aumentar mantendo as proporções" onPointerDown={e=>startCorner(e,c,active)} onPointerMove={move} onPointerUp={up} onPointerCancel={up}/>)}<button type="button" className="cr-rotate-handle" title="Arraste para girar livremente" aria-label="Girar objeto com o mouse" onPointerDown={e=>startRotate(e,active)} onPointerMove={move} onPointerUp={up} onPointerCancel={up}><RotateCw size={17}/></button></div>}
    </div></div><div className="cr-bottom"><span>{eyedropper?'CONTA-GOTAS ATIVO · clique em uma cor na tela (Esc cancela)':'Arraste cantos para redimensionar · alça circular para girar · Ctrl+Z desfaz'}</span><span>Visualização {Math.round(zoom*100)}%</span></div>
   </main>
   <aside className="cr-inspector"><div className="cr-panel-head"><h2>{t('Propriedades')}</h2><span>{t('AJUSTES DE PRECISÃO')}</span></div>
   {!active?<div className="cr-hint"><WandSparkles size={26}/><h3>{t('Personalize cada detalhe')}</h3><p>{t('Clique em um elemento na arte para ajustar tamanho, posição, cores, efeitos e sombras.')}</p><p>{t('Para começar, adicione um texto, imagem ou template no painel esquerdo.')}</p></div>:<div className="cr-properties">
-   <div className="cr-selected-bar"><span>{active.kind==='text'?'Texto':active.kind==='image'?'Imagem':'Forma'}</span><div><button title="Duplicar" onClick={duplicate}><Copy size={16}/></button><button title="Excluir" onClick={remove}><Trash2 size={16}/></button></div></div>
+   <div className="cr-selected-bar"><span>{active.kind==='text'?'Texto':active.kind==='image'?'Imagem':'Forma'}</span><div><button title={active.locked?"Desbloquear camada":"Bloquear camada"} onClick={()=>toggleLayer(active.id,'locked')}>{active.locked?<Lock size={16}/>:<Unlock size={16}/>}</button><button title="Duplicar" disabled={!!active.locked} onClick={duplicate}><Copy size={16}/></button><button title="Excluir" disabled={!!active.locked} onClick={remove}><Trash2 size={16}/></button></div></div>
+   {active.role==='mockup'&&doc.smartTemplate?.slot&&<div className="cr-feature" role="group" aria-label="Encaixe inteligente da caneca"><div><strong>{t('Encaixe inteligente')}</strong><p>{t('Recupere a posição e a proporção da caneca neste cenário, mantendo a máscara de primeiro plano.')}</p><button type="button" className="cr-primary" disabled={!!active.locked} onClick={()=>{if(!doc.smartTemplate?.slot)return;const fitted=fitMockupIntoSlot(active,doc.smartTemplate.slot,doc.smartTemplate.maskSrc);patch(active.id,{x:fitted.x,y:fitted.y,w:fitted.w,h:fitted.h,angle:fitted.angle,maskSrc:fitted.maskSrc});setNotice(t('Caneca reenquadrada no template.'));}}><Maximize size={15}/>{t('Reencaixar caneca')}</button><div className="cr-fit-scale-options" role="group" aria-label="Escala da caneca no encaixe">{([0.9,1,1.1] as const).map(f=><button key={f} type="button" disabled={!!active.locked} title="Ajustar a caneca proporcionalmente" onClick={()=>{if(!doc.smartTemplate?.slot)return;const fitted=fitMockupIntoSlot(active,doc.smartTemplate.slot,doc.smartTemplate.maskSrc,f);patch(active.id,{x:fitted.x,y:fitted.y,w:fitted.w,h:fitted.h,angle:fitted.angle,maskSrc:fitted.maskSrc});setNotice(`Caneca enquadrada em ${Math.round(f*100)}%, sem achatar.`);}}>{Math.round(f*100)}%</button>)}</div></div></div>}
+   {active.locked&&<div className="cr-layer-lock-notice"><Lock size={15}/> Camada protegida. Desbloqueie pelo cadeado acima ou na aba Camadas.</div>}
+   <fieldset className="cr-properties-fields" disabled={!!active.locked}>
    <section className="cr-arrange" aria-label="Organização dos elementos"><p className="cr-section-label">{t('Ordem dos objetos').toUpperCase()}</p>
    <div className="cr-arrange-grid"><button type="button" onClick={()=>layer('front')} disabled={doc.nodes.at(-1)?.id===active.id} title="Colocar à frente de todos os elementos"><ChevronUp size={16}/> {t('Trazer à frente')}</button>
    <button type="button" onClick={()=>layer('forward')} disabled={doc.nodes.at(-1)?.id===active.id} title="Avançar uma camada"><ChevronUp size={16}/> {t('Subir 1 camada')}</button>
@@ -389,7 +429,7 @@ export function CreativeEditor(){
    <Range label="Sombra" value={active.shadow||0} min={0} max={110} unit="px" change={v=>patch(active.id,{shadow:v})}/><div className="cr-colorinput"><label>Cor da sombra<input type="color" value={active.shadowColor?.startsWith('#')?active.shadowColor:'#161016'} onChange={e=>patch(active.id,{shadowColor:e.target.value})}/></label></div><Range label="Sombra X" value={active.shadowX||0} min={-120} max={120} unit="px" change={v=>patch(active.id,{shadowX:v})}/><Range label="Sombra Y" value={active.shadowY??Math.round((active.shadow||0)*.4)} min={-120} max={120} unit="px" change={v=>patch(active.id,{shadowY:v})}/>
    {active.kind==='text'&&<><p className="cr-section-label"><Sparkles size={14}/> TIPOGRAFIA AVANÇADA</p><Range label={t('Curvatura')} value={active.curve||0} min={-260} max={260} unit="px" change={v=>patch(active.id,{curve:v})}/><Range label={t('Ondulação')} value={active.wave||0} min={-90} max={90} unit="px" change={v=>patch(active.id,{wave:v})}/><Range label={t('Profundidade 3D')} value={active.depth||0} min={0} max={22} unit="" change={v=>patch(active.id,{depth:v})}/><Range label={t('Espaço entre letras')} value={active.tracking||0} min={-12} max={45} unit="px" change={v=>patch(active.id,{tracking:v})}/><Range label={t('Contorno')} value={active.strokeWidth||0} min={0} max={25} unit="px" change={v=>patch(active.id,{strokeWidth:v,stroke:active.stroke||'#121212'})}/><label>Cor do contorno<input type="color" value={active.stroke||'#121212'} onChange={e=>patch(active.id,{stroke:e.target.value})}/></label></>}
    {active.kind==='image'&&<><Range label={t('Brilho')} value={active.brightness??100} min={20} max={200} unit="%" change={v=>patch(active.id,{brightness:v})}/><Range label={t('Contraste')} value={active.contrast??100} min={20} max={200} unit="%" change={v=>patch(active.id,{contrast:v})}/><Range label={t('Saturação')} value={active.saturation??100} min={0} max={200} unit="%" change={v=>patch(active.id,{saturation:v})}/><Range label={t('Desfoque')} value={active.blur||0} min={0} max={30} unit="px" change={v=>patch(active.id,{blur:v})}/><Range label={t('Cinza')} value={active.grayscale||0} min={0} max={100} unit="%" change={v=>patch(active.id,{grayscale:v})}/><Range label={t('Sépia')} value={active.sepia||0} min={0} max={100} unit="%" change={v=>patch(active.id,{sepia:v})}/><Range label={t('Matiz')} value={active.hue||0} min={-180} max={180} unit="°" change={v=>patch(active.id,{hue:v})}/><Range label={t('Perspectiva / Inclinação')} value={active.skew||0} min={-35} max={35} unit="°" change={v=>patch(active.id,{skew:v})}/></>}
-  </div>}
+  </fieldset></div>}
   </aside></div>
   <input ref={fileRef} type="file" hidden multiple accept="image/png,image/jpeg,image/svg+xml,image/webp,image/avif,image/bmp,image/gif,application/pdf,video/mp4,.jpg,.jpeg,.jfif,.jfi,.jif,.png,.svg,.webp,.avif,.bmp,.gif,.pdf,.psd,.cgtemplate,.mp4" onChange={e=>void upload(e.currentTarget.files)}/>
   <input ref={maskRef} type="file" hidden accept=".png,.webp,.jpg,.jpeg,.svg" onChange={e=>void readMask(e.currentTarget.files?.[0])}/>
@@ -398,7 +438,7 @@ export function CreativeEditor(){
   {notice&&<div className="cr-notice" role="status"><span>{notice}</span><button onClick={()=>setNotice('')} aria-label="Fechar"><X size={16}/></button></div>}
   {resetOpen&&<div className="cr-backdrop" onClick={()=>setResetOpen(false)}><div role="alertdialog" aria-modal="true" aria-labelledby="cr-reset-title" className="cr-dialog" onClick={e=>e.stopPropagation()}><div className="cr-dialog-header"><div><small>RESETAR PROJETO</small><h2 id="cr-reset-title">{t('Começar uma nova arte?')}</h2></div><button onClick={()=>setResetOpen(false)} aria-label="Fechar"><X size={19}/></button></div><p><AlertTriangle size={17} className="inline-block text-orange-400 mr-2"/>{t('Os elementos, os fundos e o histórico de desfazer desta composição serão limpos. Arquivos exportados e projetos salvos anteriormente no navegador não serão apagados.')}</p><div className="cr-dialog-footer"><button onClick={()=>setResetOpen(false)}>{t('Cancelar')}</button><button className="cr-primary" onClick={resetDocument}><RotateCcw size={17}/>{t('Resetar projeto')}</button></div></div></div>}
   {historyOpen&&<div className="cr-backdrop" onClick={()=>setHistoryOpen(false)}><div role="dialog" aria-modal="true" aria-label="Histórico de projetos locais" className="cr-dialog cr-history-dialog" onClick={e=>e.stopPropagation()}><div className="cr-dialog-header"><div><small>SEU NAVEGADOR</small><h2>{t('Histórico local')}</h2></div><button onClick={()=>setHistoryOpen(false)} aria-label="Fechar"><X size={19}/></button></div><p>{t('O histórico fica temporariamente neste dispositivo, por até 14 dias, sujeito à limpeza automática do navegador. Nenhum arquivo é enviado ao servidor. Exporte .cgdesign para ter um backup confiável.')}</p><button className="cr-primary" onClick={()=>void saveLocal()}><Save size={16}/> Salvar composição atual</button><div className="cr-history-list">{localProjects.length?localProjects.map(project=><div key={project.id} className="cr-history-item"><div><strong>{project.name}</strong><small>{new Date(project.updatedAt).toLocaleString('pt-BR')} · {project.document.width} × {project.document.height}</small></div><button onClick={()=>{if(window.confirm('Abrir este projeto? A composição atual será substituída.'))void restoreLocal(project.id)}}>Abrir</button><button title="Excluir este projeto local" aria-label="Excluir projeto local" onClick={()=>{if(window.confirm('Excluir este arquivo do histórico deste navegador?'))void deleteCreativeProject(project.id).then(refreshLocalProjects)}}><Trash2 size={15}/></button></div>):<p>Nenhum projeto salvo manualmente neste navegador.</p>}</div><div className="cr-dialog-footer"><button onClick={()=>setHistoryOpen(false)}>Fechar</button></div></div></div>}
-  {exportOpen&&<div className="cr-backdrop" onClick={()=>setExportOpen(false)}><div className="cr-dialog" role="dialog" aria-modal="true" aria-label="Exportar criativo" onClick={e=>e.stopPropagation()}><div className="cr-dialog-header"><div><small>EXPORTAR</small><h2>Sua arte pronta para impressão ou divulgação.</h2></div><button onClick={()=>setExportOpen(false)} aria-label="Fechar"><X size={20}/></button></div><p>Para imprimir na caneca, use 21 × 9,5 cm em PNG, escala 100%, com 2480 × 1122 pixels e metadados de 300 DPI. Nenhuma arte é enviada ao servidor.</p><label>FORMATO<select value={format} onChange={e=>setFormat(e.target.value as ExportFormat)}><option value="png">PNG · Transparência</option><option value="jpeg">JPEG · Arquivo leve</option><option value="webp">WebP · Otimizado</option></select></label><label>RESOLUÇÃO<select value={scale} onChange={e=>setScale(Number(e.target.value))}><option value={.5}>50% · {Math.round(doc.width*.5)} × {Math.round(doc.height*.5)}</option><option value={1}>100% · {doc.width} × {doc.height}</option><option value={2}>200% · {doc.width*2} × {doc.height*2}</option></select></label><div className="cr-dialog-footer"><button onClick={()=>setExportOpen(false)}>Cancelar</button><button className="cr-primary" disabled={busy} onClick={()=>void doExport()}><Download size={17}/>{busy?'Preparando imagem...':'Exportar composição'}</button></div></div></div>}
+  {exportOpen&&<div className="cr-backdrop" onClick={()=>setExportOpen(false)}><div className="cr-dialog" role="dialog" aria-modal="true" aria-label="Exportar criativo" onClick={e=>e.stopPropagation()}><div className="cr-dialog-header"><div><small>EXPORTAR</small><h2>Sua arte pronta para impressão ou divulgação.</h2></div><button onClick={()=>setExportOpen(false)} aria-label="Fechar"><X size={20}/></button></div><p>Para imprimir na caneca, use 21 × 9,5 cm em PNG, escala 100%, com 2480 × 1122 pixels e metadados de 300 DPI. Nenhuma arte é enviada ao servidor.</p><div className="cr-print-check" role="status"><strong>VERIFICAÇÃO ANTES DE EXPORTAR</strong>{[...printChecks.filter(entry=>entry.kind!=='success'||(!checkingQuality&&!qualityChecks.some(q=>q.kind==='warning'))),...qualityChecks].map((entry,i)=><p key={i} className={`cr-print-message ${entry.kind}`}>{entry.kind==='warning'?<AlertTriangle size={14}/>:<ShieldCheck size={14}/>}<span>{entry.message}</span></p>)}{checkingQuality&&<p className="cr-print-message info">Conferindo a resolução das imagens no navegador…</p>}</div><label>FORMATO<select value={format} onChange={e=>setFormat(e.target.value as ExportFormat)}><option value="png">PNG · Transparência</option><option value="jpeg">JPEG · Arquivo leve</option><option value="webp">WebP · Otimizado</option></select></label><label>RESOLUÇÃO<select value={scale} onChange={e=>setScale(Number(e.target.value))}><option value={.5}>50% · {Math.round(doc.width*.5)} × {Math.round(doc.height*.5)}</option><option value={1}>100% · {doc.width} × {doc.height}</option><option value={2}>200% · {doc.width*2} × {doc.height*2}</option></select></label><div className="cr-dialog-footer"><button onClick={()=>setExportOpen(false)}>Cancelar</button><button className="cr-primary" disabled={busy} onClick={()=>void doExport()}><Download size={17}/>{busy?'Preparando imagem...':'Exportar composição'}</button></div></div></div>}
  </div>;
 }
 function Range({label,value,min,max,unit,change}:{label:string;value:number;min:number;max:number;unit:string;change:(v:number)=>void}){

@@ -3,20 +3,67 @@
  * 20s / 720p / 24fps limit protects client memory on lower-end computers.
  */
 import {Muxer,ArrayBufferTarget} from 'mp4-muxer';
-import {drawDesign,type DesignDocument,type DesignNode} from './design';
-const loadVideo=(video:HTMLVideoElement)=>new Promise<void>((resolve,reject)=>{
- if(video.readyState>=2)return resolve();const clean=()=>{video.removeEventListener('loadeddata',ok);video.removeEventListener('error',fail)};
- const ok=()=>{clean();resolve()},fail=()=>{clean();reject(new Error('Vídeo não pôde ser aberto'))};
- video.addEventListener('loadeddata',ok,{once:true});video.addEventListener('error',fail,{once:true});
-});
-async function seek(video:HTMLVideoElement,t:number){
- if(Math.abs(video.currentTime-t)<.01&&video.readyState>=2)return;
- await new Promise<void>((resolve,reject)=>{const on=()=>{cleanup();resolve()},bad=()=>{cleanup();reject(new Error('Não foi possível acessar o quadro do vídeo'))};
-  const cleanup=()=>{video.removeEventListener('seeked',on);video.removeEventListener('error',bad)};
-  video.addEventListener('seeked',on,{once:true});video.addEventListener('error',bad,{once:true});video.currentTime=t;
+import {assertDesignAssetsReady,drawDesign,type DesignDocument,type DesignNode} from './design';
+/** Wait for the decoded video data with a finite timeout and cancellation.
+ * Some mobile devices emit neither `loadeddata` nor `seeked` after a codec error.
+ */
+const canceled = () => new DOMException('Exportação cancelada', 'AbortError');
+function waitForVideoEvent(
+ video:HTMLVideoElement,success:string,signal:AbortSignal|undefined,
+ timeoutMs:number,errorMessage:string,trigger?:()=>void,ready?:()=>boolean,
+):Promise<void>{
+ return new Promise<void>((resolve,reject)=>{
+  let settled=false;let timer:ReturnType<typeof setTimeout>|undefined;
+  const finish=(error?:Error)=>{
+   if(settled)return;settled=true;if(timer!==undefined)clearTimeout(timer);
+   video.removeEventListener(success,onSuccess);
+   video.removeEventListener('error',onError);
+   signal?.removeEventListener('abort',onAbort);
+   if(error)reject(error);else resolve();
+  };
+  const onSuccess=()=>finish();
+  const onError=()=>finish(new Error(errorMessage));
+  const onAbort=()=>finish(canceled());
+  if(signal?.aborted){reject(canceled());return;}
+  video.addEventListener(success,onSuccess);
+  video.addEventListener('error',onError);
+  signal?.addEventListener('abort',onAbort,{once:true});
+  timer=setTimeout(()=>finish(new Error(`${errorMessage} Tempo limite excedido.`)),timeoutMs);
+  try{trigger?.();if(ready?.())finish();}catch(error){finish(error instanceof Error?error:new Error(errorMessage));}
  });
 }
+export function waitForVideoData(video:HTMLVideoElement,signal?:AbortSignal,timeoutMs=15000):Promise<void>{
+ if(signal?.aborted)return Promise.reject(canceled());
+ if(video.readyState>=2)return Promise.resolve();
+ return waitForVideoEvent(video,'loadeddata',signal,timeoutMs,
+  'Não foi possível decodificar o vídeo.',undefined,()=>video.readyState>=2);
+}
+export function seekVideoFrame(video:HTMLVideoElement,time:number,signal?:AbortSignal,timeoutMs=10000):Promise<void>{
+ if(signal?.aborted)return Promise.reject(canceled());
+ if(!Number.isFinite(time)||time<0)return Promise.reject(new Error('Tempo do vídeo inválido.'));
+ if(Math.abs(video.currentTime-time)<.005&&video.readyState>=2)return Promise.resolve();
+ return waitForVideoEvent(video,'seeked',signal,timeoutMs,
+  'Não foi possível acessar o quadro do vídeo.',()=>{video.currentTime=time;},
+  ()=>Math.abs(video.currentTime-time)<.005&&!video.seeking&&video.readyState>=2);
+}
 const abortIfNeeded=(signal?:AbortSignal)=>{if(signal?.aborted)throw new DOMException('Exportação cancelada','AbortError')};
+/** Preserve the complete resolution budget in both landscape and portrait output.
+ * The previous expression accidentally produced 852x480 for a 1920x1080 scene.
+ */
+export function videoOutputSize(width:number,height:number,maxWidth=1280,maxHeight=720){
+ if(![width,height,maxWidth,maxHeight].every(Number.isFinite)||Math.min(width,height,maxWidth,maxHeight)<=0)throw new Error('Dimensões de vídeo inválidas');
+ const factor=Math.min(1,maxWidth/width,maxHeight/height);
+ const even=(value:number)=>Math.max(2,Math.floor(value/2)*2);
+ return {width:even(width*factor),height:even(height*factor)};
+}
+/** Cover fills the whole template; contain leaves letterboxing without cutting the mug. */
+export function videoFrameBounds(sourceW:number,sourceH:number,outputW:number,outputH:number,fit:'cover'|'contain'='cover'){
+ if(![sourceW,sourceH,outputW,outputH].every(v=>Number.isFinite(v)&&v>0))throw new Error('Dimensões do quadro inválidas');
+ const ratio=fit==='contain'?Math.min(outputW/sourceW,outputH/sourceH):Math.max(outputW/sourceW,outputH/sourceH);
+ const width=sourceW*ratio,height=sourceH*ratio;
+ return {x:(outputW-width)/2,y:(outputH-height)/2,width,height};
+}
+
 function reducedDocument(doc:DesignDocument,width:number,height:number):DesignDocument{
  const x=width/doc.width,y=height/doc.height;const avg=(x+y)/2;
  const nodes:DesignNode[]=doc.nodes.map(n=>({...n,x:n.x*x,y:n.y*y,w:n.w*x,h:n.h*y,
@@ -29,6 +76,20 @@ function reducedDocument(doc:DesignDocument,width:number,height:number):DesignDo
  }));
  return {width,height,background:'transparent',nodes};
 }
+/** Negotiate H.264 profiles instead of failing when a device lacks the baseline profile.
+ * All profiles produce an AVC track compatible with the MP4 muxer.
+ */
+export async function chooseH264Config(width:number,height:number,fps=24):Promise<VideoEncoderConfig>{
+ if(typeof VideoEncoder==='undefined')throw new Error('Este navegador não suporta WebCodecs.');
+ const bitrate=Math.max(1_800_000,Math.min(4_000_000,Math.round(width*height*fps*.18)));
+ for(const codec of ['avc1.42001f','avc1.4d001f','avc1.64001f']){
+  try{
+   const result=await VideoEncoder.isConfigSupported({codec,width,height,framerate:fps,bitrate});
+   if(result.supported&&result.config)return result.config;
+  }catch{/* Uma variante H.264 não é suportada; teste a próxima. */}
+ }
+ throw new Error('Este navegador não possui codificação H.264 compatível. Tente Chrome ou Edge atualizado.');
+}
 type RenderRun={animated:boolean;nodes:DesignNode[];canvas:HTMLCanvasElement};
 async function renderRuns(doc:DesignDocument):Promise<RenderRun[]>{
  const runs:RenderRun[]=[];
@@ -38,28 +99,28 @@ async function renderRuns(doc:DesignDocument):Promise<RenderRun[]>{
   const canvas=document.createElement('canvas');runs.push({animated,nodes:[node],canvas});
  }
  // Avoid allocating dozens of full-resolution canvases for very complex projects.
- if(runs.length>36)return [{animated:true,nodes:doc.nodes,canvas:document.createElement('canvas')}];
- await Promise.all(runs.filter(run=>!run.animated).map(async run=>drawDesign(run.canvas,{...doc,nodes:run.nodes})));
+ if(runs.length>12||runs.length*doc.width*doc.height>14_000_000)return [{animated:true,nodes:doc.nodes,canvas:document.createElement('canvas')}];
+ await Promise.all(runs.filter(run=>!run.animated).map(async run=>drawDesign(run.canvas,{...doc,nodes:run.nodes},undefined,{strict:true})));
  return runs;
 }
 export async function renderMp4Template(doc:DesignDocument,onProgress?:(n:number)=>void,signal?:AbortSignal):Promise<Blob>{
  if(!doc.video?.src)throw new Error('Nenhum MP4 no documento');
+ await assertDesignAssetsReady(doc);
  if(typeof VideoEncoder==='undefined'||typeof VideoFrame==='undefined')throw new Error('Este navegador não suporta exportação MP4. Use Chrome/Edge atualizado em HTTPS.');
  if(!Number.isFinite(doc.width)||!Number.isFinite(doc.height)||doc.width<100||doc.height<100)throw new Error('Tamanho de projeto inválido');
- const w=Math.max(2,Math.floor(Math.min(1280,doc.width)*(Math.min(1,720/doc.height))/2)*2);
- const h=Math.max(2,Math.floor(w*doc.height/doc.width/2)*2);
+ const {width:w,height:h}=videoOutputSize(doc.width,doc.height);
  const fps=24,video=document.createElement('video');video.crossOrigin='anonymous';video.muted=true;video.preload='auto';video.playsInline=true;video.src=doc.video.src;
  let encoder:VideoEncoder|undefined;
  try{
-  abortIfNeeded(signal);await loadVideo(video);
+  abortIfNeeded(signal);await waitForVideoData(video,signal);
+  if(!Number.isFinite(video.duration)||video.duration<=0)throw new Error('A duração do vídeo não foi identificada. Utilize um MP4 completo, com duração finita.');
+  if(doc.video.start!==undefined&&!Number.isFinite(doc.video.start))throw new Error('Início do vídeo inválido.');
+  if(doc.video.end!==undefined&&!Number.isFinite(doc.video.end))throw new Error('Fim do vídeo inválido.');
   const start=Math.max(0,Math.min(doc.video.start??0,Math.max(0,video.duration-.1)));
   const end=Math.min(video.duration,doc.video.end??video.duration,start+20);
   if(!Number.isFinite(end)||end<=start)throw new Error('Defina um intervalo válido de vídeo.');
-  const supported=await VideoEncoder.isConfigSupported({codec:'avc1.42001f',width:w,height:h,framerate:fps,bitrate:2_500_000});
-  // isConfigSupported pode retornar config indefinida; TypeScript exige verificar ambos.
-  const supportedConfig=supported.config;
-  if(!supported.supported||!supportedConfig)throw new Error('Seu navegador não tem codificador H.264 compatível.');
-  const outputDoc=reducedDocument(doc,w,h);const runs=await renderRuns(outputDoc);
+  const supportedConfig=await chooseH264Config(w,h,fps);
+  const outputDoc=reducedDocument(doc,w,h);const runs=await renderRuns(outputDoc);abortIfNeeded(signal);
   const stage=document.createElement('canvas');stage.width=w;stage.height=h;
   const ctx=stage.getContext('2d',{alpha:false});if(!ctx)throw new Error('Canvas de vídeo indisponível');
   const target=new ArrayBufferTarget();const muxer=new Muxer({target,video:{codec:'avc',width:w,height:h,frameRate:fps},fastStart:'in-memory'});
@@ -69,12 +130,12 @@ export async function renderMp4Template(doc:DesignDocument,onProgress?:(n:number
   const frames=Math.ceil((end-start)*fps);
   for(let i=0;i<frames;i++){
    abortIfNeeded(signal);if(encodingError)throw encodingError;
-   await seek(video,Math.min(end-.0001,start+i/fps));
+   await seekVideoFrame(video,Math.min(end-.0001,start+i/fps),signal);
    ctx.fillStyle='#ffffff';ctx.fillRect(0,0,w,h);
-   const scale=Math.max(w/video.videoWidth,h/video.videoHeight),sw=video.videoWidth*scale,sh=video.videoHeight*scale;
-   ctx.drawImage(video,(w-sw)/2,(h-sh)/2,sw,sh);
+   const frameBounds=videoFrameBounds(video.videoWidth,video.videoHeight,w,h,doc.video.fit||'cover');
+   ctx.drawImage(video,frameBounds.x,frameBounds.y,frameBounds.width,frameBounds.height);
    for(const run of runs){
-    if(run.animated)await drawDesign(run.canvas,{...outputDoc,nodes:run.nodes},i/fps);
+    if(run.animated)await drawDesign(run.canvas,{...outputDoc,nodes:run.nodes},i/fps,{strict:true});
     ctx.drawImage(run.canvas,0,0,w,h);
    }
    const frame=new VideoFrame(stage,{timestamp:Math.round(i*1e6/fps),duration:Math.round(1e6/fps)});

@@ -15,7 +15,7 @@ const words:Record<string,[string,string]>={
  'Studio de Templates':['Template Studio','Studio de Plantillas'],
  'Studio Mockup 3D':['3D Mockup Studio','Studio Mockup 3D'],
  'Editor de Sublimação de Canecas':['Mug Sublimation Editor','Editor de Sublimación de Tazas'],
- 'Templates':['Templates','Plantillas'],'Layouts':['Layouts','Diseños'],'Elementos':['Elements','Elementos'],
+ 'Templates':['Templates','Plantillas'],'Layouts':['Layouts','Diseños'],'Camadas':['Layers','Capas'],'Elementos':['Elements','Elementos'],
  'Personagens':['Characters','Personajes'],'Textos':['Text','Textos'],'Fundos':['Backgrounds','Fondos'],
  'Uploads':['Uploads','Archivos'],'Ícones':['Icons','Íconos'],'Objetos':['Objects','Objetos'],
  'Efeitos':['Effects','Efectos'],'Filtros & Efeitos':['Filters & Effects','Filtros y Efectos'],
@@ -63,8 +63,15 @@ const words:Record<string,[string,string]>={
  'Luz/sombra':['Light/shadow','Luz/sombra'],
  'Resetar':['Reset','Restablecer'],
  'Efeitos e acabamentos':['Effects & finishes','Efectos y acabados'],
+ 'Encaixe inteligente':['Smart placement','Colocación inteligente'],
+ 'Recupere a posição e a proporção da caneca neste cenário, mantendo a máscara de primeiro plano.':['Restore the mug position and proportions in this scene while keeping its foreground mask.','Restaura la posición y las proporciones de la taza en esta escena, manteniendo su máscara frontal.'],
+ 'Reencaixar caneca':['Refit mug','Reencajar taza'],
+ 'Caneca reenquadrada no template.':['Mug refitted to the template.','Taza reencajada en la plantilla.'],
 };
 const extraWords:Record<string,[string,string]> = {
+ "Camadas da composição": ["Composition layers", "Capas de la composición"],
+ "Selecione a caneca, o primeiro plano ou o fundo. Olho: ocultar sem apagar. Cadeado: proteger contra alterações.": ["Select the mug, foreground or background. Eye: hide without deleting. Lock: prevent edits.", "Selecciona la taza, el primer plano o el fondo. Ojo: ocultar sin borrar. Candado: impedir cambios."],
+ "Camadas ocultas não aparecem na exportação. Selecione fundo e primeiro plano aqui, mesmo quando ocuparem a tela inteira.": ["Hidden layers are excluded from exports. Select foreground and background here, even when they cover the entire canvas.", "Las capas ocultas no aparecen al exportar. Selecciona fondo y primer plano aquí, aunque ocupen todo el lienzo."],
  "100% para canecas · uploads temporários somente neste navegador": [
   "100% for mugs · uploads remain temporarily in this browser",
   "100% para tazas · archivos temporales solo en este navegador"

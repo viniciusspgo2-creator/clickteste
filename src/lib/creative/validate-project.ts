@@ -34,6 +34,8 @@ export function validateProjectDocument(input:unknown):asserts input is DesignDo
   for(const key of ['w','h'])if(!numeric(n[key],0.01,16384))throw new Error(`Tamanho inválido no elemento ${index+1}.`);
   if(!numeric(n.opacity,0,1))throw new Error(`Transparência inválida no elemento ${index+1}.`);
   if(n.role!==undefined&&!roles.has(n.role as string))throw new Error('Tipo de camada inválido.');
+  if(n.visible!==undefined&&typeof n.visible!=='boolean')throw new Error('Visibilidade de camada inválida.');
+  if(n.locked!==undefined&&typeof n.locked!=='boolean')throw new Error('Bloqueio de camada inválido.');
   if(n.kind==='image'&&!mediaUrl(n.src,'image'))throw new Error(`Imagem insegura ou inválida no elemento ${index+1}.`);
   if(n.kind==='text'&&!short(n.text,20000))throw new Error(`Texto muito longo no elemento ${index+1}.`);
   for(const key of ['font','layerName','fill','tint','stroke','shadowColor'])if(n[key]!==undefined&&!short(n[key],250))throw new Error(`Atributo inválido: ${key}.`);
@@ -41,6 +43,6 @@ export function validateProjectDocument(input:unknown):asserts input is DesignDo
   if(n.crop!==undefined){if(!isRecord(n.crop)||!['left','right','top','bottom'].every(k=>numeric((n.crop as Record<string,unknown>)[k],0,.99)))throw new Error('Recorte inválido.');}
   if(n.keyframes!==undefined){if(!Array.isArray(n.keyframes)||n.keyframes.length>300)throw new Error('Animação inválida.');for(const frame of n.keyframes){if(!isRecord(frame)||!numeric(frame.time,0,600)||!numeric(frame.x,-65536,65536)||!numeric(frame.y,-65536,65536)||!numeric(frame.w,.01,16384)||!numeric(frame.h,.01,16384)||!numeric(frame.angle,-65536,65536)||!numeric(frame.opacity,0,1))throw new Error('Keyframe inválido.');}}
  }
- if(input.video!==undefined){const video=input.video;if(!isRecord(video)||!mediaUrl(video.src,'video')||!named(video.name)||!numeric(video.start,0,86400)||(video.end!==undefined&&!numeric(video.end,0,86400)))throw new Error('Vídeo inválido.');}
+ if(input.video!==undefined){const video=input.video;if(!isRecord(video)||!mediaUrl(video.src,'video')||!named(video.name)||!numeric(video.start,0,86400)||(video.end!==undefined&&!numeric(video.end,0,86400))||(video.fit!==undefined&&!['cover','contain'].includes(String(video.fit))))throw new Error('Vídeo inválido.');}
  if(input.smartTemplate!==undefined){const smart=input.smartTemplate;if(!isRecord(smart)||!isRecord(smart.slot)||!['x','y','w','h'].every(k=>numeric((smart.slot as Record<string,unknown>)[k],0,8192))||(smart.maskSrc!==undefined&&!mediaUrl(smart.maskSrc,'image')))throw new Error('Encaixe de template inválido.');}
 }

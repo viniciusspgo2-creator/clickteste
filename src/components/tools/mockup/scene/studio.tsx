@@ -37,6 +37,7 @@ import {
 import { studioRefs } from "./studio-refs";
 import { MUG_CONTACT_LAYER, sceneFootprint } from "./scene-layout";
 import { createSoftboxTexture } from "./softbox";
+import { projectedShadowPose } from "../lib/shadow-pose";
 
 function configureContactCamera(group: THREE.Group | null) {
   group?.traverse(object => {
@@ -432,41 +433,44 @@ export function FloatShadows() {
       z: mug.posZ ?? 0,
       id: "hero", hidden: mug.hidden,
       lift: (floating ? FLOAT_LIFT : 0) + mugPosY,
-      scale: mugScale,
+      scale: mugScale, tiltX:mug.tiltX??0, tiltZ:mug.tiltZ??0, rotationY:mug.rotationY??0,
     },
     ...companions
       .filter((c) => !c.hidden)
       .map((c) => ({ id: c.id, hidden: c.hidden, x: c.posX, z: c.posZ,
-        lift: (floating ? FLOAT_LIFT : 0) + (c.posY ?? 0), scale: c.scale })),
+        lift: (floating ? FLOAT_LIFT : 0) + (c.posY ?? 0), scale: c.scale,
+        tiltX:c.tiltX??0, tiltZ:c.tiltZ??0, rotationY:c.rotationY??0 })),
   ].filter(m => !m.hidden);
 
   return (
     <group name="float-shadow">
       {mugs.map((m) => {
         const soft = 1 + Math.max(0, m.lift) * 0.16;
+        const pose = projectedShadowPose(m.tiltX, m.tiltZ, m.rotationY);
+        const base = 11 * m.scale * soft * shadowSpread;
         const opacity = floating ? Math.max(0.1, (shadowOpacity ?? 0.44) / (1 + m.lift * 0.4))
           : Math.min(0.82, (shadowOpacity ?? 0.44) * 0.83) / (1 + Math.max(0, m.lift) * 0.35);
         return (
-          <mesh
-            key={m.id}
-            name="mug-ground-shadow"
-            userData={{ objectId: m.id }}
-            rotation={[-Math.PI / 2, 0, 0]}
-            position={[m.x + shadowShiftX, 0.02, m.z + shadowShiftZ]}
-            scale={11 * m.scale * soft * shadowSpread}
-          >
-            <planeGeometry args={[1, 1]} />
-            <meshBasicMaterial
-              map={tex}
-              color={shadowColor ?? "#242424"}
-              transparent
-              opacity={opacity}
-              depthWrite={false}
-              polygonOffset
-              polygonOffsetFactor={-1}
-              polygonOffsetUnits={-1}
-            />
-          </mesh>
+          <group key={m.id} name="mug-ground-shadow" userData={{ objectId: m.id }}
+            position={[m.x + shadowShiftX, 0.02, m.z + shadowShiftZ]} rotation={[0, pose.angle, 0]}>
+            <mesh rotation={[-Math.PI / 2, 0, 0]} scale={[base * pose.stretch, base * pose.cross, 1]}>
+              <planeGeometry args={[1, 1]} />
+              <meshBasicMaterial
+                map={tex} color={shadowColor ?? "#242424"} transparent opacity={opacity}
+                depthWrite={false} polygonOffset polygonOffsetFactor={-1} polygonOffsetUnits={-1}
+              />
+            </mesh>
+            {/* Contato suave adicional sob a cerâmica, com mesma orientação
+                da caneca. Pertence ao grupo ocultado na captura para o Editor. */}
+            <mesh name="mug-contact-penumbra" rotation={[-Math.PI / 2, 0, 0]}
+              position={[0, 0.005, 0]}
+              scale={[base * pose.stretch * 0.47, base * pose.cross * 0.43, 1]}>
+              <planeGeometry args={[1, 1]} />
+              <meshBasicMaterial map={tex} color={shadowColor ?? "#242424"}
+                transparent opacity={Math.min(0.25, opacity * 0.34 / (1 + Math.max(0, m.lift) * 0.25))}
+                depthWrite={false} polygonOffset polygonOffsetFactor={-1} polygonOffsetUnits={-2} />
+            </mesh>
+          </group>
         );
       })}
     </group>

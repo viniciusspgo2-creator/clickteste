@@ -17,3 +17,9 @@ export function reorderNodes(nodes:readonly DesignNode[],id:string,mode:LayerMov
 export function mirrorNode(node:DesignNode,axis:'horizontal'|'vertical'):DesignNode{
  return axis==='horizontal'?{...node,flipX:!node.flipX}:{...node,flipY:!node.flipY};
 }
+
+/** Camadas de cenário continuam no documento, mas não cobrem o Canvas com
+ * uma caixa transparente gigante. Podem ser selecionadas pelo painel Camadas. */
+export function canSelectOnCanvas(node:DesignNode):boolean{
+ return node.visible!==false && !node.locked && node.role!=='background' && node.role!=='foreground';
+}

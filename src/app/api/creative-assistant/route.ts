@@ -3,7 +3,10 @@
  * must be upgraded to shared KV before making high-volume public access available.
  */
 import {NextRequest,NextResponse} from 'next/server';
+import {readAssistantBody,AssistantRequestError} from '@/lib/creative/assistant-request';
 export const runtime='nodejs';
+/** Disponibilidade sem expor chave, modelo ou informações privadas. */
+export function GET(){return NextResponse.json({ok:true,aiEnabled:Boolean(process.env.OPENAI_API_KEY)},{headers:{'Cache-Control':'no-store'}});}
 const actionsByArea={
  editor:['backgrounds','templates','texts','elements','personagens','uploads','guides','export'],
  studio:['arts','base','models','scene','light','camera','effects','compose'],
@@ -33,9 +36,14 @@ export async function POST(req:NextRequest){
   // Prevent unusually large bodies from reaching the provider, and block cross-site form abuse.
   if(Number(req.headers.get('content-length')||0)>4096)return NextResponse.json({ok:false,reason:'request_too_large'},{status:413});
   const origin=req.headers.get('origin');if(origin){try{if(new URL(origin).host!==req.nextUrl.host)return NextResponse.json({ok:false,reason:'forbidden'},{status:403});}catch{return NextResponse.json({ok:false,reason:'forbidden'},{status:403});}}
-  const body=await req.json();const question=typeof body?.question==='string'?body.question.trim():'';
-  const rawArea=body?.area;const area:keyof typeof actionsByArea=rawArea==='studio'||rawArea==='templates'?rawArea:'editor';
-  const locale=['pt','en','es'].includes(body?.locale)?body.locale:'pt';
+  const body=await readAssistantBody(req).catch((error:unknown)=>{
+   if(error instanceof AssistantRequestError)return error;
+   return new AssistantRequestError(400,'JSON inválido.');
+  });
+  if(body instanceof AssistantRequestError)return NextResponse.json({ok:false,reason:body.message},{status:body.status});
+  const question=typeof (body as {question?:unknown})?.question==='string'?(body as {question:string}).question.trim():'';
+  const rawArea=(body as {area?:unknown})?.area;const area:keyof typeof actionsByArea=rawArea==='studio'||rawArea==='templates'?rawArea:'editor';
+  const candidateLocale=(body as {locale?:unknown})?.locale;const locale=candidateLocale==='en'||candidateLocale==='es'?candidateLocale:'pt';
   if(!question||question.length>600)return NextResponse.json({ok:false,reason:'invalid_question'},{status:400});
   const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),15000);
   let result:Response;

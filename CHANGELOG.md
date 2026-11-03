@@ -1,3 +1,28 @@
+## V4.2 — Exportação segura, máscaras eficientes e acabamento fotográfico (staging)
+
+- Editor: não exporta mais PNG/JPEG/WebP quando uma imagem ou máscara visível não puder ser carregada. A mensagem identifica a camada afetada, impedindo arquivos silenciosamente incompletos. O mesmo pré-teste é aplicado a sobreposições do vídeo.
+- Editor: cache LRU limitado a 14 milhões de pixels para recolorações e máscaras, reduzindo recomputação de efeitos no MP4. Limpa o cache da sessão quando o usuário reseta o projeto; não altera projetos salvos manualmente.
+- MP4: fallback entre perfis H.264 baseline/main/high compatíveis; bitrate adaptado à resolução. A exportação segue sem áudio e limitada a 20 segundos/720p/24 fps.
+- Studio 3D: novo preset não destrutivo **Foto realista**, com cerâmica e reflexos mais moderados; o preset de Sublimação permanece o padrão e os acabamentos existentes são preservados.
+- QA: 44 testes Node de regressão e novas provas no Chromium para máscara, recoloração, cache, exportação PNG e falha de arquivo. Checagem de tipos isolada nas novas rotinas sem dependências externas.
+- Limitação: build Next.js completo indisponível no ambiente, por ausência de pacote npm no cache. **Deploy somente em staging.**
+
+## V4.0 — Poses, templates inteligentes e pré-impressão (STAGING)
+
+- Sombra radial do chão se alonga e acompanha a direção de canecas inclinadas/deitadas (múltiplas canecas incluídas). A geometria e a iluminação cerâmica não foram alteradas.
+- Reencaixe manual da caneca no slot de template inteligente, preservando proporção, máscara, imagem e demais efeitos. Pode ser desfeito pelo histórico.
+- Pré-impressão: verificação local da resolução efetiva de imagens raster e recortes, avisando abaixo de 140 DPI / entre 140 e 220 DPI. Vetores SVG não são marcados como raster.
+- Pré-impressão: alerta de texto que ultrapassa a área segura após giro.
+- Avisos aparecem na janela de exportação; verificação nunca envia a imagem ao servidor.
+- 5 novos testes automatizados, integrados a `npm run verify:creative`.
+- Necessário homologar build Next.js e renderização visual no navegador em staging.
+
+## V3.9 — Camadas, pré-impressão e estabilidade
+- Aba Camadas, visibilidade, bloqueio e movimentação de cenário sem obstruir a caneca.
+- Pré-impressão e histórico com menos cópias de dados base64.
+- Testes de renderização no Chromium e verificação pré-build.
+- Relatório: `docs/CLICKGRUDA-V3-9-ESTABILIDADE-CAMADAS.md`.
+
 ## Mockup Studio — ajustes finais (27/10/2026)
 
 - Estampa somente na parede externa e no chanfro inferior; lábio e interior limpos.

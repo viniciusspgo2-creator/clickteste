@@ -32,17 +32,19 @@ test('Editor permite selecionar página PDF, animações e ajustes de máscara',
  const design=source('src/lib/creative/design.ts');assert.ok(design.includes('if(tint||n.maskSrc)'));assert.ok(design.includes('animateDesignNode'));
 });
 test('Templates inteligentes preservam encaixe com máscara e proporção',()=>{
- const s=source('src/lib/creative/smart-templates.ts');assert.ok(s.includes('slot.x+(slot.w-mug.w)/2'));assert.ok(s.includes('smartTemplate:slot?{slot,maskSrc:mask}'));
+ const s=source('src/lib/creative/smart-templates.ts');assert.ok(s.includes('fitMockupIntoSlot(mug,slot,mask)'));assert.ok(s.includes('smartTemplate:slot?{slot,maskSrc:mask}'));
 });
 test('MP4 mantém WebCodecs e anima objeto a cada quadro',()=>{
- const s=source('src/lib/creative/video-templates.ts');for(const part of ['start+20',"codec:'avc'",'await drawDesign(run.canvas,{...outputDoc,nodes:run.nodes},i/fps)','new VideoEncoder'])assert.ok(s.includes(part),part);
+ const s=source('src/lib/creative/video-templates.ts');for(const part of ['start+20',"codec:'avc'",'await drawDesign(run.canvas,{...outputDoc,nodes:run.nodes},i/fps,{strict:true})','new VideoEncoder'])assert.ok(s.includes(part),part);
 });
 test('Proteção do agente restringe ações ao módulo e bloqueia origem externa',async()=>{
  const js=parse('src/app/api/creative-assistant/route.ts');const mod={exports:{}};
  const api={NextResponse:{json:(body,opts={})=>({body,status:opts.status??200})}};
  const responder=async(_url,opts)=>({ok:true,json:async()=>({choices:[{message:{content:JSON.stringify({reply:'Ok',action:JSON.parse(opts.body).messages[1].content.includes('editor')?'models':'models',label:'Produto'})}}]})});
- new Function('module','exports','require','process','fetch',js)(mod,mod.exports,()=>api,{env:{OPENAI_API_KEY:'test-mock-not-real'}},responder);
- const req=(area,origin)=>({headers:{get:k=>k==='origin'?origin:k==='x-forwarded-for'?`test-${area}-${origin}`:null},nextUrl:{host:'clickgruda.test'},json:async()=>({area,locale:'pt',question:'Abra produto'})});
+ const helper={exports:{}};
+ new Function('module','exports','require',parse('src/lib/creative/assistant-request.ts'))(helper,helper.exports,()=>{});
+ new Function('module','exports','require','process','fetch',js)(mod,mod.exports,name=>name==='@/lib/creative/assistant-request'?helper.exports:api,{env:{OPENAI_API_KEY:'test-mock-not-real'}},responder);
+ const req=(area,origin)=>{const request=new Request('https://clickgruda.test/api/creative-assistant',{method:'POST',headers:{origin,'content-type':'application/json','x-forwarded-for':`test-${area}-${origin}`},body:JSON.stringify({area,locale:'pt',question:'Abra produto'})});request.nextUrl={host:'clickgruda.test'};return request;};
  const invalid=await mod.exports.POST(req('editor','https://evil.test'));assert.equal(invalid.status,403);
  const editor=await mod.exports.POST(req('editor','https://clickgruda.test'));assert.equal(editor.body.action,null);
  const studio=await mod.exports.POST(req('studio','https://clickgruda.test'));assert.equal(studio.body.action,'models');

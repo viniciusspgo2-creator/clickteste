@@ -97,3 +97,32 @@
 
 /* V3.7: prévia e linha do tempo animada para composições MP4. */
 .cr-motion-timeline{display:flex;align-items:center;gap:10px;background:#241b18;border-bottom:1px solid #653c2a;padding:8px 14px;color:#ffb778;flex-wrap:wrap}.cr-motion-timeline>span{font-size:10px;font-weight:900;letter-spacing:1px}.cr-motion-timeline input[type=range]{flex:1;min-width:120px;accent-color:#f78b33}.cr-motion-timeline button,.cr-motion-presets button,.cr-motion-editor .cr-inline button{border:1px solid #8e512f;border-radius:8px;padding:7px 9px;background:#33241d;color:#ffe3c8;font-weight:700}.cr-motion-timeline small{color:#b9a99d}.cr-motion-editor{border:1px solid #72472e;border-radius:13px;padding:12px;margin:10px 0;background:#291f1c}.cr-motion-editor>small{display:block;color:#e1bda8;font-size:10px;line-height:1.5}.cr-motion-presets{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:12px 0}.cr-motion-presets button{font-size:11px;min-height:37px}.cr-motion-editor .cr-inline{flex-wrap:wrap;gap:8px;display:flex;margin-bottom:9px}
+
+/* V3.9 — Camadas explícitas: templates com primeiro plano não bloqueiam a caneca. */
+.cr-layer-panel{display:flex;flex-direction:column;gap:10px;padding-bottom:28px}
+.cr-layer-list{display:flex;flex-direction:column;gap:7px;max-height:min(57vh,690px);overflow-y:auto;padding:3px 1px 7px;scrollbar-width:thin}
+.cr-layer-item{display:grid;gap:4px;background:#242120;border:1px solid #493b34;border-radius:11px;padding:8px;min-width:0}
+.cr-layer-item.active{background:#34251e;border-color:#f28b34;box-shadow:0 0 0 1px #f28b3426}
+.cr-layer-item.hidden-layer .cr-layer-select{opacity:.53}
+.cr-layer-select{display:grid;grid-template-columns:30px minmax(0,1fr);grid-template-rows:auto auto;text-align:left;align-items:center;column-gap:8px;background:transparent;border:0;color:#fff;min-width:0;padding:4px}
+.cr-layer-select span{grid-row:1/3;width:29px;height:29px;display:grid;place-items:center;border-radius:7px;background:#583522;color:#ffb378;font-weight:900;font-size:17px}
+.cr-layer-select strong{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.cr-layer-select small{font-size:10px;color:#afa19a}
+.cr-layer-tools{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.cr-layer-tools button{display:grid;place-items:center;border-radius:7px;border:1px solid #574238;background:#322925;color:#f7cfb0;min-height:32px}
+.cr-layer-tools button:hover:not(:disabled){background:#593622;border-color:#f28b34}
+.cr-properties-fields{border:0;min-width:0;margin:0;padding:0;display:block}
+.cr-properties-fields:disabled{opacity:.5}
+.cr-layer-lock-notice{display:flex;align-items:center;gap:8px;padding:12px;border-radius:9px;background:#372c21;border:1px solid #8a633e;color:#f2c79d;font-size:11px;margin:11px 0}
+.cr-print-check{background:#25201d;border:1px solid #624b3b;border-radius:12px;padding:12px 13px;margin:13px 0;display:flex;flex-direction:column;gap:8px}
+.cr-print-check>strong{font-size:10px;letter-spacing:1.2px;color:#f6ab75}
+.cr-print-message{display:flex;align-items:flex-start;gap:9px;margin:0!important;font-size:11px!important;line-height:1.5;color:#e9c9a8}
+.cr-print-message svg{flex-shrink:0;margin-top:1px}.cr-print-message.warning{color:#ffd19b}.cr-print-message.success{color:#a6e8bd}.cr-print-message.info{color:#bacbd6}
+.cr-scene-drag{display:block;width:100%;text-align:center;padding:11px 9px;border:1px solid #a45d31;border-radius:10px;background:#41291b;color:#ffd3aa;font-size:12px;font-weight:800}
+.cr-scene-drag.active{border-color:#ffae66;background:#9d4d21;color:white}
+
+/* Smart template manual fit; keeps mask and aspect ratio. */
+.cr-fit-scale-options{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+.cr-fit-scale-options button{padding:7px 12px;border:1px solid rgba(255,134,36,.33);border-radius:9px;color:#f6dec4;background:rgba(255,133,36,.07);font-size:12px;font-weight:700}
+.cr-fit-scale-options button:hover:not(:disabled){background:rgba(255,133,36,.18)}
+.cr-fit-scale-options button:disabled{opacity:.4;cursor:not-allowed}

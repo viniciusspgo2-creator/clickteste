@@ -1,5 +1,5 @@
 'use client';
-import {useState} from 'react';
+import {useEffect,useState} from 'react';
 import {usePlatformLanguage} from '@/components/platform/language-provider';
 import {BookOpen,Send,CheckCircle2,X,Sparkles} from 'lucide-react';
 import './creative.css';
@@ -27,6 +27,12 @@ const catalog:{test:RegExp;message:string;action?:Action;label?:string}[]=[
 const suggestions=['Qual é o tamanho correto da estampa?', 'Como enviar um objeto para trás?', 'Como espelhar um elemento?', 'Como salvar no navegador?'];
 export function StudioConcierge({area,onClose,onAction}:{area:Area;onClose:()=>void;onAction?:(action:Action)=>boolean}){
  const {language}=usePlatformLanguage();
+ const [aiAvailable,setAiAvailable]=useState<boolean|null>(null);
+ useEffect(()=>{let mounted=true;void fetch('/api/creative-assistant',{cache:'no-store'})
+  .then(res=>res.ok?res.json():Promise.reject(new Error('status unavailable')))
+  .then(status=>{if(mounted)setAiAvailable(Boolean(status.aiEnabled));})
+  .catch(()=>{if(mounted)setAiAvailable(false);});
+  return()=>{mounted=false;};},[]);
  const [isAnswering,setIsAnswering]=useState(false);
  const [query,setQuery]=useState('');const [reply,setReply]=useState('Pergunte sobre impressão, Studio 3D, templates ou Editor. Posso abrir ferramentas disponíveis mediante sua confirmação.');
  const [pending,setPending]=useState<{action:Action;label:string}|null>(null);const [conversation,setConversation]=useState<string[]>([]);
@@ -47,6 +53,6 @@ export function StudioConcierge({area,onClose,onAction}:{area:Area;onClose:()=>v
    {pending&&<div className="cr-concierge-confirm"><strong>Quer ativar a opção “{pending.label}”?</strong><p>Digite SIM ou clique em Confirmar. Nenhuma configuração será alterada sem essa ação.</p><div><button type="button" onClick={()=>setPending(null)}>Cancelar</button><button type="button" onClick={()=>{const ok=onAction?.(pending.action)??false;setReply(ok?`Opção “${pending.label}” aberta. Você pode continuar editando normalmente.`:`Esta opção fica em outra ferramenta da plataforma. Abra o módulo correspondente para ativá-la.`);setPending(null)}}><CheckCircle2 size={15}/> Confirmar</button></div></div>}
    {!pending&&<div className="cr-concierge-suggestions">{suggestions.map(s=><button key={s} type="button" onClick={()=>void ask(s)}>{s}</button>)}</div>}</div>
   <form onSubmit={e=>{e.preventDefault();if(pending&&/^(sim|s[ií]|yes)$/i.test(query.trim())){const ok=onAction?.(pending.action)??false;setReply(ok?`Opção “${pending.label}” aberta.`:'Para acessar esta função, abra o módulo correspondente.');setPending(null);setQuery('');}else void ask(query);}}><input aria-label="Pergunte ao assistente" value={query} onChange={e=>setQuery(e.target.value)} placeholder={pending?'Digite SIM para confirmar...':'Como faço para...'} maxLength={300}/><button type="submit" aria-label="Enviar pergunta"><Send size={17}/></button></form>
-  <div className="cr-concierge-foot"><Sparkles size={13}/> Respostas com IA quando OPENAI_API_KEY estiver configurada; caso contrário, guia local. Apenas perguntas de texto são enviadas à IA; nunca arquivos ou projetos. Ações exigem confirmação.</div>
+  <div className="cr-concierge-foot"><Sparkles size={13}/> {aiAvailable===true?'IA disponível nesta instalação':aiAvailable===false?'Guia local · IA não configurada':'Verificando disponibilidade da IA'} · Somente perguntas de texto são enviadas ao provedor quando habilitado; nunca arquivos ou projetos. Ações exigem confirmação.</div>
  </div>;
 }

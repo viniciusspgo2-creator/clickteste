@@ -229,10 +229,15 @@ const REFERENCE_HANDLE_POINTS: Partial<Record<HandleStyle, number[][]>> = {
   // Foto 325ml: duas raízes suaves na parede, pescoço superior quase horizontal,
   // arco externo em D ligeiramente vertical e canto inferior contínuo.
   // Dimensões relativas estimadas da única vista frontal (não é escaneamento 3D).
-  livesub: [[0,7.60,-3.95],[0,7.60,-4.28],[0,7.58,-4.95],
-    [0,7.49,-5.62],[0,7.10,-6.46],[0,6.27,-7.24],
-    [0,5.22,-7.52],[0,4.03,-7.47],[0,3.03,-7.07],
-    [0,2.26,-6.29],[0,1.96,-5.38],[0,1.95,-4.61],[0,1.95,-3.95]],
+  // Perfil estimado da referência fotográfica frontal (não digitalizado em 3D).
+  // Dois apoios discretos na parede, abertura longa em D e arco externo suave.
+  livesub: [
+    [0,7.58,-3.92],[0,7.58,-4.38],[0,7.51,-5.02],
+    [0,7.28,-5.68],[0,6.85,-6.36],[0,6.13,-7.02],
+    [0,5.36,-7.34],[0,4.45,-7.39],[0,3.53,-7.15],
+    [0,2.78,-6.63],[0,2.26,-5.94],[0,2.02,-5.13],
+    [0,2.03,-4.44],[0,2.03,-3.92]
+  ],
   spoon: [[0,7.7,-3.89],[0,7.7,-4.55],[0,7.3,-5.75],[0,6.4,-6.7],[0,5.1,-6.9],[0,3.8,-6.15],[0,2.5,-4.65],[0,2.5,-3.89]],
   "heart-asymmetric": [[0,8,-3.89],[0,8,-4.3],[0,7.85,-4.55],[0,6.7,-5.25],[0,6.9,-6.15],[0,7.05,-7.3],[0,6.4,-7.95],[0,5.25,-7.8],[0,4.1,-6.85],[0,3,-5.2],[0,2.35,-4.55],[0,2.35,-3.89]],
   heart: [[0,7.45,-3.89],[0,7.45,-4.35],[0,8.1,-4.8],[0,8.15,-5.3],[0,7.5,-5.95],[0,6.95,-6.25],[0,7.2,-7.15],[0,6.85,-7.95],[0,5.9,-8.12],[0,4.75,-7.45],[0,3.65,-6.15],[0,2.8,-5.2],[0,3.15,-4.75],[0,3.65,-4.35],[0,3.65,-3.89]],
@@ -254,9 +259,9 @@ export function handleExtentR(): number {
 export function buildHandleGeometry(style: HandleStyle = "classic"): THREE.BufferGeometry {
   const curve = getHandleCurve(style);
   const rounded = style !== "classic";
-  const sectionX = style === 'livesub' ? 0.49 : style === "heart" || style === "heart-asymmetric" ? 0.42 : style === "oval-gold" ? 0.49 : rounded ? 0.58 : HANDLE_A_X;
-  const sectionN = style === 'livesub' ? 0.38 : style === "heart" || style === "heart-asymmetric" ? 0.42 : style === "spoon" ? 0.39 : HANDLE_B_N;
-  const weldStrength = style === 'livesub' ? 0.30 : style === "heart" || style === "heart-asymmetric" ? 0.45 : 0.72;
+  const sectionX = style === 'livesub' ? 0.46 : style === "heart" || style === "heart-asymmetric" ? 0.42 : style === "oval-gold" ? 0.49 : rounded ? 0.58 : HANDLE_A_X;
+  const sectionN = style === 'livesub' ? 0.34 : style === "heart" || style === "heart-asymmetric" ? 0.42 : style === "spoon" ? 0.39 : HANDLE_B_N;
+  const weldStrength = style === 'livesub' ? 0.24 : style === "heart" || style === "heart-asymmetric" ? 0.45 : 0.72;
   const tubular = 144,
     radial = 40,
     ring = radial + 1;
@@ -275,15 +280,22 @@ export function buildHandleGeometry(style: HandleStyle = "classic"): THREE.Buffe
       weldStrength *
         (Math.exp(-Math.pow(t / 0.12, 2)) +
           Math.exp(-Math.pow((1 - t) / 0.12, 2)));
+    // On the photo-reference handle, a full-sized capped end ring can protrude
+    // through the cup wall. Narrow both root rings *inside* the ceramic wall,
+    // then gradually blend into the continuous D-shaped handle. Other handles
+    // retain their geometry for compatibility with saved projects.
+    const endDistance = Math.min(t, 1 - t);
+    const rootBlend = THREE.MathUtils.smoothstep(endDistance, 0, 0.055);
+    const rootTaper = style === 'livesub' ? 0.36 + 0.64 * rootBlend : 1;
     for (let j = 0; j <= radial; j++) {
       const a = (j / radial) * Math.PI * 2;
       // Superelipse arredondada, ligeiramente mais larga na face externa.
       const ca = Math.cos(a),
         sa = Math.sin(a);
       const ox =
-        Math.sign(ca) * Math.pow(Math.abs(ca), rounded ? 1 : 0.85) * sectionX * weld;
+        Math.sign(ca) * Math.pow(Math.abs(ca), rounded ? 1 : 0.85) * sectionX * weld * rootTaper;
       const on =
-        Math.sign(sa) * Math.pow(Math.abs(sa), rounded ? 1 : 0.9) * sectionN * weld;
+        Math.sign(sa) * Math.pow(Math.abs(sa), rounded ? 1 : 0.9) * sectionN * weld * rootTaper;
       positions.push(
         center.x + ox,
         center.y + perp.y * on,

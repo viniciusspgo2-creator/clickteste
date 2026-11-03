@@ -8,6 +8,9 @@ export const CERAMIC_FINISHES: { id: string; label: string; description: string;
   { id: "sublimation", label: "Sublimação", description: "Verniz polido suave, com reflexos que preservam a leitura da estampa", values: {
     roughness: 0.085, clearcoat: 1, clearcoatRoughness: 0.075, specularIntensity: 0.85, reflection: 0.9, glazeStrength: 1,
   } },
+  { id: "photo", label: "Foto realista", description: "Brilho equilibrado, superfície cerâmica natural e estampa legível", values: {
+    roughness: 0.16, clearcoat: 0.88, clearcoatRoughness: 0.13, specularIntensity: 0.72, reflection: 0.76, glazeStrength: 0.92,
+  } },
   { id: "gloss", label: "Alto brilho", description: "Brilho destacado com reflexos mais nítidos", values: {
     roughness: 0.045, clearcoat: 1, clearcoatRoughness: 0.025, specularIntensity: 1, reflection: 1.4, glazeStrength: 2.2,
   } },
