@@ -1,0 +1,56 @@
+/* The Studio is an app viewport. Its panels own their scrolling. */
+.cg-studio-page {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+body:has(.cg-studio-page) {
+  overflow: hidden;
+  overscroll-behavior-y: none;
+}
+
+.cg-studio-page > .cg-access-bar {
+  flex: none;
+}
+
+.cg-studio-page > .cg-studio-root {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.cg-studio-page > .cg-access-status,
+.cg-studio-page > .cg-access-login,
+.cg-studio-page > .cg-studio-loading {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  align-items: safe center;
+}
+
+.cg-studio-page .cg-studio-root .cg-workspace {
+  height: 100%;
+  min-height: 0;
+}
+
+.cg-studio-page .cg-studio-root .cg-workspace:fullscreen {
+  height: 100dvh;
+}
+
+.cg-studio-page .cg-panel,
+.cg-studio-page .cg-rail {
+  overscroll-behavior-y: contain;
+}
+
+.cg-studio-page .cg-rail {
+  min-height: 0;
+  overflow-y: auto;
+}

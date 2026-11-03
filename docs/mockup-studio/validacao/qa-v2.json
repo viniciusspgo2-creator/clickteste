@@ -1,0 +1,139 @@
+{
+  "date": "2026-10-27",
+  "browser": "Chromium 153 / SwiftShader",
+  "desktop": {
+    "width": 1400,
+    "height": 900,
+    "overflow": false
+  },
+  "mobile": {
+    "widths": [
+      390,
+      320
+    ],
+    "overflow": false,
+    "menu": true,
+    "propertiesDrawer": true,
+    "exportVisible": true
+  },
+  "views": {
+    "verified": [
+      "Frente",
+      "Lateral / Alça",
+      "Costas",
+      "Perspectiva 3D",
+      "Topo / Interior"
+    ],
+    "relativeToSelectedMug": true
+  },
+  "image": {
+    "out": [
+      {
+        "background": "white",
+        "width": 384,
+        "height": 384,
+        "ss": 4,
+        "bytes": 26180,
+        "corner": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "center": [
+          235,
+          235,
+          235,
+          255
+        ],
+        "dpi": [
+          11811,
+          11811,
+          1
+        ]
+      },
+      {
+        "background": "transparent",
+        "width": 384,
+        "height": 384,
+        "ss": 4,
+        "bytes": 27598,
+        "corner": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "center": [
+          235,
+          235,
+          235,
+          255
+        ],
+        "dpi": [
+          11811,
+          11811,
+          1
+        ]
+      },
+      {
+        "background": "scene",
+        "width": 384,
+        "height": 384,
+        "ss": 4,
+        "bytes": 26180,
+        "corner": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "center": [
+          235,
+          235,
+          235,
+          255
+        ],
+        "dpi": [
+          11811,
+          11811,
+          1
+        ]
+      }
+    ],
+    "restored": true
+  },
+  "failedCapture": {
+    "failure": true,
+    "restored": true
+  },
+  "effects": {
+    "bytes": 1170,
+    "cameraRestored": true,
+    "exporting": false
+  },
+  "printPreset": {
+    "ratioId": "custom",
+    "customW": 3000,
+    "customH": 3000,
+    "scale": 1,
+    "format": "png",
+    "quality": 0.92,
+    "transparent": false,
+    "dpi": 300
+  },
+  "gif": {
+    "bytes": 2833,
+    "type": "image/gif",
+    "restored": true
+  },
+  "batch": {
+    "bytes": 2680,
+    "count": 1,
+    "restored": true
+  },
+  "playPause": {
+    "sameVisibleAngle": true
+  },
+  "applicationErrors": []
+}

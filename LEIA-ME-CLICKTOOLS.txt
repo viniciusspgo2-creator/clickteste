@@ -1,0 +1,41 @@
+IMPORTANTE: Para a atualização da home de 29/10/2026, LEIA primeiro LEIA-PRIMEIRO-INSTALACAO.txt. Este documento abaixo é histórico do reparo antigo e os scripts citados não devem ser usados para aplicar o redesign.
+
+CLICKTOOLS — REPARO DO GITHUB DESKTOP + PROJETO FULL
+=======================================================
+
+ATENÇÃO: este é o projeto CLICKTOOLS, repositório viniciusspgo2-creator/clicktools.
+O nome Click & Gruda aparece na identidade comercial do próprio código.
+
+POR QUE O ZIP ANTERIOR NÃO RESOLVEU?
+O GitHub Desktop tinha 2 commits locais diferentes de commits do servidor e tentava
+MERGE, por isso apareciam 7 conflitos. Sobrescrever os arquivos não muda o
+histórico da pasta .git. Este reparador evita o Merge.
+
+EXECUÇÃO (UM ARQUIVO):
+1. Extraia TODO este ZIP em uma pasta fora do seu projeto (por exemplo Downloads).
+2. Clique 2 vezes em INICIAR-CORRECAO-CLICKTOOLS.cmd.
+3. Na janela, selecione a pasta do clicktools que o GitHub Desktop usa.
+4. O programa faz BACKUP, salva uma branch de resgate, busca a main, restaura
+   o código remoto, aplica a atualização, faz commit e dá PUSH automaticamente.
+
+IMPORTANTE:
+- Não apague sua pasta antiga; o reparador cria um backup com .git e .env.
+- Não clique em Pull origin nem Continue merge manualmente.
+- Não há FORCE PUSH; se o servidor mudou, o script para e avisa.
+- Não é necessário copiar arquivos do projeto manualmente.
+- O script exige Git e acesso à Internet (e credenciais do GitHub configuradas).
+- O script só aceita o repositório viniciusspgo2-creator/clicktools.
+- Os 2 commits locais adicionais não são descartados permanentemente: são salvos
+  numa branch de resgate e no backup antes do reset da main.
+- Arquivos locais que não fazem parte da atualização NÃO são adicionados ao commit.
+- O código inclui mudanças no schema Prisma para códigos universais, que serão
+  aplicadas no fluxo de build já existente. Faça backup do banco antes de publicar.
+- Não foi possível executar o build completo neste ambiente; a sintaxe TS/TSX
+  e integridade do pacote foram verificadas. Se a Vercel falhar, envie o log.
+
+Versão remota auditada (base segura): 71a816cd7f196d5dc707248cc5e9b75af306d1c0
+
+ESTRUTURA:
+- INICIAR-CORRECAO-CLICKTOOLS.cmd : iniciar com duplo clique
+- CORRIGIR-CLICKTOOLS.ps1 : rotina de backup, recuperação, atualização e push
+- CLICKTOOLS_FULL/ : todos os arquivos do projeto (não inclui .git nem .env)
