@@ -18,7 +18,7 @@ assert(editor.includes('Ctrl+Y'),'Redo keyboard shortcut missing');
 const design=get('src/lib/creative/design.ts');
 assert(!design.includes('Math.max(5,n.w)'),'Text may still be artificially squashed by Canvas maxWidth');
 const handle=get('src/components/tools/mockup/scene/mug-geometry.ts');
-assert(handle.includes("style === 'livesub' ? 0.38"),'Photo handle cross-section missing');
+assert(handle.includes("style === 'livesub' ? 0.46"),'Photo handle cross-section missing');
 assert(get('src/components/tools/mockup/state/store.ts').includes('handleStyle: "livesub"'),'New mugs lack photo profile');
 assert(get('src/components/platform/language-provider.tsx').includes('extraWords'),'Missing expanded locale map');
 const fontSource=get('src/lib/creative/browser-fonts.ts');

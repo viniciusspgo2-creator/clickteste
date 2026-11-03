@@ -1,3 +1,5 @@
+import {installedTypefaces} from './installed-fonts';
+export {installedTypefaces} from './installed-fonts';
 /** Curadoria de famílias disponibilizadas pelo Google Fonts (não inclui arquivos de fontes).
  * Fontes são baixadas pelo navegador somente quando selecionadas.
  * Licença por família: consultar https://github.com/google/fonts/tree/main/ofl
@@ -37,9 +39,37 @@ export const typefaces:CuratedTypeface[]=[
 // not previously settle, leaving preview/export stuck indefinitely.
 export const FONT_LOAD_TIMEOUT_MS=12_000;
 const loaded=new Map<string,Promise<void>>();
-export function isCuratedTypeface(name:string){return typefaces.some(x=>x.name===name)}
+const installedByName=new Map(installedTypefaces.map(face=>[face.name,face]));
+export function isCuratedTypeface(name:string){return installedByName.has(name)||typefaces.some(x=>x.name===name)}
+/** A face fica no catálogo, mas seus bytes só são requisitados ao escolher ou
+ * visualizar a fonte. O render/export precisa do mesmo nome utilizado no documento. */
+export function loadInstalledTypeface(name:string,timeoutMs=FONT_LOAD_TIMEOUT_MS):Promise<void>{
+ if(typeof document==='undefined')return Promise.resolve();
+ const font=installedByName.get(name);if(!font)return Promise.resolve();
+ if(!Number.isFinite(timeoutMs)||timeoutMs<1)return Promise.reject(new Error('Tempo limite de fonte inválido.'));
+ const cached=loaded.get(name);if(cached)return cached;
+ const promise=new Promise<void>((resolve,reject)=>{
+  let settled=false;
+  const finish=(error?:Error)=>{
+   if(settled)return;settled=true;clearTimeout(timer);
+   error?reject(error):resolve();
+  };
+  const timer=setTimeout(()=>finish(new Error(`A fonte “${name}” demorou demais para carregar.`)),timeoutMs);
+  try{
+   const face=new FontFace(name,`url("${font.url}")`,{style:'normal',weight:'400',display:'swap'});
+   void face.load().then(loadedFace=>{
+    if(settled)return;
+    try{(document.fonts as FontFaceSet & {add(face:FontFace):FontFaceSet}).add(loadedFace);finish();}
+    catch{finish(new Error(`Falha ao registrar a fonte “${name}”.`));}
+   },()=>finish(new Error(`Não foi possível carregar a fonte “${name}”.`)));
+  }catch{finish(new Error(`Formato de fonte inválido: “${name}”.`));}
+ }).catch(error=>{loaded.delete(name);throw error});
+ loaded.set(name,promise);return promise;
+}
+
 export function loadCuratedTypeface(name:string,timeoutMs=FONT_LOAD_TIMEOUT_MS):Promise<void>{
  if(typeof document==='undefined')return Promise.resolve();
+ if(installedByName.has(name))return loadInstalledTypeface(name,timeoutMs);
  const t=typefaces.find(x=>x.name===name);if(!t)return Promise.resolve();
  if(!Number.isFinite(timeoutMs)||timeoutMs<1)return Promise.reject(new Error('Tempo limite de fonte inválido.'));
  const cached=loaded.get(name);if(cached)return cached;

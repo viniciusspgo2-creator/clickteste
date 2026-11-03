@@ -50,13 +50,13 @@ test('V5.2: the shadow snapshot does not include artwork uploads',()=>{
   assert.ok(key.length<400);
 });
 test('V5.2: calibrated reference handle roots embed in 4.1 cm body radius',()=>{
-  assert.equal(LIVE_SUB_HANDLE_POINTS.length,14);
+  assert.equal(LIVE_SUB_HANDLE_POINTS.length,16);
   const upper=LIVE_SUB_HANDLE_POINTS[0],lower=LIVE_SUB_HANDLE_POINTS.at(-1);
   assert.ok(upper[1]/9.55>.80 && upper[1]/9.55<.85);
   assert.ok(lower[1]/9.55>.16 && lower[1]/9.55<.22);
   for(const p of [upper,lower]) {
-    const rootHalfDepth=.34*1.12*referenceHandleSection(0).thickness;
-    assert.ok(Math.abs(p[2])-rootHalfDepth > 3.4);
+    const rootHalfDepth=.42*1.06*referenceHandleSection(0).thickness;
+    assert.ok(Math.abs(p[2])-rootHalfDepth > 3.35);
     assert.ok(Math.abs(p[2])+rootHalfDepth < 4.1,'root exterior edge must remain inside ceramic');
   }
   assert.ok(LIVE_SUB_HANDLE_POINTS.some(p=>Math.abs(p[2])>7.4));

@@ -16,7 +16,7 @@ function transpiled(path,stubs={}){
  });
  return mod.exports;
 }
-const fonts=transpiled('src/lib/creative/typefaces.ts');
+const fonts=transpiled('src/lib/creative/typefaces.ts',{'./installed-fonts':{installedTypefaces:[]}});
 const originalDocument=globalThis.document;
 function withFakeDocument({stylesheet='success',load='success',ready=Promise.resolve()}={}){
  const links=[];

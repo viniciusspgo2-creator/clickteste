@@ -1,7 +1,7 @@
 'use client';
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {Search,CheckCircle2,AlertCircle} from 'lucide-react';
-import {loadCuratedTypeface,typefaces,type CuratedTypeface} from '@/lib/creative/typefaces';
+import {loadCuratedTypeface,typefaces,installedTypefaces,type CuratedTypeface} from '@/lib/creative/typefaces';
 import type {LocalTypeface} from '@/lib/creative/browser-fonts';
 import {usePlatformLanguage} from '@/components/platform/language-provider';
 export type AdminTypeface={id:string;name:string;tags?:string[];url:string;mimeType:string};
@@ -39,10 +39,34 @@ function AdminFontPreview({font,onChoose}:{font:AdminTypeface;onChoose:(name:str
   <small className={s.group===0?'cr-status-good':s.group===3?'cr-status-unknown':'cr-status-limited'}>{s.group===0?<CheckCircle2 size={13}/>:<AlertCircle size={13}/>} {s.label}</small>
  </button>;
 }
+function InstalledFontPreview({font,onChoose}:{font:(typeof installedTypefaces)[number];onChoose:(name:string)=>void}){
+ const root=useRef<HTMLButtonElement>(null),[loaded,setLoaded]=useState(false);
+ useEffect(()=>{
+  const el=root.current;if(!el)return;
+  let active=true;
+  const observer=new IntersectionObserver(entries=>{
+   if(!entries.some(e=>e.isIntersecting))return;
+   observer.disconnect();
+   void loadCuratedTypeface(font.name).then(()=>{if(active)setLoaded(true);}).catch(()=>{});
+  },{rootMargin:'80px'});
+  observer.observe(el);
+  return()=>{active=false;observer.disconnect();};
+ },[font.name]);
+ return <button ref={root} className="cr-font-card" onClick={()=>onChoose(font.name)} title={`${font.family} — ${font.style}`}>
+  <span className="cr-font-name">{font.name.replace(/^Coleção · /,'')}</span>
+  <span className="cr-font-sample" style={loaded?{fontFamily:`'${font.name.replace(/["']/g,'')}',sans-serif`}:undefined}>Caneca, coração, você, mamãe, bênção</span>
+  <small className={font.category==='complete'?'cr-status-good':'cr-status-limited'}>
+   {font.category==='complete'?<CheckCircle2 size={13}/>:<AlertCircle size={13}/>}
+   {font.category==='complete'?' Acentos PT-BR presentes':font.category==='partial'?' Acentos parciais':' Sem acentos PT-BR'}
+  </small>
+ </button>;
+}
 export function FontLibrary({assets,onChoose,localFonts,onImport}:{assets:AdminTypeface[];onChoose:(name:string,asset?:AdminTypeface)=>void;localFonts:LocalTypeface[];onImport:(files:FileList|null)=>void}){
  const {t}=usePlatformLanguage();
  const [query,setQuery]=useState('');
+ const [installedLimit,setInstalledLimit]=useState(60);
  const filtered=useMemo(()=>typefaces.filter(f=>(`${f.name} ${f.category}`).toLowerCase().includes(query.toLowerCase())),[query]);
+ const bundled=useMemo(()=>installedTypefaces.filter(f=>(`${f.name} ${f.family} ${f.style}`).toLocaleLowerCase('pt-BR').includes(query.toLocaleLowerCase('pt-BR'))),[query]);
  const admins=useMemo(()=>assets.filter(f=>f.name.toLowerCase().includes(query.toLowerCase())).sort((a,b)=>status(a.tags).group-status(b.tags).group),[assets,query]);
  return <div className="cr-font-library">
   <div className="cr-search"><Search size={16}/><input aria-label="Buscar fontes" placeholder="Buscar por fonte ou estilo..." value={query} onChange={e=>setQuery(e.target.value)}/></div>
@@ -52,6 +76,10 @@ export function FontLibrary({assets,onChoose,localFonts,onImport}:{assets:AdminT
    <label className="cr-local-font-upload">+ Carregar fontes particulares<input type="file" multiple accept=".ttf,.otf,.woff,.woff2,.zip" onChange={e=>{onImport(e.target.files);e.target.value='';}} /></label>
    {localFonts.length>0&&<div className="cr-private-font-list">{[...localFonts].sort((a,b)=>status([a.status]).group-status([b.status]).group).map(f=><button className="cr-font-card" key={f.name} onClick={()=>onChoose(f.name)}><strong>{f.name.replace(/^Local · /,'')}</strong><span className="cr-font-sample" style={{fontFamily:`'${f.name.replace(/'/g,'')}',sans-serif`}}>Caneca, coração, você, mamãe, bênção</span><small>{status([f.status]).label}{f.missing?` · faltam: ${f.missing}`:''}</small></button>)}</div>}
   </section>
+  <p className="cr-section-label">FONTES DA SUA COLEÇÃO · {bundled.length} DE {installedTypefaces.length}</p>
+  <p className="cr-helper">Fontes integradas a este Studio. Prévia e exportação carregam a fonte selecionada sob demanda. Verifique o direito de uso comercial e publicação web das famílias do seu acervo.</p>
+  {bundled.slice(0,installedLimit).map(font=><InstalledFontPreview key={font.name} font={font} onChoose={onChoose}/>)}
+  {bundled.length>installedLimit&&<button className="cr-font-card" type="button" onClick={()=>setInstalledLimit(n=>n+60)}>Mostrar mais fontes ({bundled.length-installedLimit} restantes)</button>}
   <p className="cr-section-label">{t('GOOGLE FONTS · CURADORIA LIVRE')}</p>
   {(['Sans premium','Serif elegante','Display','Manuscrita'] as const).map(group=><div key={group}>
    {filtered.some(f=>f.category===group)&&<h3 className="cr-font-group">{group}</h3>}

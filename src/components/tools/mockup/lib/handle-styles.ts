@@ -9,9 +9,9 @@ export const HANDLE_STYLES = [
   },
   {
     id: "livesub",
-    label: "Referência 325 ml",
-    description: "Perfil D 325 ml · inspirado na foto",
-    path: "M22 16C38 16 56 19 59 33C63 49 52 59 37 59C30 59 26 57 22 57",
+    label: "Caneca 325 ml · alça C",
+    description: "Curva C clássica · encaixe cerâmico",
+    path: "M22 17C33 17 48 20 52 35C57 52 44 58 30 58C27 58 24 58 22 58",
     color: "#ffffff",
   },
   {

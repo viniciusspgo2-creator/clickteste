@@ -256,8 +256,8 @@ export function buildHandleGeometry(style: HandleStyle = "classic"): THREE.Buffe
   const curve = getHandleCurve(style);
   const rounded = style !== "classic";
   const sectionX = style === 'livesub' ? 0.46 : style === "heart" || style === "heart-asymmetric" ? 0.42 : style === "oval-gold" ? 0.49 : rounded ? 0.58 : HANDLE_A_X;
-  const sectionN = style === 'livesub' ? 0.34 : style === "heart" || style === "heart-asymmetric" ? 0.42 : style === "spoon" ? 0.39 : HANDLE_B_N;
-  const weldStrength = style === 'livesub' ? 0.12 : style === "heart" || style === "heart-asymmetric" ? 0.45 : 0.72;
+  const sectionN = style === 'livesub' ? 0.42 : style === "heart" || style === "heart-asymmetric" ? 0.42 : style === "spoon" ? 0.39 : HANDLE_B_N;
+  const weldStrength = style === 'livesub' ? 0.06 : style === "heart" || style === "heart-asymmetric" ? 0.45 : 0.72;
   const tubular = 144,
     radial = 40,
     ring = radial + 1;
