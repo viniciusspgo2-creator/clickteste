@@ -58,7 +58,10 @@ test('Smart templates scale shadows, text effects and keyframes with canvas',()=
 });
 test('Live Sub handle root rings taper into cup wall without changing old styles',()=>{
  const source=readFileSync(resolve(root,'src/components/tools/mockup/scene/mug-geometry.ts'),'utf8');
- assert.match(source,/style === 'livesub' \? 0\.36 \+ 0\.64 \* rootBlend : 1/);
- assert.match(source,/sectionX \* weld \* rootTaper/);
- assert.match(source,/sectionN \* weld \* rootTaper/);
+ const profile=load('src/components/tools/mockup/lib/reference-handle-section.ts').referenceHandleSection;
+ assert.match(source,/style === 'livesub' \? referenceHandleSection\(t\)/);
+ assert.match(source,/sectionX \* weld \* section\.width/);
+ assert.match(source,/sectionN \* weld \* section\.thickness/);
+ assert.ok(profile(0).width < profile(.5).width);
+ assert.equal(profile(0).width,profile(1).width);
 });

@@ -126,3 +126,19 @@
 .cr-fit-scale-options button{padding:7px 12px;border:1px solid rgba(255,134,36,.33);border-radius:9px;color:#f6dec4;background:rgba(255,133,36,.07);font-size:12px;font-weight:700}
 .cr-fit-scale-options button:hover:not(:disabled){background:rgba(255,133,36,.18)}
 .cr-fit-scale-options button:disabled{opacity:.4;cursor:not-allowed}
+
+/* V4.4 — máscara de luminosidade/transparência com inversão opcional. */
+.cr-mask-mode{display:flex;flex-direction:column;gap:9px;margin:12px 0;padding:12px;
+  border-radius:12px;background:#28201b;border:1px solid #795036;
+  color:#f6d1b4;font-size:12px;font-weight:700}
+.cr-mask-mode select{width:100%;min-height:40px;display:block;border:1px solid #795036;
+  background:#171412;color:#fff;border-radius:9px;padding:8px;font-size:12px}
+.cr-mask-mode .cr-inline{display:flex;align-items:center;gap:9px;line-height:1.4;
+  font-size:12px;color:#ffe0c3}
+.cr-mask-mode input[type=checkbox]{accent-color:#f48b39;width:17px;height:17px;flex-shrink:0}
+
+/* Opção de espelhamento de transferência, distinta de espelhar uma camada. */
+.cr-mirror-print{display:flex!important;align-items:flex-start;gap:11px;margin:10px 0;padding:12px 14px;border:1px solid #554437;border-radius:11px;background:#201a18;font-size:13px;}
+.cr-mirror-print input{flex-shrink:0;width:18px;height:18px;margin-top:3px;accent-color:#ff8c32;}
+.cr-mirror-print span{display:flex;flex-direction:column;gap:4px;min-width:0;}
+.cr-mirror-print small{display:block;color:#c4b8af;line-height:1.45;font-size:11px;}

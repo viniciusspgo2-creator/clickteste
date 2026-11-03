@@ -65,6 +65,13 @@ const words:Record<string,[string,string]>={
  'Efeitos e acabamentos':['Effects & finishes','Efectos y acabados'],
  'Encaixe inteligente':['Smart placement','Colocación inteligente'],
  'Recupere a posição e a proporção da caneca neste cenário, mantendo a máscara de primeiro plano.':['Restore the mug position and proportions in this scene while keeping its foreground mask.','Restaura la posición y las proporciones de la taza en esta escena, manteniendo su máscara frontal.'],
+ 'Tipo de máscara':['Mask type','Tipo de máscara'],
+ 'Preto e branco · branco revela':['Black/white · white reveals','Blanco/negro · blanco muestra'],
+ 'Transparência do PNG · opaco revela':['PNG transparency · opaque reveals','Transparencia PNG · opaco muestra'],
+ 'Inverter área visível':['Invert visible area','Invertir área visible'],
+ 'Máscara não destrutiva: escolha preto/branco ou transparência do PNG. Ideal para mãos e objetos na frente da caneca.':['Non-destructive mask: choose black/white or PNG transparency. Ideal for hands and objects in front of a mug.','Máscara no destructiva: elige blanco/negro o transparencia PNG. Ideal para manos y objetos delante de la taza.'],
+ 'Limpar máscara':['Clear mask','Quitar máscara'],
+ 'Máscara de imagem':['Image mask','Máscara de imagen'],
  'Reencaixar caneca':['Refit mug','Reencajar taza'],
  'Caneca reenquadrada no template.':['Mug refitted to the template.','Taza reencajada en la plantilla.'],
 };

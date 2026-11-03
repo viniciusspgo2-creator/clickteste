@@ -40,7 +40,7 @@ test('PNG/JPEG/WebP export refuses incomplete visible images and masks',async()=
  }
  const oldImage=globalThis.Image;globalThis.Image=FakeImage;
  try{
-  const design=transpiled('src/lib/creative/design.ts',{'./typefaces':{ensureDesignFonts:async()=>{}},'./animation':{animateDesignNode:n=>n},'./effect-cache':effect});
+  const design=transpiled('src/lib/creative/design.ts',{'./typefaces':{ensureDesignFonts:async()=>{}},'./animation':{animateDesignNode:n=>n},'./effect-cache':effect,'./export-transform':transpiled('src/lib/creative/export-transform.ts')});
   const node=(src,maskSrc,visible=true)=>({id:'x',kind:'image',role:'mockup',layerName:'Caneca 325ml',src,maskSrc,visible,x:0,y:0,w:32,h:32,angle:0,opacity:1});
   await design.assertDesignAssetsReady({nodes:[node('good','also-good')]});
   await assert.rejects(design.assertDesignAssetsReady({nodes:[node('broken-image')]}),/imagem.*Caneca 325ml/);
@@ -62,14 +62,16 @@ test('MP4 H.264: tentativa de perfil alternativo quando o primeiro não é supor
  const attempted=[];
  globalThis.VideoEncoder={isConfigSupported:async config=>{
   attempted.push(config.codec);
-  if(config.codec==='avc1.42001f')return {supported:false,config:undefined};
+  assert.deepEqual(config.avc,{format:'avc'});
+  if(config.codec==='avc1.42001e'||config.codec==='avc1.42001f')return {supported:false,config:undefined};
   return {supported:true,config};
  }};
  try{
   const video=transpiled('src/lib/creative/video-templates.ts',{'mp4-muxer':{},'./design':{}});
   const result=await video.chooseH264Config(1280,720,24);
   assert.equal(result.codec,'avc1.4d001f');
-  assert.deepEqual(attempted,['avc1.42001f','avc1.4d001f']);
+  assert.deepEqual(attempted,['avc1.42001e','avc1.42001f','avc1.4d001f']);
+  assert.deepEqual(result.avc,{format:'avc'});
   assert.ok(result.bitrate>=1_800_000&&result.bitrate<=4_000_000);
  }finally{globalThis.VideoEncoder=saved;}
 });

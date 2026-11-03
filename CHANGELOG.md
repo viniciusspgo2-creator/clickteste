@@ -1,3 +1,42 @@
+## V4.8 — Exportação para sublimação e importação local (staging)
+
+- Exportação PNG/JPEG/WebP com opção de espelhamento horizontal **somente na saída**; prévia e projeto ficam inalterados. Desligada por padrão e com aviso sobre espelhamento duplo na impressora.
+- PSD: manter camadas raster ocultas importadas no painel Camadas, com transparência, nome e visibilidade editável; orçamento cumulativo de pixels verificado antes de descompactar os canais.
+- PDF: pré-inspeção do total de páginas antes de rasterizar; não apagar regiões horizontais sobre textos girados, preservando o raster nesses casos.
+- Inclusão de testes automatizados de regressão e teste de pixels no Chromium para espelhamento/PSD oculto.
+- Sem novas dependências, migrações ou mudanças de variáveis de ambiente. Build Next.js integrado pendente de homologação na `clickteste`.
+
+## V4.7 — Robustez MP4 e Guia Inteligente (STAGING, 2026-11-03)
+
+- H.264 em contêiner MP4 com formato AVC explícito; perfil Baseline adicional e checagem precoce de compatibilidade.
+- Exportação não produz arquivo quando faltam quadros, há falha de muxer ou a saída é vazia; flush com cancelamento e timeout finito.
+- Assistente bloqueia resultados atrasados e ações de outro módulo; fallback local imediato se a IA estiver indisponível; ajuda geral PT/EN/ES.
+- Testes: 70 testes Node aprovados, 657 imports internos conferidos. Build Next.js e reprodução MP4 real ainda precisam de staging.
+- Relatório: `docs/CLICKGRUDA-V4-7-VIDEO-ASSISTENTE.md`.
+
+## V4.6 — Staging (2026-11-03)
+
+- Alça 325 ml: transição de espessura progressiva e junção mais discreta na geometria do estilo de referência.
+- Assistente: contexto controlado de até quatro perguntas anteriores, sem transferência de arquivos.
+- MP4: validação de seek ainda pendente e encerramento seguro do codificador.
+- 66 testes aprovados; build completo não homologado no ambiente local.
+
+## V4.5 — Máscaras ancoradas, exportação MP4 e validação preventiva (staging)
+- A máscara do template inteligente agora pode seguir as coordenadas do **cenário inteiro** (`maskSpace: "canvas"`), em vez de esticar ao tamanho da caneca. Máscaras manuais continuam com coordenadas do elemento. A exportação usa a mesma renderização.
+- Reencaixar a caneca preserva sua máscara autoral quando não há máscara nova; uma máscara importada do template usa automaticamente o modo de cenário. A chave do cache considera posição e escala para evitar resíduos após mover o mockup.
+- MP4: pré-validação de dimensões, início/fim, orçamento de resolução e taxa de quadros; mensagem de CORS ou falha de decodificação mais específica; identificação do limite de 20 s, 24 fps e ausência de áudio na interface.
+- Arquivos `.cgtemplate`: validação por assinatura de imagem PNG/JPEG/WebP antes de importar, bloqueando arquivos disfarçados.
+- Testes: regressões Node e comparação real de pixels no Chromium. Build Next.js e H.264 completo ainda dependem do deploy de staging.
+
+## V4.4 — Máscaras com alfa, inversão e sombras proporcionais (STAGING)
+
+- Editor: modos de máscara por luminância ou transparência do PNG; opção de inverter, disponíveis em PT/EN/ES.
+- Templates inteligentes: manifesto suporta `maskMode` e `maskInvert` mantendo compatibilidade com pacotes anteriores.
+- Reencaixe da caneca: sombra, deslocamentos e desfoque acompanham a escala; preserva máscaras manuais.
+- Cache e validação de documentos consideram os novos campos. Regressões e teste de pixels em Chromium.
+- Relatório: `docs/CLICKGRUDA-V4-4-MASCARAS-E-ENCAIXE.md`.
+- Build integral Next.js ainda pendente de validação na Vercel. Não há migração de banco.
+
 ## V4.2 — Exportação segura, máscaras eficientes e acabamento fotográfico (staging)
 
 - Editor: não exporta mais PNG/JPEG/WebP quando uma imagem ou máscara visível não puder ser carregada. A mensagem identifica a camada afetada, impedindo arquivos silenciosamente incompletos. O mesmo pré-teste é aplicado a sobreposições do vídeo.

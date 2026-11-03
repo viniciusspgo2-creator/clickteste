@@ -3,6 +3,14 @@
  * flattened background and warn that text erasure is an approximation, not PSD layers.
  */
 import {uid,type DesignDocument,type DesignNode} from './design';
+/** Lê somente a quantidade de páginas antes de desenhar em alta resolução. */
+export async function inspectPdfPageCount(file:File):Promise<number>{
+ if(file.size>35*1024*1024)throw new Error('PDF acima de 35 MB.');
+ const pdfjs=await import('pdfjs-dist');
+ pdfjs.GlobalWorkerOptions.workerSrc='/pdf.worker.min.mjs';
+ const task=pdfjs.getDocument({data:new Uint8Array(await file.arrayBuffer())});
+ try{return (await task.promise).numPages;}finally{await task.destroy();}
+}
 export async function importPdfEditable(file:File,pageNumber=1):Promise<{document:DesignDocument;count:number;pages:number;warning:string}>{
  if(file.size>35*1024*1024)throw new Error('PDF acima de 35 MB.');
  const pdfjs=await import('pdfjs-dist');
@@ -32,6 +40,9 @@ export async function importPdfEditable(file:File,pageNumber=1):Promise<{documen
    // Cover the embedded type in simple single-color backgrounds. For intricate photos
    // the user can remove or replace the raster background, as described in the warning.
    for(const n of nodes){
+    // Texto inclinado não pode ser apagado por um retângulo horizontal.
+    // Nesse caso mantemos o raster original para não danificar a arte.
+    if(Math.abs(n.angle)>1.5)continue;
     const x=Math.max(0,Math.min(width-1,Math.floor(n.x))),y=Math.max(0,Math.min(height-1,Math.floor(n.y)));
     // Only erase original text when its surrounding region is visually flat.
     // Filling a photo or a textured illustration with a solid rectangle damages

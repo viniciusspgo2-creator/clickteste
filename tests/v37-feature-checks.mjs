@@ -28,11 +28,11 @@ test('Animações suportam posição, tamanho, opacidade e interpolação',()=>{
 });
 test('Importador PSD documenta ZIP e predição além de raw/RLE',()=>{const s=source('src/lib/creative/psd-import.ts');for(const part of ['compression===0','compression===1','compression===2||compression===3',"DecompressionStream('deflate')",'compression===3'])assert.ok(s.includes(part),part)});
 test('Editor permite selecionar página PDF, animações e ajustes de máscara',()=>{
- const s=source('src/components/creative/creative-editor.tsx');for(const part of ['window.prompt(`PDF com ${extracted.pages} páginas','cr-motion-timeline','motionPreset(active,key','readMask','smartTemplate?.slot'])assert.ok(s.includes(part),part);
+ const s=source('src/components/creative/creative-editor.tsx');for(const part of ['window.prompt(`PDF com ${pages} páginas','cr-motion-timeline','motionPreset(active,key','readMask','smartTemplate?.slot'])assert.ok(s.includes(part),part);
  const design=source('src/lib/creative/design.ts');assert.ok(design.includes('if(tint||n.maskSrc)'));assert.ok(design.includes('animateDesignNode'));
 });
 test('Templates inteligentes preservam encaixe com máscara e proporção',()=>{
- const s=source('src/lib/creative/smart-templates.ts');assert.ok(s.includes('fitMockupIntoSlot(mug,slot,mask)'));assert.ok(s.includes('smartTemplate:slot?{slot,maskSrc:mask}'));
+ const s=source('src/lib/creative/smart-templates.ts');assert.ok(s.includes('fitMockupIntoSlot(mug,slot,mask,1,manifest.maskMode,manifest.maskInvert)'));assert.ok(s.includes('smartTemplate:slot?{slot,maskSrc:mask,maskMode:manifest.maskMode,maskInvert:manifest.maskInvert}'));
 });
 test('MP4 mantém WebCodecs e anima objeto a cada quadro',()=>{
  const s=source('src/lib/creative/video-templates.ts');for(const part of ['start+20',"codec:'avc'",'await drawDesign(run.canvas,{...outputDoc,nodes:run.nodes},i/fps,{strict:true})','new VideoEncoder'])assert.ok(s.includes(part),part);
@@ -43,7 +43,9 @@ test('Proteção do agente restringe ações ao módulo e bloqueia origem extern
  const responder=async(_url,opts)=>({ok:true,json:async()=>({choices:[{message:{content:JSON.stringify({reply:'Ok',action:JSON.parse(opts.body).messages[1].content.includes('editor')?'models':'models',label:'Produto'})}}]})});
  const helper={exports:{}};
  new Function('module','exports','require',parse('src/lib/creative/assistant-request.ts'))(helper,helper.exports,()=>{});
- new Function('module','exports','require','process','fetch',js)(mod,mod.exports,name=>name==='@/lib/creative/assistant-request'?helper.exports:api,{env:{OPENAI_API_KEY:'test-mock-not-real'}},responder);
+ const history={exports:{}};
+ new Function('module','exports','require',parse('src/lib/creative/assistant-history.ts'))(history,history.exports,()=>{});
+ new Function('module','exports','require','process','fetch',js)(mod,mod.exports,name=>name==='@/lib/creative/assistant-request'?helper.exports:name==='@/lib/creative/assistant-history'?history.exports:api,{env:{OPENAI_API_KEY:'test-mock-not-real'}},responder);
  const req=(area,origin)=>{const request=new Request('https://clickgruda.test/api/creative-assistant',{method:'POST',headers:{origin,'content-type':'application/json','x-forwarded-for':`test-${area}-${origin}`},body:JSON.stringify({area,locale:'pt',question:'Abra produto'})});request.nextUrl={host:'clickgruda.test'};return request;};
  const invalid=await mod.exports.POST(req('editor','https://evil.test'));assert.equal(invalid.status,403);
  const editor=await mod.exports.POST(req('editor','https://clickgruda.test'));assert.equal(editor.body.action,null);

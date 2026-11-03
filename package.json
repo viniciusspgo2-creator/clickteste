@@ -15,7 +15,7 @@
     "db:reset": "prisma migrate reset",
     "build:staging": "prisma generate && tsc --noEmit && next build",
     "verify:source": "node scripts/verify-source.mjs",
-    "verify:creative": "node scripts/verify-source.mjs && node --test tests/v36-feature-checks.mjs tests/v37-feature-checks.mjs tests/v38-stability.mjs tests/v39-layers.mjs tests/v40-realism-print-template.mjs tests/v41-video-glaze-template.mjs tests/v42-export-integrity.mjs tests/v43-reliability.mjs"
+    "verify:creative": "node scripts/verify-source.mjs && node --test tests/v36-feature-checks.mjs tests/v37-feature-checks.mjs tests/v38-stability.mjs tests/v39-layers.mjs tests/v40-realism-print-template.mjs tests/v41-video-glaze-template.mjs tests/v42-export-integrity.mjs tests/v43-reliability.mjs tests/v44-mask-composition.mjs tests/v45-video-template-preflight.mjs tests/v46-realism-video-assistant.mjs tests/v47-assistant-video-reliability.mjs tests/v48-sublimation-psd-pdf.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

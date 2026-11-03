@@ -1,5 +1,5 @@
 'use client';
-import {useEffect,useState} from 'react';
+import {useEffect,useRef,useState} from 'react';
 import {usePlatformLanguage} from '@/components/platform/language-provider';
 import {BookOpen,Send,CheckCircle2,X,Sparkles} from 'lucide-react';
 import './creative.css';
@@ -25,6 +25,17 @@ const catalog:{test:RegExp;message:string;action?:Action;label?:string}[]=[
  {test:/salvar|export|baixar|png|jpeg|webp/i,message:'Exporte PNG, JPEG ou WebP no navegador. Com um vídeo MP4, use a linha do tempo para animar textos e imagens e exportar até 20 segundos em H.264, sem áudio original. Para sublimação, use PNG na resolução original. Salve .cgdesign para retomar.',action:'export',label:'Abrir exportação'},
  ];
 const suggestions=['Qual é o tamanho correto da estampa?', 'Como enviar um objeto para trás?', 'Como espelhar um elemento?', 'Como salvar no navegador?'];
+const actionsByArea:Record<Area,readonly Action[]>={
+ editor:['backgrounds','templates','texts','elements','personagens','uploads','guides','export'],
+ studio:['arts','base','models','scene','light','camera','effects','compose'],
+ templates:[]
+};
+const actionAllowed=(area:Area,action:unknown):action is Action=>typeof action==='string'&&actionsByArea[area].includes(action as Action);
+const generalHelp={
+ pt:'O Click & Gruda reúne Studio Mockup 3D, Studio Templates e Editor de Artes. Posso orientar formatos de impressão, camadas, arquivos, fundos, efeitos e exportação. Descreva qual controle ou etapa quer usar.',
+ en:'Click & Gruda includes the 3D Mug Studio, Templates Studio and Mug Artwork Editor. I can explain print sizes, layers, files, backgrounds, effects and export. Tell me what you want to do.',
+ es:'Click & Gruda incluye Studio Mockup 3D, Studio Templates y Editor de Artes para Tazas. Puedo explicar tamaños, capas, archivos, fondos, efectos y exportación. Dime qué necesitas.'
+} as const;
 export function StudioConcierge({area,onClose,onAction}:{area:Area;onClose:()=>void;onAction?:(action:Action)=>boolean}){
  const {language}=usePlatformLanguage();
  const [aiAvailable,setAiAvailable]=useState<boolean|null>(null);
@@ -36,23 +47,45 @@ export function StudioConcierge({area,onClose,onAction}:{area:Area;onClose:()=>v
  const [isAnswering,setIsAnswering]=useState(false);
  const [query,setQuery]=useState('');const [reply,setReply]=useState('Pergunte sobre impressão, Studio 3D, templates ou Editor. Posso abrir ferramentas disponíveis mediante sua confirmação.');
  const [pending,setPending]=useState<{action:Action;label:string}|null>(null);const [conversation,setConversation]=useState<string[]>([]);
+ // Requests may finish out of order (especially on slower mobile networks).
+ // Only the latest user question may change the answer or propose an action.
+ const requestRef=useRef<{version:number;controller:AbortController|null}>({version:0,controller:null});
+ useEffect(()=>()=>{requestRef.current.version++;requestRef.current.controller?.abort();requestRef.current.controller=null;},[]);
  const ask=async(q:string)=>{const text=q.trim();if(!text)return;
   const match=catalog.find(x=>x.test.test(text));
-  setConversation(c=>[...c,text].slice(-6));setQuery('');setIsAnswering(true);
+  const previousQuestions=conversation.slice(-4);
+  requestRef.current.controller?.abort();
+  const controller=new AbortController();const version=++requestRef.current.version;
+  requestRef.current.controller=controller;
+  const current=()=>requestRef.current.version===version&&!controller.signal.aborted;
+  setPending(null);setConversation(c=>[...c,text].slice(-6));setQuery('');setIsAnswering(true);
+  // A instalação sem chave de API responde imediatamente pelo guia local.
+  if(aiAvailable===false){
+   setReply(match?.message||generalHelp[language]);
+   setPending(match?.action&&match.label&&actionAllowed(area,match.action)?{action:match.action,label:match.label}:null);
+   requestRef.current.controller=null;setIsAnswering(false);return;
+  }
   try{
-   const response=await fetch('/api/creative-assistant',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:text,area,locale:language})});
+   const response=await fetch('/api/creative-assistant',{method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({question:text,area,locale:language,history:previousQuestions})});
    const info=await response.json();
-   if(info.ok){setReply(info.reply);setPending(info.action&&info.label?{action:info.action as Action,label:info.label}:null);return;}
-  }catch{/* documented local assistant fallback */}finally{setIsAnswering(false)}
-  setReply(match?.message||'O Click & Gruda reúne Studio Mockup 3D, Studio Templates e Editor de Artes. Posso orientar formatos de impressão, camadas, arquivos, fundos, efeitos e exportação. Descreva qual controle ou etapa você quer usar.');
-  setPending(match?.action&&match.label?{action:match.action,label:match.label}:null);
+   if(!current())return;
+   if(info?.ok&&typeof info.reply==='string'&&info.reply.trim()){
+    setReply(info.reply);
+    setPending(actionAllowed(area,info.action)&&typeof info.label==='string'&&info.label.trim()?{action:info.action,label:info.label}:null);
+    return;
+   }
+  }catch{if(!current())return;/* documented local assistant fallback */}
+  finally{if(current()){requestRef.current.controller=null;setIsAnswering(false);}}
+  if(!current())return;
+  setReply(match?.message||generalHelp[language]);
+  setPending(match?.action&&match.label&&actionAllowed(area,match.action)?{action:match.action,label:match.label}:null);
  };
  return <div className="cr-concierge" role="dialog" aria-label="Guia interativo de sublimação de canecas" aria-modal="false">
   <div className="cr-concierge-top"><div><BookOpen size={18}/><strong>Guia Inteligente · Canecas</strong><small>{area==='editor'?'Editor de Artes':area==='studio'?'Studio Mockup 3D':'Studio Templates'}</small></div><button type="button" aria-label="Fechar assistente" onClick={onClose}><X size={18}/></button></div>
   <div className="cr-concierge-content"><span className="cr-concierge-label">ASSISTENTE DA PLATAFORMA</span><p aria-live="polite">{isAnswering?"Consultando as orientações…":reply}</p>{conversation.length>0&&<small>Última pergunta: {conversation[conversation.length-1]}</small>}
-   {pending&&<div className="cr-concierge-confirm"><strong>Quer ativar a opção “{pending.label}”?</strong><p>Digite SIM ou clique em Confirmar. Nenhuma configuração será alterada sem essa ação.</p><div><button type="button" onClick={()=>setPending(null)}>Cancelar</button><button type="button" onClick={()=>{const ok=onAction?.(pending.action)??false;setReply(ok?`Opção “${pending.label}” aberta. Você pode continuar editando normalmente.`:`Esta opção fica em outra ferramenta da plataforma. Abra o módulo correspondente para ativá-la.`);setPending(null)}}><CheckCircle2 size={15}/> Confirmar</button></div></div>}
+   {pending&&<div className="cr-concierge-confirm"><strong>Quer ativar a opção “{pending.label}”?</strong><p>Digite SIM ou clique em Confirmar. Nenhuma configuração será alterada sem essa ação.</p><div><button type="button" onClick={()=>setPending(null)}>Cancelar</button><button type="button" disabled={isAnswering} onClick={()=>{const ok=onAction?.(pending.action)??false;setReply(ok?`Opção “${pending.label}” aberta. Você pode continuar editando normalmente.`:`Esta opção fica em outra ferramenta da plataforma. Abra o módulo correspondente para ativá-la.`);setPending(null)}}><CheckCircle2 size={15}/> Confirmar</button></div></div>}
    {!pending&&<div className="cr-concierge-suggestions">{suggestions.map(s=><button key={s} type="button" onClick={()=>void ask(s)}>{s}</button>)}</div>}</div>
-  <form onSubmit={e=>{e.preventDefault();if(pending&&/^(sim|s[ií]|yes)$/i.test(query.trim())){const ok=onAction?.(pending.action)??false;setReply(ok?`Opção “${pending.label}” aberta.`:'Para acessar esta função, abra o módulo correspondente.');setPending(null);setQuery('');}else void ask(query);}}><input aria-label="Pergunte ao assistente" value={query} onChange={e=>setQuery(e.target.value)} placeholder={pending?'Digite SIM para confirmar...':'Como faço para...'} maxLength={300}/><button type="submit" aria-label="Enviar pergunta"><Send size={17}/></button></form>
+  <form onSubmit={e=>{e.preventDefault();if(pending&&/^(sim|s[ií]|yes)$/i.test(query.trim())){const ok=onAction?.(pending.action)??false;setReply(ok?`Opção “${pending.label}” aberta.`:'Para acessar esta função, abra o módulo correspondente.');setPending(null);setQuery('');}else void ask(query);}}><input aria-label="Pergunte ao assistente" value={query} onChange={e=>setQuery(e.target.value)} placeholder={pending?'Digite SIM para confirmar...':'Como faço para...'} maxLength={300}/><button type="submit" aria-label="Enviar pergunta" disabled={isAnswering&&query.trim().length===0}><Send size={17}/></button></form>
   <div className="cr-concierge-foot"><Sparkles size={13}/> {aiAvailable===true?'IA disponível nesta instalação':aiAvailable===false?'Guia local · IA não configurada':'Verificando disponibilidade da IA'} · Somente perguntas de texto são enviadas ao provedor quando habilitado; nunca arquivos ou projetos. Ações exigem confirmação.</div>
  </div>;
 }

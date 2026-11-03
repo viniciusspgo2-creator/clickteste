@@ -58,7 +58,7 @@ test('template permite reencaixe repetido sem distorcer e sem perder máscara',(
  const slot={x:600,y:200,w:300,h:500};
  const fit=fitMockupIntoSlot(before,slot,'data:image/png;base64,AA==');
  assert.equal(fit.w/fit.h,2);assert.equal(fit.x,600);assert.equal(fit.y,375);assert.equal(fit.angle,0);
- assert.equal(fit.shadow,18);assert.equal(fit.maskSrc,'data:image/png;base64,AA==');
+ assert.equal(fit.shadow,13.5);assert.equal(fit.maskSrc,'data:image/png;base64,AA==');
  assert.equal(before.maskSrc,undefined);assert.equal(before.angle,45);
  assert.throws(()=>fitMockupIntoSlot(before,{...slot,w:0}),/inválidas/);
 });

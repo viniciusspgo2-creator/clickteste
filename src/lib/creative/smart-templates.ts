@@ -5,15 +5,26 @@ import JSZip from 'jszip';
 import {uid,type DesignDocument,type DesignNode} from './design';
 type Slot={x:number;y:number;w:number;h:number};
 /** Ajusta qualquer mockup ao encaixe sem esticar, preservando sua imagem e efeitos. */
-export function fitMockupIntoSlot(node:DesignNode,slot:Slot,maskSrc?:string,scaleFactor=1):DesignNode{
+export function fitMockupIntoSlot(node:DesignNode,slot:Slot,maskSrc?:string,scaleFactor=1,maskMode?:'luminance'|'alpha',maskInvert?:boolean):DesignNode{
  if(!Number.isFinite(scaleFactor)||scaleFactor<0.5||scaleFactor>1.5)throw new Error('Escala de encaixe inválida');
  if(!Number.isFinite(node.w)||!Number.isFinite(node.h)||node.w<=0||node.h<=0||!Number.isFinite(slot.w)||!Number.isFinite(slot.h)||slot.w<=0||slot.h<=0)throw new Error('Dimensões inválidas para encaixar a caneca');
  const scale=Math.min(slot.w/node.w,slot.h/node.h)*scaleFactor;
  const w=node.w*scale,h=node.h*scale;
- return {...node,x:slot.x+(slot.w-w)/2,y:slot.y+(slot.h-h)/2,w,h,angle:0,maskSrc};
+ // Reescale efeitos que são medidos em pixels junto com a caneca.
+ const pixelScale=w/node.w;
+ return {...node,x:slot.x+(slot.w-w)/2,y:slot.y+(slot.h-h)/2,w,h,angle:0,
+  shadow:node.shadow===undefined?undefined:node.shadow*pixelScale,
+  shadowX:node.shadowX===undefined?undefined:node.shadowX*pixelScale,
+  shadowY:node.shadowY===undefined?undefined:node.shadowY*pixelScale,
+  blur:node.blur===undefined?undefined:node.blur*pixelScale,
+  strokeWidth:node.strokeWidth===undefined?undefined:node.strokeWidth*pixelScale,
+  // Sem máscara no novo template? Preserve a máscara autoral existente.
+  maskSrc:maskSrc??node.maskSrc,maskMode:maskSrc?(maskMode||'luminance'):node.maskMode,
+  maskInvert:maskSrc?(maskInvert??false):node.maskInvert,
+  maskSpace:maskSrc?'canvas':node.maskSpace};
 }
 
-type Manifest={format:'clickgruda-smart-template';version:1;name:string;width:number;height:number;background?:string;foreground?:string;shadow?:string;mask?:string;slot?:Slot};
+type Manifest={format:'clickgruda-smart-template';version:1;name:string;width:number;height:number;background?:string;foreground?:string;shadow?:string;mask?:string;maskMode?:'luminance'|'alpha';maskInvert?:boolean;slot?:Slot};
 /** Templates importados não são confiáveis: valide o manifesto antes de alocar
  * imagens. Os caminhos permitidos só podem referenciar recursos do ZIP. */
 export function validateSmartManifest(value:unknown):Manifest{
@@ -23,6 +34,10 @@ export function validateSmartManifest(value:unknown):Manifest{
    !Number.isInteger(m.width)||!Number.isInteger(m.height)||
    m.width<100||m.height<100||m.width>4096||m.height>4096)
   throw new Error('Manifesto do template inválido.');
+ if(m.maskInvert!==undefined&&typeof m.maskInvert!=='boolean')
+  throw new Error('Inversão de máscara inválida no template.');
+ if(m.maskMode!==undefined&&m.maskMode!=='luminance'&&m.maskMode!=='alpha')
+  throw new Error('Modo de máscara inválido no template.');
  for(const key of ['background','foreground','shadow','mask'] as const){
   const path=m[key];
   if(path!==undefined&&(typeof path!=='string'||path.length>200))
@@ -41,6 +56,17 @@ export function validateSmartManifest(value:unknown):Manifest{
 const data=(bytes:Uint8Array,mime:string)=>new Promise<string>((resolve,reject)=>{
  const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=()=>reject(new Error('Arquivo do template inválido'));reader.readAsDataURL(new Blob([new Uint8Array(bytes)],{type:mime}));
 });
+/** Prevent disguised SVG/HTML files from being interpreted as template images.
+ * Each unpacked asset must match its declared image extension. */
+export function validateTemplateImageSignature(bytes:Uint8Array,path:string):void{
+ const png=/\.png$/i.test(path),jpg=/\.jpe?g$/i.test(path),webp=/\.webp$/i.test(path);
+ if(!png&&!jpg&&!webp)throw new Error('Tipo de imagem não permitido no template.');
+ const sig=(text:string,offset=0)=>Array.from(text).every((ch,i)=>bytes[offset+i]===ch.charCodeAt(0));
+ const valid=png?(bytes.length>=8&&[137,80,78,71,13,10,26,10].every((value,i)=>bytes[i]===value)):
+  jpg?(bytes.length>=4&&bytes[0]===255&&bytes[1]===216&&bytes[2]===255):
+  (bytes.length>=12&&sig('RIFF')&&sig('WEBP',8));
+ if(!valid)throw new Error(`O arquivo ${path} não corresponde ao formato da imagem indicado.`);
+}
 function validPath(path:string){if(path.startsWith('/')||path.includes('..')||!/^[-_\w./ ]+\.(png|jpe?g|webp)$/i.test(path))throw new Error('O template contém um caminho de imagem inválido');return path;}
 export async function importSmartTemplate(file:File,current:DesignDocument):Promise<{document:DesignDocument;warning:string}>{
  if(file.size>50*1024*1024)throw new Error('Template maior que 50 MB');
@@ -54,6 +80,7 @@ export async function importSmartTemplate(file:File,current:DesignDocument):Prom
   if(!f)throw new Error(`Imagem ausente no pacote: ${path}`);
   const bytes=await f.async('uint8array');if(bytes.byteLength>12*1024*1024)throw new Error('Imagem do template acima de 12 MB');
   totalUncompressed+=bytes.byteLength;if(totalUncompressed>30*1024*1024)throw new Error('Imagens descompactadas excedem 30 MB');
+  validateTemplateImageSignature(bytes,path);
   const mime=/\.png$/i.test(path)?'image/png':/\.webp$/i.test(path)?'image/webp':'image/jpeg';return data(bytes,mime);
  };
  const [bg,fg,shadow,mask]=await Promise.all([image(manifest.background),image(manifest.foreground),image(manifest.shadow),image(manifest.mask)]);
@@ -77,15 +104,17 @@ export async function importSmartTemplate(file:File,current:DesignDocument):Prom
  }));
  const mug=adapted.find(n=>n.id===currentMug?.id);
  const slot=manifest.slot?normalized(manifest.slot):undefined;
- if(mug&&slot){Object.assign(mug,fitMockupIntoSlot(mug,slot,mask));}
+ if(mug&&slot){Object.assign(mug,fitMockupIntoSlot(mug,slot,mask,1,manifest.maskMode,manifest.maskInvert));}
  // When changing to an unmasked template, drop only the previous template's
  // automatic mask; never remove a different, user-authored mask.
- if(mug&&!slot&&current.smartTemplate?.maskSrc&&mug.maskSrc===current.smartTemplate.maskSrc) mug.maskSrc=undefined;
+ if(mug&&!mask&&current.smartTemplate?.maskSrc&&mug.maskSrc===current.smartTemplate.maskSrc){
+  mug.maskSrc=undefined;mug.maskMode=undefined;mug.maskInvert=undefined;mug.maskSpace=undefined;
+ }
  const imgNode=(src:string,role:DesignNode['role'],name:string,shadowOpacity=1):DesignNode=>({id:uid(),kind:'image',role,layerName:name,src,x:0,y:0,w:manifest.width,h:manifest.height,angle:0,opacity:shadowOpacity,aspectLock:true,locked:role==='background'});
  const nodes:DesignNode[]=[];
  if(bg)nodes.push(imgNode(bg,'background','Cenário'));
  if(shadow)nodes.push(imgNode(shadow,'template','Sombra de integração',.75));
  nodes.push(...adapted);
  if(fg)nodes.push(imgNode(fg,'foreground','Primeiro plano / mãos'));
- return {document:{width:manifest.width,height:manifest.height,background:'#ffffff',nodes,smartTemplate:slot?{slot,maskSrc:mask}:undefined},warning:mug?'Mockup mantido, encaixado na área indicada. Confira a perspectiva e a máscara antes de exportar.':'Template aberto. Importe um mockup do Studio para usar a área de encaixe.'};
+ return {document:{width:manifest.width,height:manifest.height,background:'#ffffff',nodes,smartTemplate:slot?{slot,maskSrc:mask,maskMode:manifest.maskMode,maskInvert:manifest.maskInvert}:undefined},warning:mug?'Mockup mantido, encaixado na área indicada. Confira a perspectiva e a máscara antes de exportar.':'Template aberto. Importe um mockup do Studio para usar a área de encaixe.'};
 }

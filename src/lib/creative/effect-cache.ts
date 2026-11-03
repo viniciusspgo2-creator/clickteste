@@ -37,8 +37,8 @@ export function assetToken(src:string):number {
   if(tokenMap.size>256)tokenMap.clear();
   const token=++tokenSequence;tokenMap.set(src,token);return token;
 }
-export function effectKey(input:{src:string;maskSrc?:string;tint?:string;w:number;h:number;sx:number;sy:number;sw:number;sh:number}):string {
+export function effectKey(input:{src:string;maskSrc?:string;maskMode?:'luminance'|'alpha';maskInvert?:boolean;maskSpace?:'element'|'canvas';maskX?:number;maskY?:number;maskW?:number;maskH?:number;tint?:string;w:number;h:number;sx:number;sy:number;sw:number;sh:number}):string {
   const n=(v:number)=>Math.round(v*1000)/1000;
-  return [assetToken(input.src),input.maskSrc?assetToken(input.maskSrc):0,input.tint||'',
-    input.w,input.h,n(input.sx),n(input.sy),n(input.sw),n(input.sh)].join(':');
+  return [assetToken(input.src),input.maskSrc?assetToken(input.maskSrc):0,input.maskMode||'luminance',input.maskInvert?'invert':'normal',input.tint||'',
+    input.w,input.h,n(input.sx),n(input.sy),n(input.sw),n(input.sh),input.maskSpace||'element',n(input.maskX??0),n(input.maskY??0),n(input.maskW??0),n(input.maskH??0)].join(':');
 }

@@ -40,9 +40,12 @@ export function validateProjectDocument(input:unknown):asserts input is DesignDo
   if(n.kind==='text'&&!short(n.text,20000))throw new Error(`Texto muito longo no elemento ${index+1}.`);
   for(const key of ['font','layerName','fill','tint','stroke','shadowColor'])if(n[key]!==undefined&&!short(n[key],250))throw new Error(`Atributo inválido: ${key}.`);
   if(n.maskSrc!==undefined&&!mediaUrl(n.maskSrc,'image'))throw new Error('Máscara inválida.');
+  if(n.maskMode!==undefined&&!['alpha','luminance'].includes(String(n.maskMode)))throw new Error('Tipo de máscara inválido.');
+  if(n.maskInvert!==undefined&&typeof n.maskInvert!=='boolean')throw new Error('Inversão de máscara inválida.');
+  if(n.maskSpace!==undefined&&n.maskSpace!=='element'&&n.maskSpace!=='canvas')throw new Error('Alinhamento da máscara inválido.');
   if(n.crop!==undefined){if(!isRecord(n.crop)||!['left','right','top','bottom'].every(k=>numeric((n.crop as Record<string,unknown>)[k],0,.99)))throw new Error('Recorte inválido.');}
   if(n.keyframes!==undefined){if(!Array.isArray(n.keyframes)||n.keyframes.length>300)throw new Error('Animação inválida.');for(const frame of n.keyframes){if(!isRecord(frame)||!numeric(frame.time,0,600)||!numeric(frame.x,-65536,65536)||!numeric(frame.y,-65536,65536)||!numeric(frame.w,.01,16384)||!numeric(frame.h,.01,16384)||!numeric(frame.angle,-65536,65536)||!numeric(frame.opacity,0,1))throw new Error('Keyframe inválido.');}}
  }
  if(input.video!==undefined){const video=input.video;if(!isRecord(video)||!mediaUrl(video.src,'video')||!named(video.name)||!numeric(video.start,0,86400)||(video.end!==undefined&&!numeric(video.end,0,86400))||(video.fit!==undefined&&!['cover','contain'].includes(String(video.fit))))throw new Error('Vídeo inválido.');}
- if(input.smartTemplate!==undefined){const smart=input.smartTemplate;if(!isRecord(smart)||!isRecord(smart.slot)||!['x','y','w','h'].every(k=>numeric((smart.slot as Record<string,unknown>)[k],0,8192))||(smart.maskSrc!==undefined&&!mediaUrl(smart.maskSrc,'image')))throw new Error('Encaixe de template inválido.');}
+ if(input.smartTemplate!==undefined){const smart=input.smartTemplate;if(!isRecord(smart)||!isRecord(smart.slot)||!['x','y','w','h'].every(k=>numeric((smart.slot as Record<string,unknown>)[k],0,8192))||(smart.maskSrc!==undefined&&!mediaUrl(smart.maskSrc,'image'))||(smart.maskMode!==undefined&&!['alpha','luminance'].includes(String(smart.maskMode)))||(smart.maskInvert!==undefined&&typeof smart.maskInvert!=='boolean'))throw new Error('Encaixe de template inválido.');}
 }

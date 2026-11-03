@@ -84,22 +84,31 @@ export async function importPsdLayers(file:File):Promise<{document:DesignDocumen
   r.seek(extraEnd);
   layers.push({top,left,width:Math.max(0,right-left),height:Math.max(0,bottom-top),name:name||`Camada ${i+1}`,opacity,hidden:!!(flags&2),channels:ch,data:{}});
  }
+ // Recuse documentos enormes antes de descompactar cada canal, inclusive os ocultos.
+ const totalLayerPixels=layers.reduce((sum,layer)=>sum+layer.width*layer.height,0);
+ if(totalLayerPixels>45_000_000)throw new Error('PSD com muitas camadas grandes (limite combinado de 45 milhões de pixels). Reduza o documento antes de importar.');
  for(const layer of layers)for(const channel of layer.channels){const start=r.pos;
   if(channel.length<2||start+channel.length>infoEnd)throw new Error('Canal PSD fora do arquivo');
   if(layer.width&&layer.height&&[0,1,2,-1].includes(channel.id))layer.data[channel.id]=await decodeChannel(r,layer,channel.length);
   else r.skip(channel.length);
  }
  const nodes:DesignNode[]=[];
+ // Limite cumulativo: evita explosão de memória ao converter camadas em PNGs locais.
+ const MAX_LAYER_PIXELS=45_000_000;
+ let layerPixels=0;
  // PSD records are conventionally ordered top-to-bottom; Canvas draws bottom-to-top.
  for(const layer of [...layers].reverse()){
-  if(layer.hidden||!layer.width||!layer.height||!layer.data[0]||!layer.data[1]||!layer.data[2])continue;
+  if(!layer.width||!layer.height||!layer.data[0]||!layer.data[1]||!layer.data[2])continue;
+  layerPixels+=layer.width*layer.height;
+  if(layerPixels>MAX_LAYER_PIXELS)throw new Error('PSD com muitas camadas grandes (limite combinado de 45 milhões de pixels). Reduza o documento antes de importar.');
   const canvas=document.createElement('canvas');canvas.width=layer.width;canvas.height=layer.height;
   const ctx=canvas.getContext('2d');if(!ctx)throw new Error('Canvas indisponível');
   const image=ctx.createImageData(layer.width,layer.height),pixels=layer.width*layer.height;
   for(let j=0;j<pixels;j++){const p=j*4;image.data[p]=layer.data[0][j];image.data[p+1]=layer.data[1][j];image.data[p+2]=layer.data[2][j];image.data[p+3]=layer.data[-1]?.[j]??255;}
   ctx.putImageData(image,0,0);
-  nodes.push({id:uid(),kind:'image',role:'content',layerName:layer.name,x:layer.left,y:layer.top,w:layer.width,h:layer.height,angle:0,opacity:layer.opacity,src:canvas.toDataURL('image/png'),aspectLock:true,shadow:0});
+  nodes.push({id:uid(),kind:'image',role:'content',layerName:layer.name,x:layer.left,y:layer.top,w:layer.width,h:layer.height,angle:0,opacity:layer.opacity,visible:!layer.hidden,src:canvas.toDataURL('image/png'),aspectLock:true,shadow:0});
  }
- if(!nodes.length)throw new Error('Não foram encontradas camadas raster RGB visíveis. Exporte o PSD com camadas RGB de pixels.');
- return {document:{width,height,background:'transparent',nodes},count:nodes.length,warning:'Camadas raster RGB/8 bits com compressão raw, RLE ou ZIP ficam independentes e móveis. Texto, ajustes, máscaras vetoriais, efeitos e objetos inteligentes do Photoshop não são recriados como objetos editáveis.'};
+ if(!nodes.length)throw new Error('Não foram encontradas camadas raster RGB. Exporte o PSD com camadas RGB de pixels.');
+ const hiddenCount=nodes.filter(n=>n.visible===false).length;
+ return {document:{width,height,background:'transparent',nodes},count:nodes.length,warning:`Camadas raster RGB/8 bits (raw, RLE ou ZIP) ficam móveis e independentes, inclusive ${hiddenCount} camada(s) oculta(s), que você pode reativar na aba Camadas. Texto, máscaras vetoriais, ajustes e objetos inteligentes não são recriados como vetores/editáveis.`};
 }

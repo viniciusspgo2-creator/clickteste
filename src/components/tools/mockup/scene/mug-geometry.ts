@@ -5,6 +5,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import type { HandleStyle } from "../lib/handle-styles";
+import { referenceHandleSection } from "../lib/reference-handle-section";
 export type { HandleStyle } from "../lib/handle-styles";
 import { MUG, V_EXT, V_INT, texV, type PrintArea } from "../lib/config";
 
@@ -284,18 +285,16 @@ export function buildHandleGeometry(style: HandleStyle = "classic"): THREE.Buffe
     // through the cup wall. Narrow both root rings *inside* the ceramic wall,
     // then gradually blend into the continuous D-shaped handle. Other handles
     // retain their geometry for compatibility with saved projects.
-    const endDistance = Math.min(t, 1 - t);
-    const rootBlend = THREE.MathUtils.smoothstep(endDistance, 0, 0.055);
-    const rootTaper = style === 'livesub' ? 0.36 + 0.64 * rootBlend : 1;
+    const section = style === 'livesub' ? referenceHandleSection(t) : { width: 1, thickness: 1 };
     for (let j = 0; j <= radial; j++) {
       const a = (j / radial) * Math.PI * 2;
       // Superelipse arredondada, ligeiramente mais larga na face externa.
       const ca = Math.cos(a),
         sa = Math.sin(a);
       const ox =
-        Math.sign(ca) * Math.pow(Math.abs(ca), rounded ? 1 : 0.85) * sectionX * weld * rootTaper;
+        Math.sign(ca) * Math.pow(Math.abs(ca), rounded ? 1 : 0.85) * sectionX * weld * section.width;
       const on =
-        Math.sign(sa) * Math.pow(Math.abs(sa), rounded ? 1 : 0.9) * sectionN * weld * rootTaper;
+        Math.sign(sa) * Math.pow(Math.abs(sa), rounded ? 1 : 0.9) * sectionN * weld * section.thickness;
       positions.push(
         center.x + ox,
         center.y + perp.y * on,

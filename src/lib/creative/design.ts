@@ -1,17 +1,18 @@
 import {ensureDesignFonts} from './typefaces';
 import {animateDesignNode,type MotionPoint} from './animation';
 import {PixelBoundedCache,effectKey,clearAssetTokens} from './effect-cache';
+import {drawOutputWithMirror} from './export-transform';
 /** Editor local: documento, desenho e exportação. Nada do usuário é enviado ao servidor. */
 export type NodeKind='text'|'image'|'rect'|'circle';
 export type DesignNode={id:string;kind:NodeKind;x:number;y:number;w:number;h:number;angle:number;opacity:number;
- role?:'template'|'background'|'mockup'|'content'|'foreground';layerName?:string;maskSrc?:string;locked?:boolean;visible?:boolean;aspectLock?:boolean;
+ role?:'template'|'background'|'mockup'|'content'|'foreground';layerName?:string;maskSrc?:string;maskMode?:'luminance'|'alpha';maskInvert?:boolean;maskSpace?:'element'|'canvas';locked?:boolean;visible?:boolean;aspectLock?:boolean;
  text?:string;src?:string;fill?:string;tint?:string;font?:string;size?:number;bold?:boolean;italic?:boolean;align?:CanvasTextAlign;
  shadow?:number;shadowColor?:string;shadowX?:number;shadowY?:number;blur?:number;brightness?:number;contrast?:number;saturation?:number;
  grayscale?:number;sepia?:number;hue?:number;radius?:number;stroke?:string;strokeWidth?:number;
  curve?:number;wave?:number;depth?:number;tracking?:number;lineSpacing?:number;skew?:number;
  flipX?:boolean;flipY?:boolean;crop?:{left:number;top:number;right:number;bottom:number};keyframes?:MotionPoint[];
 };
-export type DesignDocument={width:number;height:number;background:string;nodes:DesignNode[];video?:{src:string;name:string;start:number;end?:number;fit?:'cover'|'contain'};smartTemplate?:{slot:{x:number;y:number;w:number;h:number};maskSrc?:string}};
+export type DesignDocument={width:number;height:number;background:string;nodes:DesignNode[];video?:{src:string;name:string;start:number;end?:number;fit?:'cover'|'contain'};smartTemplate?:{slot:{x:number;y:number;w:number;h:number};maskSrc?:string;maskMode?:'luminance'|'alpha';maskInvert?:boolean}};
 export type ExportFormat='png'|'jpeg'|'webp';
 export const formats=[{label:'Caneca 21 × 9,5 cm · 300 DPI',w:2480,h:1122},{label:'Área visível 19 × 8,5 cm · 300 DPI',w:2244,h:1004},{label:'Divulgação Instagram 1080 × 1350',w:1080,h:1350},{label:'Post quadrado 1080 × 1080',w:1080,h:1080},{label:'Story / Reels 1080 × 1920',w:1080,h:1920},{label:'Horizontal HD',w:1920,h:1080}] as const;
 export const uid=()=>crypto.randomUUID();
@@ -121,7 +122,10 @@ export async function drawDesign(canvas:HTMLCanvasElement,doc:DesignDocument,tim
     const tw=Math.max(1,Math.min(4096,Math.ceil(n.w))),th=Math.max(1,Math.min(4096,Math.ceil(n.h)));
     // Masking an MP4 overlay previously allocated and recolored a new full-size
     // canvas every frame. Reuse the effect while source/crop/dimensions agree.
-    const key=effectKey({src:n.src,maskSrc:n.maskSrc,tint:n.tint,w:tw,h:th,sx,sy,sw,sh});
+    const key=effectKey({src:n.src,maskSrc:n.maskSrc,maskMode:n.maskMode,maskInvert:n.maskInvert,maskSpace:n.maskSpace,
+     maskX:n.maskSpace==='canvas'?n.x/doc.width:undefined,maskY:n.maskSpace==='canvas'?n.y/doc.height:undefined,
+     maskW:n.maskSpace==='canvas'?n.w/doc.width:undefined,maskH:n.maskSpace==='canvas'?n.h/doc.height:undefined,
+     tint:n.tint,w:tw,h:th,sx,sy,sw,sh});
     let layer=rasterEffectCache.get(key);
     if(!layer){
      layer=document.createElement('canvas');layer.width=tw;layer.height=th;
@@ -131,11 +135,22 @@ export async function drawDesign(canvas:HTMLCanvasElement,doc:DesignDocument,tim
      if(n.maskSrc){
       const m=await imageFor(n.maskSrc);
       const colors=lc.getImageData(0,0,tw,th);
-      lc.clearRect(0,0,tw,th);lc.drawImage(m,0,0,tw,th);
+      lc.clearRect(0,0,tw,th);
+      if(n.maskSpace==='canvas'){
+       // Smart-template masks are authored over the whole scene (e.g. hands in
+       // front of the mug), not over the bounds of the mug image. Align them
+       // in scene coordinates rather than stretching the whole mask over it.
+       const ratioX=tw/Math.max(1,n.w),ratioY=th/Math.max(1,n.h);
+       lc.drawImage(m,-n.x*ratioX,-n.y*ratioY,doc.width*ratioX,doc.height*ratioY);
+      }else lc.drawImage(m,0,0,tw,th);
       const mask=lc.getImageData(0,0,tw,th);
       for(let i=0;i<colors.data.length;i+=4){
-       const amount=(mask.data[i]*.2126+mask.data[i+1]*.7152+mask.data[i+2]*.0722)/255;
-       colors.data[i+3]=Math.round(colors.data[i+3]*amount*mask.data[i+3]/255);
+       // PNG transparente: o alfa define a máscara, independentemente da cor do pixel.
+       // PNG preto e branco: a luminância define a máscara, modulada pelo alfa.
+       const amount=n.maskMode==='alpha' ? 1 :
+        (mask.data[i]*.2126+mask.data[i+1]*.7152+mask.data[i+2]*.0722)/255;
+       const visibility=amount*mask.data[i+3]/255;
+       colors.data[i+3]=Math.round(colors.data[i+3]*(n.maskInvert?1-visibility:visibility));
       }
       lc.putImageData(colors,0,0);
      }
@@ -163,14 +178,14 @@ export async function asDataUrl(file:Blob,maxSide=4800):Promise<string>{
   canvas.getContext('2d')!.drawImage(image,0,0,w,h);return canvas.toDataURL('image/png');
  }finally{URL.revokeObjectURL(src);invalidateImage(src)}
 }
-export async function exportDesign(doc:DesignDocument,format:ExportFormat,scale:number):Promise<Blob>{
+export async function exportDesign(doc:DesignDocument,format:ExportFormat,scale:number,mirrorHorizontal=false):Promise<Blob>{
  const w=Math.round(doc.width*scale),h=Math.round(doc.height*scale);
  if(w>8192||h>8192||w*h>35_000_000)throw new Error('Resolução acima do limite seguro de exportação.');
  await assertDesignAssetsReady(doc);await document.fonts.ready;const base=document.createElement('canvas');await drawDesign(base,doc,undefined,{strict:true});
  const out=document.createElement('canvas');out.width=w;out.height=h;
  const ctx=out.getContext('2d');if(!ctx)throw new Error('Canvas indisponível');
  if(format==='jpeg'){ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);}
- ctx.imageSmoothingQuality='high';ctx.drawImage(base,0,0,w,h);
+ drawOutputWithMirror(ctx,base,w,h,mirrorHorizontal);
  const blob=await new Promise<Blob>((resolve,reject)=>out.toBlob(b=>b?resolve(b):reject(new Error('Não foi possível gerar o arquivo.')),`image/${format}`,0.94));
  // Inclui pHYs com resolução física de 300 DPI nas estampas de caneca (escala 100%).
  return format==='png'&&scale===1&&((doc.width===2480&&doc.height===1122)||(doc.width===2244&&doc.height===1004))?await withPngDpi(blob,300):blob;
