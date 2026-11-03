@@ -136,7 +136,7 @@ export function StudioHome() {
         <div className="cg-container cg-hero-inner">
           <div className="cg-hero-content"><Reveal>
             <span className="cg-kicker"><Layers3 size={15} /> STUDIO MOCKUP 3D</span>
-            <h1 className="cg-display cg-hero-title">Crie Mockups de<br /><em>Canecas em Segundos.</em></h1>
+            <h1 className="cg-display cg-hero-title">Crie Mockups de<br /><em>Canecas em<br />Segundos.</em></h1>
             <p className="cg-hero-lead">Editor 3D profissional para criar mockups realistas de canecas personalizadas. Aplique sua arte e exporte em até 4K.</p>
             <div className="cg-hero-highlights" aria-label="Recursos em destaque">
               <span><ShieldCheck size={17} /> Realismo profissional</span>
@@ -154,7 +154,7 @@ export function StudioHome() {
             <div className="cg-hero-proof"><span><ShieldCheck size={15} /> Código pessoal</span><span><InfinityIcon size={15} /> Biblioteca vitalícia</span><span><Coffee size={15} /> Studio incluso para assinantes</span></div>
           </Reveal></div>
         </div>
-        <div className="cg-hero-mobile-visual" role="img" aria-label="Mascote da Click & Gruda segurando uma arte diante de um estúdio 3D" />
+        <div className="cg-hero-mobile-visual" role="img" aria-label="Mascote da Click & Gruda segurando uma prensa de canecas diante do Studio 3D" />
         <div className="cg-container cg-hero-footnote"><span>FEITO PARA QUEM VIVE DE PERSONALIZAR.</span><a href="#studio">Explore as possibilidades <ChevronDown size={14} /></a></div>
       </section>
 
