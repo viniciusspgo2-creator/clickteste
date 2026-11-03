@@ -31,6 +31,13 @@ export function checkBeforeExport(d:DesignDocument):PrintMessage[]{
  const important=visible.filter(n=>n.kind==='text'&&n.role!=='background'&&n.role!=='foreground');
  const crossing=important.filter(textOutsideSafe);
  if(crossing.length)messages.push({kind:'warning',message:`${crossing.length} texto(s) podem ultrapassar a área visível aproximada da caneca. Reposicione antes de imprimir.`});
+ // Imagens de conteúdo são verificadas separadamente. Fundos e cenários
+ // podem sangrar propositalmente para além do papel, sem constituir erro.
+ const personalImages=visible.filter(n=>n.kind==='image'&&n.role!=='background'&&n.role!=='template'&&n.role!=='foreground'&&n.role!=='mockup');
+ const imagesOutsideSafe=personalImages.filter(textOutsideSafe);
+ if(imagesOutsideSafe.length)messages.push({kind:'info',message:`${imagesOutsideSafe.length} imagem(ns) ultrapassam a área visível de 19 × 8,5 cm. Confira se detalhes importantes ficarão visíveis na caneca.`});
+ const clipped=visible.filter(n=>n.role!=='background'&&n.role!=='template'&&n.role!=='foreground').filter(n=>{const b=rotatedBounds(n);return b.left<0||b.top<0||b.right>PRINT_SIZE[0]||b.bottom>PRINT_SIZE[1];});
+ if(clipped.length)messages.push({kind:'warning',message:`${clipped.length} elemento(s) ficam cortados na borda da arte. Confira antes da impressão.`});
  const small=important.filter(n=>(n.size||0)>0&&(n.size||0)<26);
  if(small.length)messages.push({kind:'warning',message:`${small.length} texto(s) pequenos podem perder nitidez na sublimação. Confira a prova física.`});
  if(!visible.length)messages.push({kind:'warning',message:'Projeto sem objetos visíveis. Confira se as camadas estão ocultas.'});
