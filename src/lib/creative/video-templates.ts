@@ -1,9 +1,12 @@
 /** Client-side MP4/H.264 compositor. The original video's audio is not retained.
  * Static overlay runs are prerendered; only animated layers are redrawn per frame.
- * 20s / 720p / 24fps limit protects client memory on lower-end computers.
+ * Default: 20s / 720p / 24fps for lower-end computers; optional 1080p and 30fps.
  */
 import {Muxer,ArrayBufferTarget} from 'mp4-muxer';
 import {assertDesignAssetsReady,drawDesign,type DesignDocument,type DesignNode} from './design';
+/** Full HD is opt-in: HD 720p remains the default on low-powered devices. */
+export type VideoExportPreset='hd'|'fullhd';
+export type VideoExportOptions={preset?:VideoExportPreset;fps?:24|30};
 /** Wait for the decoded video data with a finite timeout and cancellation.
  * Some mobile devices emit neither `loadeddata` nor `seeked` after a codec error.
  */
@@ -97,8 +100,20 @@ function reducedDocument(doc:DesignDocument,width:number,height:number):DesignDo
  */
 export async function chooseH264Config(width:number,height:number,fps=24):Promise<VideoEncoderConfig>{
  if(typeof VideoEncoder==='undefined')throw new Error('Este navegador não suporta WebCodecs.');
- const bitrate=Math.max(1_800_000,Math.min(4_000_000,Math.round(width*height*fps*.18)));
- for(const codec of ['avc1.42001e','avc1.42001f','avc1.4d001f','avc1.64001f']){
+ if(![width,height,fps].every(Number.isFinite)||width<2||height<2||width>1920||height>1080||fps<1||fps>30)throw new Error('Configuração H.264 fora dos limites de exportação.');
+ const bitrate=Math.max(1_800_000,Math.min(9_000_000,Math.round(width*height*fps*.16)));
+ // Pick only profiles whose H.264 level can encode both the macroblocks per
+ // frame and the macroblocks per second. In particular Level 3.0 is NOT enough
+ // for 1280x720 (3600 MB/frame). Level 3.1 supports up to 3600 MB/frame,
+ // while 1920x1080 needs Level 4.0 (8160 MB/frame).
+ const macroblocks=Math.ceil(width/16)*Math.ceil(height/16);
+ const mbRate=macroblocks*fps;
+ const codecs=macroblocks>3600||mbRate>108000
+  ?['avc1.420028','avc1.4d0028','avc1.640028','avc1.640029']
+  :macroblocks>1620||mbRate>40500
+   ?['avc1.42001f','avc1.4d001f','avc1.64001f','avc1.420028','avc1.4d0028','avc1.640028']
+   :['avc1.42001e','avc1.42001f','avc1.4d001f','avc1.64001f'];
+ for(const codec of codecs){
   try{
    const result=await VideoEncoder.isConfigSupported({codec,width,height,framerate:fps,bitrate,avc:{format:'avc'}});
    if(result.supported&&result.config)return {...result.config,avc:{format:'avc'}};
@@ -109,16 +124,18 @@ export async function chooseH264Config(width:number,height:number,fps=24):Promis
 /** Fast, deterministic preflight before creating a decoder/encoder. Source media is
  * inspected separately after loadeddata (duration, CORS, frame dimensions).
  * Frame count is a cap, not a promise that the device can encode H.264. */
-export function inspectVideoExport(doc:DesignDocument,fps=24){
+export function inspectVideoExport(doc:DesignDocument,fps=24,preset:VideoExportPreset='hd'){
  if(!doc.video?.src)throw new Error('Adicione um MP4 ao projeto antes de exportar.');
  if(!Number.isFinite(doc.width)||!Number.isFinite(doc.height)||doc.width<100||doc.height<100||doc.width>8192||doc.height>8192)
   throw new Error('Dimensões do projeto fora da faixa permitida.');
- const start=doc.video.start??0,end=doc.video.end;
+ const source=doc.video;
+ const start=source.start??0,end=source.end;
  if(!Number.isFinite(start)||start<0||end!==undefined&&(!Number.isFinite(end)||end<=start))
   throw new Error('Os pontos de início e fim da linha do tempo são inválidos.');
- if(!Number.isInteger(fps)||fps<1||fps>60)throw new Error('Taxa de quadros inválida.');
- const output=videoOutputSize(doc.width,doc.height);
- if(output.width*output.height>1280*720)throw new Error('Resolução de vídeo excede o limite do Editor.');
+ if(fps!==24&&fps!==30)throw new Error('Selecione 24 ou 30 quadros por segundo.');
+ if(preset!=='hd'&&preset!=='fullhd')throw new Error('Perfil de vídeo desconhecido.');
+ const output=preset==='fullhd'?videoOutputSize(doc.width,doc.height,1920,1080):videoOutputSize(doc.width,doc.height);
+ if(output.width*output.height>(preset==='fullhd'?1920*1080:1280*720))throw new Error('Resolução de vídeo excede o limite do Editor.');
  return {width:output.width,height:output.height,fps,maxDuration:20,hasAudio:false,animatedNodes:doc.nodes.filter(n=>n.visible!==false&&n.keyframes?.length).length};
 }
 type RenderRun={animated:boolean;nodes:DesignNode[];canvas:HTMLCanvasElement};
@@ -134,22 +151,26 @@ async function renderRuns(doc:DesignDocument):Promise<RenderRun[]>{
  await Promise.all(runs.filter(run=>!run.animated).map(async run=>drawDesign(run.canvas,{...doc,nodes:run.nodes},undefined,{strict:true})));
  return runs;
 }
-export async function renderMp4Template(doc:DesignDocument,onProgress?:(n:number)=>void,signal?:AbortSignal):Promise<Blob>{
- const inspection=inspectVideoExport(doc);
+export async function renderMp4Template(doc:DesignDocument,onProgress?:(n:number)=>void,signal?:AbortSignal,options:VideoExportOptions={}):Promise<Blob>{
+ const fps=options.fps??24;
+ const inspection=inspectVideoExport(doc,fps,options.preset??'hd');
+ // Narrow the optional video source once so TypeScript and runtime agree.
+ const source=doc.video;
+ if(!source?.src)throw new Error('Adicione um MP4 ao projeto antes de exportar.');
  if(typeof VideoEncoder==='undefined'||typeof VideoFrame==='undefined')throw new Error('Este navegador não suporta exportação MP4. Use Chrome/Edge atualizado em HTTPS.');
  await assertDesignAssetsReady(doc);
  const {width:w,height:h}=inspection;
- const fps=24,video=document.createElement('video');video.crossOrigin='anonymous';video.muted=true;video.preload='auto';video.playsInline=true;video.src=doc.video.src;
+ const video=document.createElement('video');video.crossOrigin='anonymous';video.muted=true;video.preload='auto';video.playsInline=true;video.src=source.src;
  let encoder:VideoEncoder|undefined;
  try{
   abortIfNeeded(signal);const supportedConfig=await chooseH264Config(w,h,fps);
   await waitForVideoData(video,signal);
   if(video.videoWidth<2||video.videoHeight<2)throw new Error('O MP4 não possui quadros de vídeo decodificáveis.');
   if(!Number.isFinite(video.duration)||video.duration<=0)throw new Error('A duração do vídeo não foi identificada. Utilize um MP4 completo, com duração finita.');
-  if(doc.video.start!==undefined&&!Number.isFinite(doc.video.start))throw new Error('Início do vídeo inválido.');
-  if(doc.video.end!==undefined&&!Number.isFinite(doc.video.end))throw new Error('Fim do vídeo inválido.');
-  const start=Math.max(0,Math.min(doc.video.start??0,Math.max(0,video.duration-.1)));
-  const end=Math.min(video.duration,doc.video.end??video.duration,start+20);
+  if(source.start!==undefined&&!Number.isFinite(source.start))throw new Error('Início do vídeo inválido.');
+  if(source.end!==undefined&&!Number.isFinite(source.end))throw new Error('Fim do vídeo inválido.');
+  const start=Math.max(0,Math.min(source.start??0,Math.max(0,video.duration-.1)));
+  const end=Math.min(video.duration,source.end??video.duration,start+20);
   if(!Number.isFinite(end)||end<=start)throw new Error('Defina um intervalo válido de vídeo.');
   const outputDoc=reducedDocument(doc,w,h);const runs=await renderRuns(outputDoc);abortIfNeeded(signal);
   const stage=document.createElement('canvas');stage.width=w;stage.height=h;
@@ -163,7 +184,7 @@ export async function renderMp4Template(doc:DesignDocument,onProgress?:(n:number
    abortIfNeeded(signal);if(encodingError)throw encodingError;
    await seekVideoFrame(video,Math.min(end-.0001,start+i/fps),signal);
    ctx.fillStyle='#ffffff';ctx.fillRect(0,0,w,h);
-   const frameBounds=videoFrameBounds(video.videoWidth,video.videoHeight,w,h,doc.video.fit||'cover');
+   const frameBounds=videoFrameBounds(video.videoWidth,video.videoHeight,w,h,source.fit||'cover');
    try{ctx.drawImage(video,frameBounds.x,frameBounds.y,frameBounds.width,frameBounds.height);
     if(i===0)ctx.getImageData(0,0,1,1);
    }catch{throw new Error('Não foi possível ler os quadros deste MP4. Se o vídeo está hospedado fora do site, verifique o acesso CORS ou importe um arquivo local.');}

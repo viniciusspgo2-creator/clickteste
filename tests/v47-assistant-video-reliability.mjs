@@ -20,7 +20,7 @@ test('H.264: configura saída AVC em vez de Annex B, com perfil baseline alterna
  globalThis.VideoEncoder={isConfigSupported:async config=>{calls.push(config);return {supported:calls.length>1,config};}};
  try{
   const config=await video().chooseH264Config(1280,720);
-  assert.equal(calls[0].codec,'avc1.42001e');assert.equal(calls[1].codec,'avc1.42001f');
+  assert.equal(calls[0].codec,'avc1.42001f');assert.equal(calls[1].codec,'avc1.4d001f');
   assert.deepEqual(config.avc,{format:'avc'});
   assert.ok(config.bitrate>0);
  }finally{globalThis.VideoEncoder=before;}

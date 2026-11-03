@@ -142,3 +142,11 @@
 .cr-mirror-print input{flex-shrink:0;width:18px;height:18px;margin-top:3px;accent-color:#ff8c32;}
 .cr-mirror-print span{display:flex;flex-direction:column;gap:4px;min-width:0;}
 .cr-mirror-print small{display:block;color:#c4b8af;line-height:1.45;font-size:11px;}
+/* V4.9: opções avançadas de MP4 organizadas no mesmo fluxo de exportação. */
+.cr-dialog{max-height:min(92vh,920px);overflow-y:auto;scrollbar-width:thin}
+.cr-mp4-options{padding:16px;border:1px solid #755033;background:linear-gradient(145deg,#30231c,#211c1b);border-radius:14px;display:grid;gap:12px}
+.cr-mp4-options>p:first-child{font-size:12px;letter-spacing:.9px;color:#ffac68}
+.cr-mp4-options>p{font-size:12px;line-height:1.5;margin:0}
+.cr-mp4-options .cr-dialog-footer{margin:0;flex-wrap:wrap}
+.cr-mp4-options label{min-width:0}
+@media(max-width:600px){.cr-mp4-options{padding:12px}.cr-mp4-options .cr-dialog-footer>button{flex:1;justify-content:center}}

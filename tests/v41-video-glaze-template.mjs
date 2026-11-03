@@ -65,7 +65,7 @@ test('UI, schema e renderer aceitam fit e previsualização do mesmo enquadramen
  assert.match(e,/Enquadramento do vídeo/);
  assert.match(e,/doc\.video\.fit==='contain'/);
  assert.match(e,/onLoadedMetadata/);
- assert.match(renderer,/videoFrameBounds\(video\.videoWidth,video\.videoHeight,w,h,doc\.video\.fit/);
+ assert.match(renderer,/videoFrameBounds\(video\.videoWidth,video\.videoHeight,w,h,(?:source|doc\.video)\.fit/);
 });
 test('Studio 3D integra alça calibrada e contato com duas penumbras leves',()=>{
  const geometry=source('src/components/tools/mockup/scene/mug-geometry.ts');

@@ -1,3 +1,11 @@
+## V4.9 — MP4 Full HD opcional e correções TS da Vercel (staging)
+
+- Editor: MP4 H.264 em 720p ou até 1080p, 24/30 fps; os controles de exportação e a inspeção usam os mesmos parâmetros.
+- Exportador: perfis de H.264 ajustados para nível/resolução, mantendo 720p como padrão leve.
+- Build TS: corrigida importação ausente de `checkBeforeExport` e acesso seguro a `doc.video` opcional.
+- Testes de regressão novos; relatório em `docs/CLICKGRUDA-V4-9-FULLHD-CORRECOES-TS.md`.
+- Build Next.js completo e exportação MP4 em produção **não homologados** nesta rodada.
+
 ## V4.8 — Exportação para sublimação e importação local (staging)
 
 - Exportação PNG/JPEG/WebP com opção de espelhamento horizontal **somente na saída**; prévia e projeto ficam inalterados. Desligada por padrão e com aviso sobre espelhamento duplo na impressora.
