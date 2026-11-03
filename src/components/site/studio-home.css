@@ -544,3 +544,280 @@
 
 /* Central dos três ambientes, sem remover as seções da landing existente. */
 .cg-creative-hub{padding-top:72px;padding-bottom:70px}.cg-creative-hub-top{display:flex;align-items:end;justify-content:space-between;gap:28px;margin-bottom:26px}.cg-creative-hub-top h2{font-size:clamp(26px,3vw,42px);margin-top:13px}.cg-creative-hub-top>p{max-width:420px;color:#bdb2a9;line-height:1.65}.cg-creative-hub-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:17px}.cg-hub-card{display:flex;flex-direction:column;min-height:272px;padding:25px;border:1px solid #543425;background:linear-gradient(142deg,#2a1b15,#181515 65%);border-radius:18px;text-decoration:none;color:#f2ede7;transition:transform .25s,border-color .25s,background .25s}.cg-hub-card:hover{transform:translateY(-5px);border-color:#f08235;background:linear-gradient(142deg,#392215,#1e1715 65%)}.cg-hub-card-index{font-size:10px;color:#e99153;letter-spacing:1.4px;font-weight:800}.cg-hub-card>svg{color:#f69a4f;margin:17px 0}.cg-hub-card strong{font-size:24px;font-weight:850;letter-spacing:-.5px}.cg-hub-card p{font-size:13px;line-height:1.6;color:#bdb1a8;margin:12px 0 19px}.cg-hub-card-link{font-size:12px;font-weight:800;color:#ffab6f;margin-top:auto;display:flex;align-items:center;gap:8px}@media(max-width:850px){.cg-creative-hub-top{display:block}.cg-creative-hub-top>p{margin-top:15px}.cg-creative-hub-grid{grid-template-columns:1fr}.cg-hub-card{min-height:225px}.cg-creative-hub{padding-top:48px;padding-bottom:48px}}
+
+
+/* =======================================================================
+ * CLICK & GRUDA | LANDING PREMIUM 2026-11-03
+ * Visual-only layer. Every selector begins with .cg-landing so that the
+ * Studio 3D, Editor 2D, login, checkout, admin and bonus pages are isolated.
+ * Do not change the hero image, its cropping, the expanding panel mechanics,
+ * the artwork array or the two marquee animation directions.
+ * ======================================================================= */
+.cg-landing{
+  --cg-premium-bg:#0B0B0F;
+  --cg-premium-panel:#14141A;
+  --cg-premium-panel-2:#17171E;
+  --cg-premium-card:#1D1D26;
+  --cg-premium-line:rgba(255,255,255,.08);
+  --cg-premium-focus:#FF6A00;
+  --cg-premium-copy:#F5F5F7;
+  --cg-premium-muted:#A7A7B3;
+  color:var(--cg-premium-copy);
+  background:var(--cg-premium-bg);
+  color-scheme:dark;
+  font-family:var(--font-geist-sans),Inter,system-ui,sans-serif;
+}
+.cg-landing .cg-container{width:min(calc(100% - 48px),1220px)}
+.cg-landing .cg-display{font-weight:750;line-height:1.075;letter-spacing:-.052em;text-wrap:balance}
+.cg-landing .cg-display em{background:linear-gradient(135deg,#FF8A2A,#FF6A00 60%,#FFA756);background-clip:text;-webkit-background-clip:text;color:transparent}
+.cg-landing .cg-eyebrow{color:#FFA368;font-size:11px;letter-spacing:.11em;font-weight:750;gap:10px}
+.cg-landing .cg-eyebrow svg{flex:none;stroke-width:1.9}
+.cg-landing .cg-section{padding-block:104px}
+.cg-landing :is(a,button,summary):focus-visible{outline:3px solid #FF9A50;outline-offset:4px}
+.cg-landing :is(a,button){-webkit-tap-highlight-color:transparent}
+.cg-landing :is(.cg-button,.cg-header-cta,.cg-hub-card,.cg-gallery-card,.cg-capability-card,.cg-faq-item,.cg-bonus-chip-list>a){transition-duration:.18s;transition-timing-function:ease-out}
+.cg-landing .cg-button{min-height:48px;border-radius:12px;padding:13px 22px;font-size:14px;gap:10px;font-weight:780;box-shadow:none}
+.cg-landing .cg-button-primary{background:linear-gradient(135deg,#FF6A00,#FF8A2A);border:1px solid #FF9137;color:#160B05!important;box-shadow:0 6px 20px rgba(255,106,0,.35)}
+.cg-landing .cg-button-primary:hover{background:linear-gradient(135deg,#FF7D1F,#FF9A3F);box-shadow:0 9px 24px rgba(255,106,0,.35);transform:translateY(-2px)}
+.cg-landing .cg-button-outline{color:#F5F5F7!important;background:rgba(20,20,26,.88);border:1px solid rgba(255,255,255,.22);backdrop-filter:none}
+.cg-landing .cg-button-outline:hover{background:#242029;border-color:#FF8740;transform:translateY(-2px)}
+.cg-landing .cg-text-link{color:#FFAA72;font-size:14px;font-weight:750;gap:9px;text-decoration:none}
+.cg-landing .cg-text-link:hover{color:#FFE0C9}
+
+/* Navigation — keep the actual logo, links and menu functionality intact. */
+.cg-landing .cg-header{background:rgba(11,11,15,.94);border-bottom:1px solid var(--cg-premium-line);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 6px 28px rgba(0,0,0,.16)}
+.cg-landing .cg-nav-bar{min-height:74px;gap:20px}
+.cg-landing .cg-desktop-nav a{color:#D1D1D9;font-size:12px;font-weight:650;position:relative}
+.cg-landing .cg-desktop-nav a:hover{color:#FFFFFF}
+.cg-landing .cg-header-cta{min-height:43px;border-radius:12px;background:linear-gradient(135deg,#FF6A00,#FF8A2A);box-shadow:0 6px 20px rgba(255,106,0,.21);color:#150A03;font-size:12px;font-weight:790}
+.cg-landing .cg-header-cta:hover{background:#FF7D1F;transform:translateY(-1px)}
+.cg-landing .cg-mobile-nav{background:#14141A;border-color:var(--cg-premium-line)}
+.cg-landing .cg-mobile-nav a{color:#F5F5F7}
+.cg-landing .cg-menu-toggle{min-width:40px;min-height:40px;background:#1D1D26;border-color:var(--cg-premium-line)}
+
+/* Hero — never alter background-image, background-size or background-position. */
+.cg-landing .cg-hero-wide{border-bottom:1px solid rgba(255,255,255,.05)}
+.cg-landing .cg-hero-wide .cg-hero-content{isolation:isolate}
+.cg-landing .cg-hero-wide .cg-kicker{border:1px solid rgba(255,106,0,.36);background:rgba(11,11,15,.84);border-radius:12px;padding:10px 14px;letter-spacing:.12em;color:#FFBA86;box-shadow:inset 0 1px rgba(255,255,255,.05);backdrop-filter:none}
+.cg-landing .cg-hero-wide.cg-hero-product .cg-hero-title{font-size:clamp(48px,4.6vw,76px);line-height:1.04;font-weight:790;letter-spacing:-.06em;max-width:720px;margin:24px 0 20px;color:#F5F5F7;text-shadow:0 3px 28px rgba(0,0,0,.2)}
+.cg-landing .cg-hero-wide .cg-hero-lead{color:#E6E6EC;font-size:clamp(15px,1.22vw,17px);line-height:1.75;max-width:535px}
+.cg-landing .cg-hero-highlights{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 10px;margin-top:25px;max-width:560px}
+.cg-landing .cg-hero-highlights>span{min-height:47px;display:flex;align-items:center;gap:10px;padding:9px 11px;background:rgba(20,20,26,.84);border:1px solid rgba(255,255,255,.11);border-radius:12px;color:#E9E9EF;font-size:12px;line-height:1.35;text-shadow:none;font-weight:650}
+.cg-landing .cg-hero-highlights svg{width:29px;height:29px;flex:0 0 29px;padding:6px;border:1px solid rgba(255,106,0,.26);border-radius:9px;color:#FF9D60;background:rgba(255,106,0,.10);stroke-width:1.8}
+.cg-landing .cg-hero-wide.cg-hero-product .cg-hero-actions{margin-top:24px;gap:12px}
+.cg-landing .cg-hero-wide .cg-hero-actions .cg-button{min-height:52px;border-radius:12px;font-size:13px;padding:12px 19px;box-shadow:0 6px 20px rgba(0,0,0,.24)}
+.cg-landing .cg-hero-wide .cg-hero-actions .cg-button-primary{box-shadow:0 6px 20px rgba(255,106,0,.35)}
+.cg-landing .cg-hero-wide .cg-audio-intro{border-radius:14px;border-color:rgba(255,255,255,.15);background:rgba(20,20,26,.88);box-shadow:none}
+.cg-landing .cg-hero-wide .cg-audio-heading{color:#F5F5F7}
+.cg-landing .cg-hero-wide .cg-audio-hint{color:#B7B7C2}
+.cg-landing .cg-hero-wide.cg-hero-product .cg-hero-proof{border-top:1px solid rgba(255,255,255,.12);color:#CBCBD5;font-size:11px;gap:10px 20px}
+.cg-landing .cg-hero-proof svg{color:#FF9D59}
+.cg-landing .cg-hero-footnote{color:#B0B0BB;letter-spacing:.12em;font-size:10px}
+.cg-landing .cg-hero-footnote>a{color:#E0E0E7}
+.cg-landing .cg-marquee{background:linear-gradient(90deg,#FF8A2A,#FF6A00,#FF8A2A);box-shadow:0 12px 30px rgba(255,106,0,.12)}
+.cg-landing .cg-marquee-items>span{letter-spacing:.09em;color:#170B05}
+
+/* Central Criativa — three purposeful, quiet, premium entry cards. */
+.cg-landing .cg-creative-hub{padding-top:88px;padding-bottom:88px}
+.cg-landing .cg-creative-hub-top{gap:40px;margin-bottom:30px}
+.cg-landing .cg-creative-hub-top h2{font-size:clamp(33px,3.7vw,49px);margin-top:16px}
+.cg-landing .cg-creative-hub-top>p{font-size:15px;color:var(--cg-premium-muted);line-height:1.75}
+.cg-landing .cg-creative-hub-grid{gap:16px}
+.cg-landing .cg-hub-card{min-height:310px;padding:26px;position:relative;border-radius:18px;border:1px solid rgba(255,255,255,.10);background:linear-gradient(145deg,#1D1D26,#14141A 78%);box-shadow:0 8px 32px rgba(0,0,0,.16);transition:background .18s ease-out,border-color .18s ease-out,transform .18s ease-out}
+.cg-landing .cg-hub-card:first-child{border-color:rgba(255,106,0,.42);background:linear-gradient(145deg,#291B16,#1D1D26 70%)}
+.cg-landing .cg-hub-card:hover{transform:translateY(-3px);border-color:#FF6A00;background:linear-gradient(145deg,#2A2221,#19191F 72%)}
+.cg-landing .cg-hub-card-index{color:#FFAB74;font-size:11px;letter-spacing:.09em}
+.cg-landing .cg-hub-card>svg{color:#FF8A2A;margin:23px 0 18px;stroke-width:1.65;width:35px;height:35px}
+.cg-landing .cg-hub-card strong{font-size:25px;line-height:1.2;color:#F5F5F7;letter-spacing:-.035em}
+.cg-landing .cg-hub-card p{color:#BDBDC8;font-size:14px;line-height:1.75;margin-top:13px}
+.cg-landing .cg-hub-card-link{color:#FFAF7D;font-size:13px;margin-top:auto;border-top:1px solid rgba(255,255,255,.08);padding-top:17px}
+
+/* Expanding panels — retain React hover/focus/click behavior and exact images. */
+.cg-landing .cg-experience-section{background:#0E0E13;padding-block:104px}
+.cg-landing .cg-experience-heading{gap:48px;margin-bottom:34px}
+.cg-landing .cg-experience-heading h2{font-size:clamp(40px,4.7vw,65px);line-height:1.07}
+.cg-landing .cg-experience-heading>p{color:#BEBEC8;font-size:15px;line-height:1.75;max-width:380px}
+.cg-landing .cg-experience-heading>p>span{color:#FFB684;font-size:12px}
+.cg-landing .cg-experience-panels{gap:12px;height:545px}
+.cg-landing .cg-experience-panel{background:#17171E;border:1px solid rgba(255,255,255,.12);border-radius:18px;box-shadow:none;transition:flex .2s ease-out,border-color .2s ease-out,height .2s ease-out}
+.cg-landing .cg-experience-panel.is-expanded{border-color:rgba(255,106,0,.68);box-shadow:0 8px 32px rgba(0,0,0,.26)}
+.cg-landing .cg-experience-panel:not(.is-expanded):hover{border-color:rgba(255,106,0,.42)}
+.cg-landing .cg-experience-background{filter:saturate(.88);transition:transform .2s ease-out,filter .2s ease-out}
+.cg-landing .cg-experience-shade{background:linear-gradient(0deg,rgba(8,8,13,.98),rgba(8,8,13,.78) 34%,rgba(8,8,13,.2) 70%)}
+.cg-landing .cg-experience-panel:not(.is-expanded) .cg-experience-shade{background:linear-gradient(0deg,rgba(11,11,15,.96),rgba(11,11,15,.48))}
+.cg-landing .cg-experience-panel.is-expanded .cg-experience-trigger{height:72px}
+.cg-landing .cg-experience-trigger:focus-visible{outline:3px solid #FF9A50;outline-offset:-5px}
+.cg-landing .cg-experience-index{color:#CBCBD4;font-size:11px}
+.cg-landing .cg-experience-label{color:#F5F5F7;font-weight:650}
+.cg-landing .cg-experience-toggle{border-color:rgba(255,255,255,.3);background:#17171E}
+.cg-landing .cg-experience-content{inset-inline:28px;bottom:30px;animation-duration:.2s}
+.cg-landing .cg-experience-content>.cg-eyebrow{color:#FFB47A;font-size:10px}
+.cg-landing .cg-experience-content h3{font-size:clamp(27px,2.6vw,37px);font-weight:730;color:#F5F5F7;line-height:1.1;margin-top:12px}
+.cg-landing .cg-experience-content p{color:#E1E1E8;font-size:14px;line-height:1.65;max-width:425px;margin-top:12px}
+.cg-landing .cg-experience-link{font-size:13px;color:#FFB583;min-height:36px}
+.cg-landing .cg-experience-tag{font-size:11px;background:rgba(20,20,26,.88);border:1px solid rgba(255,255,255,.2);color:#F5F5F7;border-radius:12px}
+.cg-landing .cg-experience-note{color:#A7A7B3;font-size:12px}
+
+/* Capabilities — airy hierarchy, no effects on large lists. */
+.cg-landing .cg-capabilities-section{background:#0B0B0F;border-block:1px solid var(--cg-premium-line);padding-block:104px}
+.cg-landing .cg-capabilities-heading{margin-bottom:30px}
+.cg-landing .cg-capabilities-heading h2{font-size:clamp(40px,4.7vw,64px)}
+.cg-landing .cg-capabilities-heading>p{color:#B8B8C4;font-size:15px;line-height:1.8}
+.cg-landing .cg-capabilities-grid{gap:14px}
+.cg-landing .cg-capability-card{min-height:248px;padding:24px;border-radius:18px;background:linear-gradient(152deg,#1D1D26,#14141A 75%);border:1px solid var(--cg-premium-line);transition:transform .18s ease-out,border-color .18s ease-out}
+.cg-landing .cg-capability-card:hover{transform:translateY(-3px);border-color:rgba(255,106,0,.62)}
+.cg-landing .cg-capability-icon{width:52px;height:52px;border-radius:14px;background:rgba(255,106,0,.09);border:1px solid rgba(255,106,0,.22);color:#FF9D61}
+.cg-landing .cg-capability-card h3{color:#F5F5F7;margin-top:20px;font-size:17px;font-weight:760;line-height:1.4}
+.cg-landing .cg-capability-card p{font-size:14px;color:#BDBDC8;line-height:1.7;margin-top:9px}
+.cg-landing .cg-capabilities-footer{font-size:13px;color:#AFAFBA}
+
+/* Process steps — timeline becomes three restrained tiles, no new section. */
+.cg-landing .cg-process-section{background:#111117;border-block:1px solid var(--cg-premium-line);padding-block:92px}
+.cg-landing .cg-process-layout{gap:56px}
+.cg-landing .cg-process-layout h2{font-size:clamp(38px,4.4vw,60px);line-height:1.08}
+.cg-landing .cg-process-layout>div>p{color:#BDBDC8;font-size:15px;line-height:1.8}
+.cg-landing .cg-process-steps{display:grid;gap:12px;border:0}
+.cg-landing .cg-process-step{padding:20px;gap:16px;border:1px solid var(--cg-premium-line);border-radius:16px;background:#1D1D26;align-items:center}
+.cg-landing .cg-process-step>span{border-radius:12px;width:40px;height:40px;flex:0 0 40px;color:#FF9F60;background:rgba(255,106,0,.1);border:1px solid rgba(255,106,0,.22);font-variant-numeric:tabular-nums}
+.cg-landing .cg-process-step h3{color:#F5F5F7;font-size:16px;font-weight:740}
+.cg-landing .cg-process-step p{color:#B9B9C5;font-size:13px;line-height:1.65;margin-top:6px}
+.cg-landing .cg-process-step>svg{color:#FFAA77}
+
+/* Curated art carousel — same artworks, same movement, pause on hover. */
+.cg-landing .cg-library-section{background:#0B0B0F;padding-bottom:102px}
+.cg-landing .cg-library-heading{gap:68px;margin-bottom:42px}
+.cg-landing .cg-library-heading h2{font-size:clamp(42px,4.8vw,66px)}
+.cg-landing .cg-library-heading p{font-size:15px;color:#BEBEC8;line-height:1.75}
+.cg-landing .cg-library-heading strong{color:#F5F5F7}
+.cg-landing .cg-gallery-viewport{gap:16px;margin-top:36px}
+.cg-landing .cg-gallery-rail-group{gap:16px;padding-right:16px}
+.cg-landing .cg-gallery-card{width:354px;flex:0 0 354px;border-radius:16px;background:#17171E;border:1px solid rgba(255,255,255,.14);box-shadow:none;transition:border-color .18s ease-out,transform .18s ease-out}
+.cg-landing .cg-gallery-card:hover{border-color:rgba(255,106,0,.72);transform:translateY(-2px);box-shadow:none}
+.cg-landing .cg-gallery-art{background:#EEECE8;aspect-ratio:2.08}
+.cg-landing .cg-gallery-art img{transition:transform .18s ease-out}
+.cg-landing .cg-gallery-card-footer{background:#17171E;padding:15px 17px;gap:12px}
+.cg-landing .cg-gallery-card-footer strong{font-size:14px;color:#F5F5F7}
+.cg-landing .cg-gallery-card-footer span{font-size:10px;color:#B6B6C1;letter-spacing:.06em}
+.cg-landing .cg-gallery-card-footer span svg{color:#FF8A2A}
+.cg-landing .cg-library-preview-foot{margin-top:26px}
+.cg-landing .cg-library-preview-foot>span{color:#B5B5C0;font-size:13px}
+.cg-landing .cg-library-benefits{margin-top:48px;border:0;border-radius:0;overflow:visible;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.cg-landing .cg-library-benefits>div{border:1px solid var(--cg-premium-line);background:#17171E;padding:22px;border-radius:16px;gap:11px}
+.cg-landing .cg-library-benefits>div:nth-child(n){border:1px solid var(--cg-premium-line)}
+.cg-landing .cg-library-benefits>div>svg{color:#FF9C60;margin-bottom:2px}
+.cg-landing .cg-library-benefits strong{font-size:15px;color:#F5F5F7}
+.cg-landing .cg-library-benefits p{font-size:13px;color:#B9B9C4;line-height:1.55}
+
+/* Membership / purchase section — one strong offer, visible hierarchy. */
+.cg-landing .cg-access-section{background:linear-gradient(160deg,#121118,#0B0B0F 75%);border-block:1px solid var(--cg-premium-line)}
+.cg-landing .cg-access-layout{gap:72px}
+.cg-landing .cg-access-copy h2{font-size:clamp(42px,4.5vw,62px)}
+.cg-landing .cg-access-copy>p{font-size:15px;color:#BFBFCA;line-height:1.75}
+.cg-landing .cg-access-copy>ul>li{color:#E8E8EE;font-size:14px;line-height:1.5}
+.cg-landing .cg-access-copy>ul>li svg{color:#FF9B5C;flex-shrink:0}
+.cg-landing .cg-access-existing{border-color:rgba(255,106,0,.28);background:rgba(255,106,0,.045);border-radius:16px}
+.cg-landing .cg-access-existing :is(strong,a){color:#FFB481}
+.cg-landing .cg-access-existing span{color:#C2C2CC}
+.cg-landing .cg-membership-card{background:linear-gradient(152deg,#282029,#17171E 70%);border:1px solid rgba(255,106,0,.56);box-shadow:0 8px 32px rgba(0,0,0,.35),inset 0 1px rgba(255,255,255,.06);border-radius:20px}
+.cg-landing .cg-membership-tag{color:#FFB783;background:rgba(255,106,0,.11);border:1px solid rgba(255,106,0,.27)}
+.cg-landing .cg-membership-card h3{color:#F5F5F7}
+.cg-landing .cg-membership-card>p{color:#BFBFC9}
+.cg-landing .cg-membership-price .cg-price-currency{color:#C8C8D0}
+.cg-landing .cg-membership-price :is(.cg-price-reais,.cg-price-cents){color:#F5F5F7}
+.cg-landing .cg-membership-cadence{color:#C2C2CD;font-size:13px}
+.cg-landing .cg-membership-note{color:#BFC0CA;font-size:13px}
+.cg-landing .cg-membership-note svg{color:#FF9C5B}
+
+/* FAQ, bonus strip and cinematic CTA (existing image unchanged). */
+.cg-landing .cg-faq-section{background:#0B0B0F}
+.cg-landing .cg-faq-layout{gap:72px}
+.cg-landing .cg-faq-layout h2{font-size:clamp(38px,4.4vw,61px)}
+.cg-landing .cg-faq-layout>div:first-child p{color:#BDBDC8;line-height:1.7}
+.cg-landing .cg-faq-item{background:#17171E;border:1px solid rgba(255,255,255,.1);border-radius:14px;overflow:hidden}
+.cg-landing .cg-faq-item[open]{border-color:rgba(255,106,0,.42);background:#1D1D26}
+.cg-landing .cg-faq-item summary{padding:20px 22px;min-height:58px;color:#F5F5F7;font-size:15px;font-weight:680}
+.cg-landing .cg-faq-item p{padding-inline:22px;color:#BFC0CB;font-size:14px;line-height:1.7}
+.cg-landing .cg-bonus-compact{background:#111117;border-top:1px solid var(--cg-premium-line);padding-block:76px 86px}
+.cg-landing .cg-bonus-compact-heading h2{font-size:clamp(38px,4.3vw,56px)}
+.cg-landing .cg-bonus-compact-heading p{font-size:15px;color:#B9B9C4}
+.cg-landing .cg-bonus-chip-list{gap:12px;margin-top:32px}
+.cg-landing .cg-bonus-chip-list>a{min-height:48px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:#1D1D26;color:#E8E8EF;font-size:13px;padding:14px 17px;transition:background .18s ease-out,border-color .18s ease-out}
+.cg-landing .cg-bonus-chip-list>a:hover{border-color:#FF6A00;background:#292029;color:#F5F5F7}
+.cg-landing .cg-final-cinematic.cg-final-product{border-radius:20px;border-color:rgba(255,106,0,.4);box-shadow:0 8px 32px rgba(0,0,0,.3);min-height:430px}
+.cg-landing .cg-final-cinematic .cg-final-copy p{color:#E2E2E9;font-size:15px;line-height:1.75}
+.cg-landing .cg-final-cinematic .cg-final-actions{gap:12px}
+.cg-landing .cg-bottom-space{padding-bottom:88px}
+.cg-landing .cg-footer{background:#0B0B0F;border-top:1px solid var(--cg-premium-line)}
+.cg-landing .cg-footer-brand>p{color:#B7B7C2}
+.cg-landing .cg-footer-column>a{color:#C9C9D3}
+.cg-landing .cg-footer-column>a:hover{color:#FFB586}
+.cg-landing .cg-footer-bottom{color:#A7A7B3}
+.cg-landing .cg-whatsapp-float{box-shadow:0 8px 32px rgba(0,0,0,.35)}
+
+/* Tablet and mobile: layout-only refinements; preserve image crops. */
+@media(max-width:1120px){
+  .cg-landing .cg-hero-highlights>span{font-size:11px}
+  .cg-landing .cg-capabilities-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .cg-landing .cg-access-layout{gap:36px}
+}
+@media(max-width:900px){
+  .cg-landing .cg-nav-bar{min-height:70px}
+  .cg-landing .cg-hero-wide.cg-hero-product .cg-hero-title{font-size:clamp(44px,7.4vw,68px)}
+  .cg-landing .cg-creative-hub{padding-block:64px}
+  .cg-landing .cg-creative-hub-top{align-items:start;flex-direction:column;gap:16px}
+  .cg-landing .cg-hub-card{min-height:245px}
+  .cg-landing .cg-library-benefits{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .cg-landing .cg-faq-layout{gap:36px}
+}
+@media(max-width:700px){
+  .cg-landing .cg-container{width:calc(100% - 36px)}
+  .cg-landing .cg-section{padding-block:72px}
+  .cg-landing .cg-hero-highlights{gap:8px}
+  .cg-landing .cg-hero-highlights>span{padding:9px;font-size:11px}
+  .cg-landing .cg-experience-panels{height:auto;gap:9px}
+  .cg-landing .cg-experience-panel{height:76px;flex:none;transition:height .2s ease-out,border-color .2s ease-out}
+  .cg-landing .cg-experience-panel.is-expanded{height:565px;flex:none}
+  .cg-landing .cg-experience-panel.is-expanded .cg-experience-trigger{height:76px}
+  .cg-landing .cg-experience-content{inset-inline:24px;bottom:26px}
+  .cg-landing .cg-experience-content h3{font-size:30px}
+  .cg-landing .cg-experience-content p{font-size:13px}
+  .cg-landing .cg-access-layout{grid-template-columns:1fr}
+  .cg-landing .cg-faq-layout{grid-template-columns:1fr}
+}
+@media(max-width:620px){
+  .cg-landing .cg-container{width:calc(100% - 32px)}
+  .cg-landing .cg-hero-wide.cg-hero-product .cg-hero-title{font-size:clamp(41px,10.2vw,56px);line-height:1.075}
+  .cg-landing .cg-hero-wide .cg-hero-lead{font-size:15px;line-height:1.65}
+  .cg-landing .cg-hero-highlights{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .cg-landing .cg-hero-highlights>span{min-height:50px;padding:8px;gap:7px}
+  .cg-landing .cg-hero-highlights svg{width:25px;height:25px;flex-basis:25px;padding:5px}
+  .cg-landing .cg-hero-wide .cg-hero-actions .cg-button{min-height:48px}
+  .cg-landing .cg-hero-wide .cg-hero-proof{gap:9px 13px;font-size:11px}
+  .cg-landing .cg-creative-hub{padding-block:62px}
+  .cg-landing .cg-hub-card{min-height:230px;padding:22px}
+  .cg-landing .cg-experience-heading h2,.cg-landing .cg-library-heading h2{font-size:clamp(37px,9vw,48px)}
+  .cg-landing .cg-gallery-card{width:278px;flex-basis:278px}
+  .cg-landing .cg-gallery-rail-group{gap:10px;padding-right:10px}
+  .cg-landing .cg-library-benefits{gap:10px}
+  .cg-landing .cg-library-benefits>div{padding:16px}
+  .cg-landing .cg-library-benefits strong{font-size:13px}
+  .cg-landing .cg-library-benefits p{font-size:12px}
+  .cg-landing .cg-capabilities-grid{grid-template-columns:1fr}
+  .cg-landing .cg-capability-card{min-height:auto;padding:21px}
+  .cg-landing .cg-process-step{padding:17px;gap:12px}
+  .cg-landing .cg-process-step>span{width:38px;height:38px;flex-basis:38px}
+  .cg-landing .cg-membership-card{border-radius:18px}
+  .cg-landing .cg-bonus-compact{padding-block:66px}
+  .cg-landing .cg-final-cinematic.cg-final-product{min-height:580px}
+  .cg-landing .cg-footer{padding-top:56px}
+}
+@media(max-width:390px){
+  .cg-landing .cg-hero-highlights{grid-template-columns:1fr}
+  .cg-landing .cg-hero-highlights>span{min-height:40px}
+  .cg-landing .cg-gallery-card{width:260px;flex-basis:260px}
+}
+@media(prefers-reduced-motion:reduce){
+  .cg-landing .cg-gallery-rail,.cg-landing .cg-marquee-track{animation:none!important}
+  .cg-landing .cg-gallery-viewport{overflow-x:auto;mask-image:none}
+  .cg-landing :is(.cg-button,.cg-hub-card,.cg-capability-card,.cg-experience-panel,.cg-gallery-card){transition:none!important}
+}
