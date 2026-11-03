@@ -1,3 +1,4 @@
+import {ensureDesignFonts} from './typefaces';
 /** Editor local: documento, desenho e exportação. Nada do usuário é enviado ao servidor. */
 export type NodeKind='text'|'image'|'rect'|'circle';
 export type DesignNode={id:string;kind:NodeKind;x:number;y:number;w:number;h:number;angle:number;opacity:number;
@@ -63,6 +64,7 @@ function drawText(ctx:CanvasRenderingContext2D,n:DesignNode){
  }
 }
 export async function drawDesign(canvas:HTMLCanvasElement,doc:DesignDocument){
+ await ensureDesignFonts(doc.nodes.filter(x=>x.kind==='text').map(x=>x.font||'')).catch(()=>{});
  if(canvas.width!==doc.width)canvas.width=doc.width;if(canvas.height!==doc.height)canvas.height=doc.height;
  const ctx=canvas.getContext('2d');if(!ctx)throw new Error('Canvas indisponível');
  ctx.clearRect(0,0,doc.width,doc.height);

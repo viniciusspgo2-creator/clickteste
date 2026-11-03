@@ -4,6 +4,7 @@ import { requireAdmin } from '@/lib/admin-auth';
 import { db } from '@/lib/db';
 import { kinds,listAssets,serializeAsset } from '@/lib/creative/assets';
 import { r2Request } from '@/lib/creative/r2';
+import { classifyFont } from '@/lib/creative/font-coverage';
 export const runtime='nodejs';
 const ERR=(message:string,status=400)=>NextResponse.json({ok:false,error:message},{status});
 const MIME:Record<string,string>={png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp',svg:'image/svg+xml',woff:'font/woff',woff2:'font/woff2',ttf:'font/ttf',otf:'font/otf',json:'application/json',mp4:'video/mp4'};
@@ -35,6 +36,7 @@ export async function POST(req:Request){
     const category=String(form.get('category')||'Geral').trim().slice(0,80)||'Geral';
     const tags=String(form.get('tags')||'').split(',').map(x=>x.trim().slice(0,40)).filter(Boolean).slice(0,20);
     const status=form.get('status')==='draft'?'draft':'published';
+    if(kind==='font'&&form.get('rightsConfirmed')!=='yes')return ERR('Confirme a licença que permite distribuir essa fonte aos usuários da plataforma.');
     if(!name||file.size<8||file.size>4*1024*1024)return ERR('Nome vazio ou arquivo fora do limite de 4 MB.');
     const ext=(file.name.split('.').pop()||'').toLowerCase();
     if(!MIME[ext])return ERR('Formato não suportado.');
@@ -44,6 +46,7 @@ export async function POST(req:Request){
     if(['element','background'].includes(kind)&&!['png','jpg','jpeg','webp','svg'].includes(ext))return ERR('Use imagens estáticas ou SVG.');
     const bytes=Buffer.from(await file.arrayBuffer());
     if(!validate(bytes,ext))return ERR('Arquivo inválido, inseguro ou incompatível com o formato.');
+    if(kind==='font'){const coverage=classifyFont(bytes,ext);tags.push(coverage.status);if(coverage.missing)tags.push('faltando-'+coverage.missing.slice(0,18));}
     const key=`creative/${kind}/${randomUUID()}.${ext}`;
     await r2Request('PUT',key,bytes,MIME[ext]);
     try{const asset=await db.creativeAsset.create({data:{name,kind,category,tags:JSON.stringify(tags),status,storageKey:key,mimeType:MIME[ext],bytes:bytes.length},select:{id:true,kind:true,name:true,category:true,tags:true,status:true,order:true,mimeType:true,bytes:true,createdAt:true,updatedAt:true}});

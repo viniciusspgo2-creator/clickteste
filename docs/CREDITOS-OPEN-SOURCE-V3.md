@@ -28,3 +28,11 @@ Pesquisa e verificação em GitHub e fontes oficiais, 02/11/2026. Licenças refe
 - **glTF Sample Models**: licenças de cada modelo variam; não copiar pacote integral sem auditoria modelo a modelo.
 
 O editor desta fase usa **Canvas 2D nativo**, sem incorporar código de terceiros além das dependências já presentes no ZIP. O R2 SigV4 foi implementado com API nativa `node:crypto`, sem copiar um SDK de terceiros.
+
+## V3.3 — Acervo de fontes, ícones e objetos (02/11/2026)
+
+- Google Fonts — https://fonts.google.com/ — famílias com licença aberta individual (principalmente SIL OFL 1.1). A versão V3.3 fornece **links de carregamento sob demanda**, e não inclui arquivos binários de fontes. Consulte os textos de licença de cada família em https://github.com/google/fonts antes de se hospedar.
+- Tabler Icons — https://github.com/tabler/tabler-icons — MIT. Ícones SVG da seleção inicial são carregados do CDN oficial do pacote fixado em versão 3.46.0 sob demanda.
+- IconPacks.net — https://www.iconpacks.net/terms/ — **não incorporado** devido às restrições contra redistribuição de ícones como biblioteca de terceiros ou serviço concorrente.
+- Designer Brasil — https://designerbrasil.com.br/ — **não incorporado**, referência de curadoria; a licença depende de cada arquivo.
+- `src/lib/creative/stock-objects.ts` — dezenove ornamentos criados especificamente para a Click & Gruda.

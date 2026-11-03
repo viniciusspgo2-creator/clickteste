@@ -1,17 +1,21 @@
 "use client";
 import { useCallback,useEffect,useMemo,useRef,useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Undo2, Redo2, ImagePlus, Type, Shapes, Layers3, Trash2, Copy, ChevronUp, ChevronDown, Download, SlidersHorizontal, Search, Upload, RectangleHorizontal, Circle, Sparkles, FolderOpen, Save, WandSparkles, X, Plus, Maximize, FlipHorizontal2, Crop, LockKeyhole, UnlockKeyhole, Users, Eye, RotateCcw, BookOpen } from 'lucide-react';
+import { ArrowLeft, Undo2, Redo2, ImagePlus, Type, Shapes, Layers3, Trash2, Copy, ChevronUp, ChevronDown, Download, SlidersHorizontal, Search, Upload, RectangleHorizontal, Circle, Sparkles, FolderOpen, Save, WandSparkles, X, Plus, Maximize, FlipHorizontal2, Crop, LockKeyhole, Users, Eye, RotateCcw, BookOpen, Sticker, Shapes as ObjectsIcon, Paintbrush } from 'lucide-react';
 import { asDataUrl,blankDocument,drawDesign,exportDesign,formats,imageFor,saveBlob,uid,type DesignDocument,type DesignNode,type ExportFormat } from '@/lib/creative/design';
 import { readHandoff } from '@/lib/creative/handoff';
 import {builtInPresets,makeBuiltInPreset,type PresetId} from '@/lib/creative/presets';
 import {resizeFromCorner,type Corner} from '@/lib/creative/geometry';
 import {backgroundKits,backgroundSvg} from '@/lib/creative/backgrounds';
 import {StudioConcierge} from '@/components/creative/studio-concierge';
+import {FontLibrary} from '@/components/creative/font-library';
+import {StockLibrary} from '@/components/creative/stock-library';
+import {loadCuratedTypeface,isCuratedTypeface,ensureDesignFonts,typefaces} from '@/lib/creative/typefaces';
+import {readLocalAsset} from '@/lib/creative/user-uploads';
 import './creative.css';
 
-type Asset={id:string;kind:string;name:string;category:string;mimeType:string;url:string};
-type Panel='templates'|'elements'|'personagens'|'texts'|'backgrounds'|'uploads';
+type Asset={id:string;kind:string;name:string;category:string;mimeType:string;url:string;tags?:string[]};
+type Panel='templates'|'elements'|'personagens'|'texts'|'backgrounds'|'uploads'|'icons'|'objects'|'effects';
 type Gesture={kind:'move'|'resize';corner?:Corner;id:string;x:number;y:number;initial:DesignNode;before:DesignDocument};
 const clamp=(n:number,min:number,max:number)=>Math.max(min,Math.min(max,n));
 const initials=(name:string)=>name.split(' ').slice(0,2).map(x=>x[0]).join('').toUpperCase();
@@ -28,7 +32,8 @@ export function CreativeEditor(){
  const [assetPage,setAssetPage]=useState(1),[assetQuery,setAssetQuery]=useState('');
  const [notice,setNotice]=useState('');const [busy,setBusy]=useState(false);
  const [exportOpen,setExportOpen]=useState(false);const [format,setFormat]=useState<ExportFormat>('png');const [scale,setScale]=useState(1);
- const [zoom,setZoom]=useState(1);
+ const [zoom,setZoom]=useState(1);const [fontRevision,setFontRevision]=useState(0);
+ const [assetColor,setAssetColor]=useState('#fa842c');
  const [guides,setGuides]=useState(true);const [showAgent,setShowAgent]=useState(false);
  const canvasRef=useRef<HTMLCanvasElement>(null),zoneRef=useRef<HTMLDivElement>(null),fileRef=useRef<HTMLInputElement>(null),projectRef=useRef<HTMLInputElement>(null);
  const gesture=useRef<Gesture|null>(null);
@@ -66,6 +71,14 @@ export function CreativeEditor(){
    const f=Math.min(base.width/d.width,base.height/d.height);const ox=(base.width-d.width*f)/2,oy=(base.height-d.height*f)/2;
    const adapted=keep.map(n=>({...n,x:n.x*f+ox,y:n.y*f+oy,w:n.w*f,h:n.h*f,size:n.size?Math.max(8,n.size*f):undefined,shadow:n.shadow?Math.max(1,n.shadow*f):n.shadow}));
    return {...base,nodes:[...base.nodes,...adapted]};});setSelected(null);setNotice('Layout trocado. Sua caneca e seus elementos foram preservados.');};
+ const chooseFont=async(name:string,asset?:Pick<Asset,'id'|'name'|'url'>)=>{
+  try{
+   if(asset){const face=new FontFace(asset.name,`url("${asset.url}")`);await face.load();document.fonts.add(face);}
+   else if(isCuratedTypeface(name))await loadCuratedTypeface(name);
+   if(active?.kind==='text')patch(active.id,{font:name});else{addText('Sua frase especial');const selectedId=stateRef.current.history[stateRef.current.step].nodes.at(-1)?.id;if(selectedId)patch(selectedId,{font:name});}
+   setNotice(`Fonte ${name} selecionada para sua arte.`);
+  }catch{setNotice('Não foi possível carregar essa fonte. Confira sua conexão e o arquivo.');}
+ };
  const useAsset=(a:Asset)=>{
   if(a.mimeType.startsWith('video/')){setNotice('MP4 pode ser cadastrado, mas a edição/exportação de vídeo ainda não está disponível neste editor de imagens.');return;}
   if(a.kind==='animation'){setNotice('Animações JSON estão no acervo. A edição e exportação animada não fazem parte desta fase.');return;}
@@ -98,7 +111,7 @@ export function CreativeEditor(){
    canvas.getContext('2d')?.drawImage(work,0,0);
   }).catch(()=>{if(seq===renderId.current)setNotice('Não foi possível renderizar um dos elementos.');});
   return()=>{renderId.current++};
- },[doc]);
+ },[doc,fontRevision]);
  // Handoff: dados binários ficam exclusivamente no IndexedDB do navegador.
  useEffect(()=>{let mounted=true;void (async()=>{
   try{
@@ -118,15 +131,14 @@ export function CreativeEditor(){
  // only once on mount; addImage uses initial document size
  // eslint-disable-next-line react-hooks/exhaustive-deps
  },[]);
- // Publicadas pelo admin; carregadas sob demanda no próprio navegador.
- useEffect(()=>{let disposed=false;void fetch('/api/creative-assets?kind=font').then(r=>r.json()).then(async d=>{
-  for(const a of ((d.items||[]) as Asset[]).filter(x=>x.mimeType.startsWith('font/'))){
-   if(disposed)break;
-   try{const face=new FontFace(a.name,`url("${a.url}")`);await face.load();if(!disposed)document.fonts.add(face);}catch{/* fonte inválida não derruba editor */}
-  }
- }).catch(()=>{});return()=>{disposed=true};},[]);
+ // Catálogo administrativo: o arquivo binário é carregado apenas ao escolher a fonte.
  const [fontAssets,setFontAssets]=useState<Asset[]>([]);
  useEffect(()=>{void fetch('/api/creative-assets?kind=font').then(r=>r.json()).then(d=>setFontAssets((d.items||[]) as Asset[])).catch(()=>{});},[]);
+ const addedAdminFonts=useRef(new Set<string>());
+ useEffect(()=>{const names=new Set(doc.nodes.filter(x=>x.kind==='text').map(x=>x.font));
+  const needed=fontAssets.filter(a=>names.has(a.name)&&!addedAdminFonts.current.has(a.id));
+  for(const a of needed){addedAdminFonts.current.add(a.id);void (async()=>{try{const face=new FontFace(a.name,`url("${a.url}")`);await face.load();document.fonts.add(face);setFontRevision(v=>v+1);}catch{addedAdminFonts.current.delete(a.id);}})();}
+ },[doc.nodes,fontAssets]);
  const cursorPoint=(evt:React.PointerEvent<HTMLElement>)=>{
   const canvas=canvasRef.current;if(!canvas)return {x:0,y:0};
   const r=canvas.getBoundingClientRect();return {x:(evt.clientX-r.left)*doc.width/r.width,y:(evt.clientY-r.top)*doc.height/r.height};
@@ -188,9 +200,11 @@ export function CreativeEditor(){
       await addImage(canvas.toDataURL('image/png'));
       setNotice(`PDF: página 1 de ${pdf.numPages} importada como imagem. O texto do PDF original não vira camada editável nesta fase.`);
      }finally{await task.destroy();}
-    }else if(/\.(png|jpe?g|webp|avif)$/i.test(file.name)){
-     const src=await asDataUrl(file);await addImage(src);
-    }else setNotice(`Formato não editável nesta fase: ${file.name}. PSD com camadas será incorporado em uma etapa posterior.`);
+    }else if(/\.psd$/i.test(file.name)){
+     setNotice('PSD com camadas ainda não é editável nesta fase. Exporte como PNG, JPG ou WebP para importar a imagem.');
+    }else{
+     const src=await readLocalAsset(file);await addImage(src);
+    }
    }
   }catch(e){setNotice(e instanceof Error?e.message:'Falha ao importar arquivo');}finally{setBusy(false);if(fileRef.current)fileRef.current.value='';}
  };
@@ -217,7 +231,7 @@ export function CreativeEditor(){
   </header>
   <div className="cr-shell"><nav className="cr-rail" aria-label="Ferramentas">
    {([['templates','Layouts',Layers3],['elements','Elementos',Shapes],['personagens','Personagens',Users],['texts','Textos',Type],['backgrounds','Fundos',ImagePlus],['uploads','Uploads',Upload]] as const).map(([id,label,Icon])=><button key={id} aria-current={panel===id?'page':undefined} onClick={()=>setPanel(id)}><Icon size={21}/><small>{label}</small></button>)}
-  </nav><aside className="cr-left"><div className="cr-panel-head"><h2>{panel==='templates'?'Templates':panel==='elements'?'Elementos':panel==='texts'?'Tipografia':panel==='backgrounds'?'Fundos':panel==='personagens'?'Personagens & Emojis':'Seus arquivos'}</h2><span>CRIAR COM LIBERDADE</span></div>
+  </nav><aside className="cr-left"><div className="cr-panel-head"><h2>{panel==='templates'?'Templates':panel==='elements'?'Elementos':panel==='texts'?'Tipografia':panel==='backgrounds'?'Fundos':panel==='personagens'?'Personagens & Emojis':panel==='icons'?'Biblioteca de Ícones':panel==='objects'?'Objetos Vetoriais':panel==='effects'?'Filtros & Efeitos':'Seus arquivos'}</h2><span>CRIAR COM LIBERDADE</span></div>
    {kind&&<><div className="cr-search"><Search size={16}/><input placeholder="Buscar no acervo..." value={assetQuery} onChange={e=>setAssetQuery(e.target.value)}/></div>
     {panel==='templates'&&<><div className="cr-feature" role="note"><Sparkles size={18}/><div><strong>Comece por um layout</strong><p>Escolha um dos 4 layouts editáveis ou use templates publicados pelo admin.</p></div></div>
     <p className="cr-section-label">LAYOUTS EDITÁVEIS INCLUSOS</p><div className="cr-preset-list">{builtInPresets.map(p=><button key={p.id} onClick={()=>applyPreset(p.id)}><span className={`cr-preset-thumb ${p.id}`}>{p.name}</span><span><strong>{p.name}</strong><small>{p.description}</small></span></button>)}</div></>}
@@ -225,10 +239,21 @@ export function CreativeEditor(){
     <p className="cr-section-label">ACERVO ADMINISTRATIVO · {assetTotal} ITENS</p><div className="cr-assets">{assets.map(a=><button key={a.id} title={a.name} onClick={()=>useAsset(a)} className="cr-asset">{a.mimeType.startsWith('image/')?<img src={a.url} alt="" loading="lazy"/>:<div className="cr-asset-generic">{initials(a.name)}</div>}<span>{a.name}</span></button>)}
     {!assets.length&&<div className="cr-empty">Sem itens publicados nessa categoria. Adicione materiais pelo Painel Admin.</div>}
     </div>{assets.length<assetTotal&&<button className="cr-outlined" onClick={()=>void loadAssets(assetPage+1,true)}>Carregar mais</button>}</>}
-   {panel==='texts'&&<><button className="cr-text-preset" onClick={()=>addText('Seu título aqui')}><strong>Adicionar título</strong><small>Exponha sua ideia com impacto.</small></button><button className="cr-text-preset subtitle" onClick={()=>addText('Uma descrição especial')}><strong>Adicionar subtítulo</strong><small>Texto complementar.</small></button><button className="cr-text-preset detail" onClick={()=>addText('clickgruda.com.br')}><strong>Adicionar informação</strong><small>Contato, site ou redes.</small></button></>}
+   {panel==='texts'&&<><div className="cr-text-shortcuts"><button onClick={()=>addText('Seu título aqui')}>+ Título</button><button onClick={()=>addText('Feliz aniversário')}>+ Mensagem</button></div><FontLibrary assets={fontAssets} onChoose={(name,asset)=>void chooseFont(name,asset)}/></>}
    {panel==='elements'&&<div className="cr-shapes"><button onClick={()=>addShape('rect')}><RectangleHorizontal size={32}/>Retângulo</button><button onClick={()=>addShape('circle')}><Circle size={32}/>Elipse</button></div>}
+   {panel==='icons'&&<><div className="cr-asset-color"><span>COR DOS ÍCONES</span><input type="color" value={assetColor} onChange={e=>setAssetColor(e.target.value)}/></div><StockLibrary kind="icons" color={assetColor} add={src=>addImage(src)}/></>}
+   {panel==='objects'&&<><div className="cr-asset-color"><span>COR DOS OBJETOS</span><input type="color" value={assetColor} onChange={e=>setAssetColor(e.target.value)}/></div><StockLibrary kind="objects" color={assetColor} add={src=>addImage(src)}/></>}
+   {panel==='effects'&&<div className="cr-effect-presets"><p className="cr-helper">Selecione uma imagem ou texto. Os efeitos serão aplicados no elemento escolhido, sem alterar o arquivo original.</p>{[
+    {name:'Foto nítida', description:'Contraste e saturação equilibrados', properties:{brightness:103,contrast:113,saturation:108,blur:0,grayscale:0,sepia:0}},
+    {name:'Vibrante', description:'Cores fortes para estampas',properties:{brightness:106,contrast:117,saturation:145,blur:0,grayscale:0,sepia:0}},
+    {name:'Vintage', description:'Tom quente com toque retrô',properties:{brightness:100,contrast:97,saturation:90,sepia:38,hue:-7}},
+    {name:'Preto & branco', description:'Monocromático com alto contraste',properties:{brightness:106,contrast:120,saturation:0,grayscale:100,sepia:0}},
+    {name:'Sombra premium',description:'Profundidade suave e deslocamento',properties:{shadow:45,shadowX:10,shadowY:23,shadowColor:'#161016'}},
+    {name:'Sombra intensa',description:'Destaque visual para objetos',properties:{shadow:74,shadowX:15,shadowY:32,shadowColor:'#050505'}},
+    {name:'Resetar efeitos',description:'Voltar ao acabamento neutro',properties:{brightness:100,contrast:100,saturation:100,blur:0,grayscale:0,sepia:0,hue:0,shadow:0,shadowX:0,shadowY:0}}
+   ].map(p=><button key={p.name} disabled={!active} onClick={()=>active&&patch(active.id,p.properties)}><Sparkles size={16}/><span><strong>{p.name}</strong><small>{p.description}</small></span></button>)}</div>}
    {panel==='personagens'&&<p className="cr-helper">Personagens, desenhos, cartoons, emojis e temas que você cadastrar em <b>Admin → Elementos → categoria Personagens</b> aparecem aqui. Publique somente arquivos com direito de uso na plataforma.</p>}
-   {panel==='uploads'&&<div className="cr-upload"><ImagePlus size={28}/><h3>Seus arquivos, seu navegador</h3><p>PNG, JPG, WebP, AVIF e primeira página PDF. Não enviamos seus arquivos para o servidor.</p><button className="cr-primary" onClick={()=>fileRef.current?.click()}><Plus size={16}/>Adicionar imagens</button><small>Formatos PSD e PDF com camadas são recursos futuros.</small></div>}
+   {panel==='uploads'&&<div className="cr-upload"><ImagePlus size={28}/><h3>Seus arquivos, seu navegador</h3><p>PNG, JPG/JPEG, JFIF, SVG seguro, WebP, AVIF, BMP, GIF (primeiro quadro) e primeira página do PDF. Arquivos só no seu navegador.</p><button className="cr-primary" onClick={()=>fileRef.current?.click()}><Plus size={16}/>Adicionar imagens</button><small>Formatos PSD e PDF com camadas são recursos futuros.</small></div>}
   </aside>
   <main className="cr-canvas-shell"><div className="cr-canvas-top"><div><span className="cr-dot"/> Editor de Sublimação de Canecas <span className="cr-micro">{doc.width} × {doc.height} px</span></div><div className="cr-canvas-actions"><select aria-label="Formato do documento" value={`${doc.width}x${doc.height}`} onChange={e=>{const f=formats.find(f=>`${f.w}x${f.h}`===e.target.value);if(f)update(d=>({...d,width:f.w,height:f.h}));}}>{formats.map(f=><option key={f.label} value={`${f.w}x${f.h}`}>{f.label}</option>)}</select><button onClick={()=>setGuides(v=>!v)} title="Mostrar/ocultar área segura (não sai na exportação)" aria-pressed={guides}><Eye size={16}/> Guias</button><button onClick={resize} title="Encaixar na tela"><Maximize size={16}/></button></div></div>
    <div className="cr-canvas-zone" ref={zoneRef}><div className="cr-stage" style={{width:doc.width*zoom,height:doc.height*zoom}}>
@@ -240,7 +265,7 @@ export function CreativeEditor(){
   <aside className="cr-inspector"><div className="cr-panel-head"><h2>Propriedades</h2><span>AJUSTES DE PRECISÃO</span></div>
   {!active?<div className="cr-hint"><WandSparkles size={26}/><h3>Personalize cada detalhe</h3><p>Clique em um elemento na arte para ajustar tamanho, posição, cores, efeitos e sombras.</p><p>Para começar, adicione um texto, imagem ou template no painel esquerdo.</p></div>:<div className="cr-properties">
    <div className="cr-selected-bar"><span>{active.kind==='text'?'Texto':active.kind==='image'?'Imagem':'Forma'}</span><div><button title="Duplicar" onClick={duplicate}><Copy size={16}/></button><button title="Mover para frente" onClick={()=>layer(1)}><ChevronUp size={16}/></button><button title="Mover para trás" onClick={()=>layer(-1)}><ChevronDown size={16}/></button><button title="Excluir" onClick={remove}><Trash2 size={16}/></button></div></div>
-   {active.kind==='text'&&<><label>CONTEÚDO<textarea rows={3} value={active.text||''} onChange={e=>patch(active.id,{text:e.target.value})}/></label><label>FONTE<select value={active.font||'Arial'} onChange={e=>patch(active.id,{font:e.target.value})}>{['Arial','Georgia','Verdana','Trebuchet MS','Times New Roman',...fontAssets.map(a=>a.name)].map(f=><option key={f}>{f}</option>)}</select></label><div className="cr-2col"><label>TAMANHO<input type="number" min={8} max={600} value={active.size||72} onChange={e=>patch(active.id,{size:clamp(Number(e.target.value),8,600)})}/></label><label>ALINHAR<select value={active.align||'center'} onChange={e=>patch(active.id,{align:e.target.value as CanvasTextAlign})}><option value="left">Esquerda</option><option value="center">Centro</option><option value="right">Direita</option></select></label></div><div className="cr-inline"><button className={active.bold?'active':''} onClick={()=>patch(active.id,{bold:!active.bold})}><b>B</b></button><button className={active.italic?'active':''} onClick={()=>patch(active.id,{italic:!active.italic})}><i>I</i></button></div></>}
+   {active.kind==='text'&&<><label>CONTEÚDO<textarea rows={3} value={active.text||''} onChange={e=>patch(active.id,{text:e.target.value})}/></label><label>FONTE<select value={active.font||'Arial'} onChange={e=>{const a=fontAssets.find(x=>x.name===e.target.value);void chooseFont(e.target.value,a);}}>{['Arial','Georgia','Verdana','Trebuchet MS','Times New Roman',...typefaces.map(t=>t.name),...fontAssets.map(a=>a.name)].map(f=><option key={f}>{f}</option>)}</select></label><div className="cr-2col"><label>TAMANHO<input type="number" min={8} max={600} value={active.size||72} onChange={e=>patch(active.id,{size:clamp(Number(e.target.value),8,600)})}/></label><label>ALINHAR<select value={active.align||'center'} onChange={e=>patch(active.id,{align:e.target.value as CanvasTextAlign})}><option value="left">Esquerda</option><option value="center">Centro</option><option value="right">Direita</option></select></label></div><div className="cr-inline"><button className={active.bold?'active':''} onClick={()=>patch(active.id,{bold:!active.bold})}><b>B</b></button><button className={active.italic?'active':''} onClick={()=>patch(active.id,{italic:!active.italic})}><i>I</i></button></div></>}
    {(active.kind==='text'||active.kind==='circle'||active.kind==='rect')&&<label>COR<div className="cr-colorinput"><input type="color" value={active.fill||'#ff8424'} onChange={e=>patch(active.id,{fill:e.target.value})}/><input value={active.fill||'#ff8424'} onChange={e=>patch(active.id,{fill:e.target.value})}/></div></label>}
    <div className="cr-2col"><label>POSIÇÃO X<input type="number" value={Math.round(active.x)} onChange={e=>patch(active.id,{x:Number(e.target.value)})}/></label><label>POSIÇÃO Y<input type="number" value={Math.round(active.y)} onChange={e=>patch(active.id,{y:Number(e.target.value)})}/></label><label>LARGURA<input type="number" min={10} value={Math.round(active.w)} onChange={e=>{const w=clamp(Number(e.target.value),10,8192);patch(active.id,active.kind==='image'||active.aspectLock?{w,h:w*active.h/active.w}:{w});}}/></label><label>ALTURA<input type="number" min={10} value={Math.round(active.h)} onChange={e=>{const h=clamp(Number(e.target.value),10,8192);patch(active.id,active.kind==='image'||active.aspectLock?{h,w:h*active.w/active.h}:{h});}}/></label></div>
    {active.kind==='image'&&<><p className="cr-helper"><LockKeyhole size={14}/> Proporção protegida: arraste os 4 cantos sem achatar a imagem.</p><div className="cr-inline"><button onClick={()=>patch(active.id,{flipX:!active.flipX})}>Espelhar horizontal</button><button onClick={()=>patch(active.id,{flipY:!active.flipY})}>Espelhar vertical</button><button onClick={()=>patch(active.id,{crop:undefined})}><RotateCcw size={14}/> Limpar recorte</button></div><p className="cr-section-label"><Crop size={14}/> RECORTE SEM PERDER O ORIGINAL</p>{(['left','right','top','bottom'] as const).map(k=><Range key={k} label={{left:'Esquerda',right:'Direita',top:'Superior',bottom:'Inferior'}[k]} value={Math.round((active.crop?.[k]||0)*100)} min={0} max={90} unit="%" change={v=>{const c={left:active.crop?.left||0,right:active.crop?.right||0,top:active.crop?.top||0,bottom:active.crop?.bottom||0};c[k]=Math.min(v/100,.95-c[({left:'right',right:'left',top:'bottom',bottom:'top'} as const)[k]]);patch(active.id,{crop:c});}}/>)}</>}
@@ -252,7 +277,7 @@ export function CreativeEditor(){
    {active.kind==='image'&&<><Range label="Brilho" value={active.brightness??100} min={20} max={200} unit="%" change={v=>patch(active.id,{brightness:v})}/><Range label="Contraste" value={active.contrast??100} min={20} max={200} unit="%" change={v=>patch(active.id,{contrast:v})}/><Range label="Saturação" value={active.saturation??100} min={0} max={200} unit="%" change={v=>patch(active.id,{saturation:v})}/><Range label="Desfoque" value={active.blur||0} min={0} max={30} unit="px" change={v=>patch(active.id,{blur:v})}/><Range label="Cinza" value={active.grayscale||0} min={0} max={100} unit="%" change={v=>patch(active.id,{grayscale:v})}/><Range label="Sépia" value={active.sepia||0} min={0} max={100} unit="%" change={v=>patch(active.id,{sepia:v})}/><Range label="Matiz" value={active.hue||0} min={-180} max={180} unit="°" change={v=>patch(active.id,{hue:v})}/><Range label="Perspectiva / Inclinação" value={active.skew||0} min={-35} max={35} unit="°" change={v=>patch(active.id,{skew:v})}/></>}
   </div>}
   </aside></div>
-  <input ref={fileRef} type="file" hidden multiple accept="image/png,image/jpeg,image/webp,image/avif,application/pdf,.psd" onChange={e=>void upload(e.currentTarget.files)}/>
+  <input ref={fileRef} type="file" hidden multiple accept="image/png,image/jpeg,image/svg+xml,image/webp,image/avif,image/bmp,image/gif,application/pdf,.jpg,.jpeg,.jfif,.jfi,.jif,.png,.svg,.webp,.avif,.bmp,.gif,.psd" onChange={e=>void upload(e.currentTarget.files)}/>
   <input ref={projectRef} type="file" hidden accept=".cgdesign,application/json" onChange={e=>void readProject(e.currentTarget.files?.[0])}/>
   {showAgent&&<StudioConcierge area="editor" onClose={()=>setShowAgent(false)} onAction={a=>{if(a==='backgrounds'||a==='templates'||a==='texts'||a==='elements'||a==='personagens'||a==='uploads'){setPanel(a);return true;}if(a==='guides'){setGuides(true);return true;}if(a==='export'){setExportOpen(true);return true;}return false;}}/>}
   {notice&&<div className="cr-notice" role="status"><span>{notice}</span><button onClick={()=>setNotice('')} aria-label="Fechar"><X size={16}/></button></div>}
