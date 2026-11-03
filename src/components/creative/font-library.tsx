@@ -2,7 +2,7 @@
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {Search,CheckCircle2,AlertCircle} from 'lucide-react';
 import {loadCuratedTypeface,typefaces,type CuratedTypeface} from '@/lib/creative/typefaces';
-import type {LocalTypeface} from '@/lib/creative/local-fonts';
+import type {LocalTypeface} from '@/lib/creative/browser-fonts';
 import {usePlatformLanguage} from '@/components/platform/language-provider';
 export type AdminTypeface={id:string;name:string;tags?:string[];url:string;mimeType:string};
 function FontPreview({font,onChoose}:{font:CuratedTypeface;onChoose:(font:string)=>void}){

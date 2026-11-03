@@ -41,7 +41,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-local-*
+# Ignore only scratch files in the repository root. Never ignore source modules.
+/local-*
 .claude
 .z-ai-config
 *.log

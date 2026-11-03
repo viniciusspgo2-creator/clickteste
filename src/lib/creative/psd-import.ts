@@ -1,4 +1,4 @@
-/** PSD v1 RGB/8-bit raw/RLE: local-only limited importer for independent raster layers.
+/** PSD v1 RGB/8-bit raw/RLE/ZIP and ZIP-predictor: independent local raster layers.
  * Text, adjustments, smart objects, masks and vector paths are NOT recreated as editable text/paths.
  * Deliberately rejects unsupported PSD versions/compressions instead of silently flattening them.
  */
@@ -27,16 +27,29 @@ function decodePackBits(buffer:Uint8Array,offset:number,size:number,expected:num
  }
  if(o!==expected)throw new Error('RLE de camada incompleto');return out;
 }
-function decodeChannel(r:Reader,layer:PsdLayer,length:number):Uint8Array{
+async function decodeChannel(r:Reader,layer:PsdLayer,length:number):Promise<Uint8Array>{
  const start=r.pos;const compression=r.u16();const count=layer.width*layer.height;
  if(count>20_000_000)throw new Error('Camada PSD muito grande');
  let out:Uint8Array;
- if(compression===0){r.check(count);out=r.bytes.slice(r.pos,r.pos+count);}
+ if(compression===0){if(length!==count+2)throw new Error('Comprimento do canal PSD inválido');r.check(count);out=r.bytes.slice(r.pos,r.pos+count);}
  else if(compression===1){
   const lengths=Array.from({length:layer.height},()=>r.u16());const parts:Uint8Array[]=[];
   for(const size of lengths){parts.push(decodePackBits(r.bytes,r.pos,size,layer.width));r.skip(size);}
   out=new Uint8Array(count);let p=0;for(const row of parts){out.set(row,p);p+=row.length;}
- }else throw new Error('PSD com compressão ZIP ou formato não suportado. Salve em PSD RGB/8 bits com RLE.');
+ }else if(compression===2||compression===3){
+  // PSD ZIP stores a zlib stream per channel. Photoshop's predictor (type 3)
+  // delta-encodes each 8-bit row before deflate; reverse it after inflation.
+  if(typeof DecompressionStream==='undefined')throw new Error('Este navegador não suporta descompressão ZIP PSD. Atualize Chrome/Edge.');
+  const packed=r.bytes.slice(r.pos,start+length);
+  try{
+   const stream=new Blob([new Uint8Array(packed)]).stream().pipeThrough(new DecompressionStream('deflate'));
+   out=new Uint8Array(await new Response(stream).arrayBuffer());
+  }catch{throw new Error('Não foi possível descompactar o canal ZIP do PSD.');}
+  if(out.byteLength!==count)throw new Error('Canal ZIP PSD com dimensões inconsistentes');
+  if(compression===3)for(let y=0;y<layer.height;y++)for(let x=1;x<layer.width;x++){
+   const offset=y*layer.width+x;out[offset]=(out[offset]+out[offset-1])&255;
+  }
+ }else throw new Error('Compressão de camada PSD não suportada.');
  r.seek(start+length);return out;
 }
 export async function importPsdLayers(file:File):Promise<{document:DesignDocument;count:number;warning:string}>{
@@ -73,7 +86,7 @@ export async function importPsdLayers(file:File):Promise<{document:DesignDocumen
  }
  for(const layer of layers)for(const channel of layer.channels){const start=r.pos;
   if(channel.length<2||start+channel.length>infoEnd)throw new Error('Canal PSD fora do arquivo');
-  if(layer.width&&layer.height&&[0,1,2,-1].includes(channel.id))layer.data[channel.id]=decodeChannel(r,layer,channel.length);
+  if(layer.width&&layer.height&&[0,1,2,-1].includes(channel.id))layer.data[channel.id]=await decodeChannel(r,layer,channel.length);
   else r.skip(channel.length);
  }
  const nodes:DesignNode[]=[];
@@ -88,5 +101,5 @@ export async function importPsdLayers(file:File):Promise<{document:DesignDocumen
   nodes.push({id:uid(),kind:'image',role:'content',layerName:layer.name,x:layer.left,y:layer.top,w:layer.width,h:layer.height,angle:0,opacity:layer.opacity,src:canvas.toDataURL('image/png'),aspectLock:true,shadow:0});
  }
  if(!nodes.length)throw new Error('Não foram encontradas camadas raster RGB visíveis. Exporte o PSD com camadas RGB de pixels.');
- return {document:{width,height,background:'transparent',nodes},count:nodes.length,warning:'Camadas raster ficam independentes e móveis. Texto, ajustes, máscaras vetoriais, efeitos e objetos inteligentes do Photoshop não são recriados como objetos editáveis.'};
+ return {document:{width,height,background:'transparent',nodes},count:nodes.length,warning:'Camadas raster RGB/8 bits com compressão raw, RLE ou ZIP ficam independentes e móveis. Texto, ajustes, máscaras vetoriais, efeitos e objetos inteligentes do Photoshop não são recriados como objetos editáveis.'};
 }

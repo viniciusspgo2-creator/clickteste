@@ -135,8 +135,8 @@ export function StudioLights() {
         shadow-mapSize-height={mobile ? 1024 : 2048}
         shadow-radius={20 + light.softness * 80}
         shadow-blurSamples={12}
-        shadow-bias={-0.0001}
-        shadow-normalBias={0.024}
+        shadow-bias={-0.000035}
+        shadow-normalBias={0.007}
       >
         <orthographicCamera
           attach="shadow-camera"

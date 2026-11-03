@@ -9,7 +9,7 @@ const files=[
  'src/components/creative/creative-editor.tsx',
  'src/lib/creative/design.ts',
  'src/lib/creative/node-actions.ts',
- 'src/lib/creative/local-projects.ts',
+ 'src/lib/creative/browser-projects.ts',
  'src/app/layout.tsx',
  'src/components/platform/language-provider.tsx',
  'src/components/platform/platform-announcements.tsx',

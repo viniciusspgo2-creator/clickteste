@@ -1,4 +1,5 @@
 import {ensureDesignFonts} from './typefaces';
+import {animateDesignNode,type MotionPoint} from './animation';
 /** Editor local: documento, desenho e exportação. Nada do usuário é enviado ao servidor. */
 export type NodeKind='text'|'image'|'rect'|'circle';
 export type DesignNode={id:string;kind:NodeKind;x:number;y:number;w:number;h:number;angle:number;opacity:number;
@@ -7,9 +8,9 @@ export type DesignNode={id:string;kind:NodeKind;x:number;y:number;w:number;h:num
  shadow?:number;shadowColor?:string;shadowX?:number;shadowY?:number;blur?:number;brightness?:number;contrast?:number;saturation?:number;
  grayscale?:number;sepia?:number;hue?:number;radius?:number;stroke?:string;strokeWidth?:number;
  curve?:number;wave?:number;depth?:number;tracking?:number;lineSpacing?:number;skew?:number;
- flipX?:boolean;flipY?:boolean;crop?:{left:number;top:number;right:number;bottom:number};
+ flipX?:boolean;flipY?:boolean;crop?:{left:number;top:number;right:number;bottom:number};keyframes?:MotionPoint[];
 };
-export type DesignDocument={width:number;height:number;background:string;nodes:DesignNode[];video?:{src:string;name:string;start:number;end?:number}};
+export type DesignDocument={width:number;height:number;background:string;nodes:DesignNode[];video?:{src:string;name:string;start:number;end?:number};smartTemplate?:{slot:{x:number;y:number;w:number;h:number};maskSrc?:string}};
 export type ExportFormat='png'|'jpeg'|'webp';
 export const formats=[{label:'Caneca 21 × 9,5 cm · 300 DPI',w:2480,h:1122},{label:'Área visível 19 × 8,5 cm · 300 DPI',w:2244,h:1004},{label:'Divulgação Instagram 1080 × 1350',w:1080,h:1350},{label:'Post quadrado 1080 × 1080',w:1080,h:1080},{label:'Story / Reels 1080 × 1920',w:1080,h:1920},{label:'Horizontal HD',w:1920,h:1080}] as const;
 export const uid=()=>crypto.randomUUID();
@@ -68,14 +69,15 @@ function drawText(ctx:CanvasRenderingContext2D,n:DesignNode){
   }
  }
 }
-export async function drawDesign(canvas:HTMLCanvasElement,doc:DesignDocument){
- await ensureDesignFonts(doc.nodes.filter(x=>x.kind==='text').map(x=>x.font||'')).catch(()=>{});
+export async function drawDesign(canvas:HTMLCanvasElement,doc:DesignDocument,timeSeconds?:number){
+ const renderedNodes=timeSeconds===undefined?doc.nodes:doc.nodes.map(n=>animateDesignNode(n,timeSeconds));
+ await ensureDesignFonts(renderedNodes.filter(x=>x.kind==='text').map(x=>x.font||'')).catch(()=>{});
  if(canvas.width!==doc.width)canvas.width=doc.width;if(canvas.height!==doc.height)canvas.height=doc.height;
  const ctx=canvas.getContext('2d');if(!ctx)throw new Error('Canvas indisponível');
  ctx.clearRect(0,0,doc.width,doc.height);
  if(doc.background!=='transparent'){ctx.fillStyle=doc.background;ctx.fillRect(0,0,doc.width,doc.height);}
- await Promise.all(doc.nodes.filter(n=>n.kind==='image'&&n.src).map(n=>imageFor(n.src!).catch(()=>null)));
- for(const n of doc.nodes){
+ await Promise.all(renderedNodes.filter(n=>n.kind==='image'&&n.src).map(n=>imageFor(n.src!).catch(()=>null)));
+ for(const n of renderedNodes){
   ctx.save();ctx.globalAlpha=limit(n.opacity,0,1);
   ctx.translate(n.x+n.w/2,n.y+n.h/2);ctx.rotate(n.angle*Math.PI/180);
   // Espelhamento em torno do centro para textos, formas, SVG, fotos e demais elementos.
@@ -95,31 +97,27 @@ export async function drawDesign(canvas:HTMLCanvasElement,doc:DesignDocument){
    if(sourceRatio>targetRatio){const fitW=sh*targetRatio;sx+=(sw-fitW)/2;sw=fitW;}
    else{const fitH=sw/targetRatio;sy+=(sh-fitH)/2;sh=fitH;}
    ctx.filter=`brightness(${n.brightness??100}%) contrast(${n.contrast??100}%) saturate(${n.saturation??100}%) blur(${n.blur||0}px) grayscale(${n.grayscale||0}%) sepia(${n.sepia||0}%) hue-rotate(${n.hue||0}deg)`;
-   if(n.tint&&/^#[0-9a-fA-F]{6}$/.test(n.tint)){
-    // Colorize a silhouette in an isolated canvas, so other nodes never get recolored.
-    // Alpha is preserved. For photographs the inspector recommends keeping original colors.
-    const tmp=document.createElement('canvas');
+   const tint=!!n.tint&&/^#[0-9a-fA-F]{6}$/.test(n.tint);
+   if(tint||n.maskSrc){
+    // Composição isolada: recoloração E máscara podem coexistir no mesmo elemento.
+    // Nunca aplicamos o efeito aos demais objetos ou às camadas abaixo.
     const tw=Math.max(1,Math.min(4096,Math.ceil(n.w))),th=Math.max(1,Math.min(4096,Math.ceil(n.h)));
-    tmp.width=tw;tmp.height=th;
-    const tc=tmp.getContext('2d');if(!tc)throw new Error('Canvas de cor indisponível');
-    tc.drawImage(img,sx,sy,sw,sh,0,0,tw,th);
-    tc.globalCompositeOperation='source-in';tc.fillStyle=n.tint;tc.fillRect(0,0,tw,th);
-    ctx.drawImage(tmp,-n.w/2,-n.h/2,n.w,n.h);
-   }else if(n.maskSrc){
-    // Máscara não destrutiva: branco revela, preto oculta e cinza suaviza.
-    // A máscara fica restrita ao objeto selecionado, não às outras camadas.
-    const m=await imageFor(n.maskSrc);const cw=Math.min(4096,Math.max(1,Math.round(n.w))),ch=Math.min(4096,Math.max(1,Math.round(n.h)));
-    const layer=document.createElement('canvas');layer.width=cw;layer.height=ch;
-    const lc=layer.getContext('2d',{willReadFrequently:true});if(!lc)throw new Error('Canvas de máscara indisponível');
-    lc.drawImage(img,sx,sy,sw,sh,0,0,cw,ch);
-    const colors=lc.getImageData(0,0,cw,ch);
-    lc.clearRect(0,0,cw,ch);lc.drawImage(m,0,0,cw,ch);
-    const mask=lc.getImageData(0,0,cw,ch);
-    for(let i=0;i<colors.data.length;i+=4){
-     const amount=(mask.data[i]*.2126+mask.data[i+1]*.7152+mask.data[i+2]*.0722)/255;
-     colors.data[i+3]=Math.round(colors.data[i+3]*amount*mask.data[i+3]/255);
+    const layer=document.createElement('canvas');layer.width=tw;layer.height=th;
+    const lc=layer.getContext('2d',{willReadFrequently:!!n.maskSrc});if(!lc)throw new Error('Canvas de efeito indisponível');
+    lc.drawImage(img,sx,sy,sw,sh,0,0,tw,th);
+    if(tint){lc.globalCompositeOperation='source-in';lc.fillStyle=n.tint!;lc.fillRect(0,0,tw,th);lc.globalCompositeOperation='source-over';}
+    if(n.maskSrc){
+     const m=await imageFor(n.maskSrc);
+     const colors=lc.getImageData(0,0,tw,th);
+     lc.clearRect(0,0,tw,th);lc.drawImage(m,0,0,tw,th);
+     const mask=lc.getImageData(0,0,tw,th);
+     for(let i=0;i<colors.data.length;i+=4){
+      const amount=(mask.data[i]*.2126+mask.data[i+1]*.7152+mask.data[i+2]*.0722)/255;
+      colors.data[i+3]=Math.round(colors.data[i+3]*amount*mask.data[i+3]/255);
+     }
+     lc.putImageData(colors,0,0);
     }
-    lc.putImageData(colors,0,0);ctx.drawImage(layer,-n.w/2,-n.h/2,n.w,n.h);
+    ctx.drawImage(layer,-n.w/2,-n.h/2,n.w,n.h);
    }else ctx.drawImage(img,sx,sy,sw,sh,-n.w/2,-n.h/2,n.w,n.h);
   }catch{/* Imagem inválida não interrompe a exportação das demais. */}}
   if(n.kind==='rect'||n.kind==='circle'){
