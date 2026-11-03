@@ -10,8 +10,8 @@ export const HANDLE_STYLES = [
   {
     id: "livesub",
     label: "Referência 325 ml",
-    description: "Alça D lisa · modelo foto",
-    path: "M22 15C39 13 60 17 60 35C60 53 46 62 22 57",
+    description: "Perfil D 325 ml · inspirado na foto",
+    path: "M22 16C38 16 56 19 59 33C63 49 52 59 37 59C30 59 26 57 22 57",
     color: "#ffffff",
   },
   {

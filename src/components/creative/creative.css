@@ -55,3 +55,42 @@
 .cr-effect-presets>button svg{color:#ee9144;flex-shrink:0}
 .cr-effect-presets>button span{display:flex;flex-direction:column;gap:4px}.cr-effect-presets>button strong{font-size:12px}.cr-effect-presets>button small{font-size:10px;color:#b5a9a0;line-height:1.5}
 @media(max-width:830px){.cr-rail button{padding:8px 0}.cr-stock-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+/* V3.4 — gestures, local saves, dedicated color tools and accessible reset */
+.cr-selection>.cr-rotate-handle{position:absolute;pointer-events:auto;top:-47px;left:calc(50% - 18px);width:36px;height:36px;display:grid;place-items:center;touch-action:none;border-radius:50%;border:2px solid #f58a2a;background:#18110e;color:#ff9d4e;box-shadow:0 2px 15px #000b;cursor:grab;z-index:12}
+.cr-selection>.cr-rotate-handle:before{content:'';width:2px;height:11px;background:#ff9337;position:absolute;top:32px;left:15px}
+.cr-selection>.cr-rotate-handle:active{cursor:grabbing;box-shadow:0 0 14px #f27b2c}
+.cr-head-actions .cr-reset-action{border-color:#7f3b2c;color:#ffc29b}
+.cr-head-actions .cr-reset-action:hover{background:#492419}
+.cr-background-custom{display:flex;gap:8px;align-items:center;justify-content:space-between;margin:0 0 14px}
+.cr-background-custom label{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#ddd}
+.cr-background-custom input[type=color],.cr-tint input[type=color]{width:42px;height:35px;background:none;border:0;cursor:pointer}
+.cr-background-custom button,.cr-pick-mini,.cr-tint button,.cr-shadow-actions button{border:1px solid #725039;border-radius:9px;background:#2c211d;color:#f8d7c1;padding:9px 10px;font-weight:700;display:inline-flex;gap:7px;align-items:center;justify-content:center}
+.cr-pick-mini{margin-top:8px;font-size:12px}
+.cr-tint{display:grid;grid-template-columns:repeat(2,1fr);align-items:center;gap:8px;padding:12px;border:1px solid #4d3c2f;background:#2b2521;border-radius:10px}
+.cr-tint label{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between}
+.cr-tint small{grid-column:1/-1;color:#b6a99c;font-size:10px;line-height:1.5}
+.cr-tint button{font-size:11px;padding:7px}
+.cr-shadow-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.cr-shadow-actions button{font-size:10px;padding:8px 3px}
+.cr-history-dialog{max-height:min(700px,90vh);overflow-y:auto}.cr-history-list{max-height:265px;overflow:auto;display:flex;flex-direction:column;gap:8px}.cr-history-list>p{color:#9b8c83}
+.cr-history-item{display:flex;gap:8px;align-items:center;border:1px solid #43352d;background:#2b2321;border-radius:10px;padding:10px}.cr-history-item>div{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}.cr-history-item strong{color:white;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cr-history-item small{color:#a99484;font-size:11px}.cr-history-item button{padding:9px;border:1px solid #574036;border-radius:9px;color:#fbb781}
+.cr-privacy-note{border:1px solid #426c56;background:#172b24;color:#a6e3bb;border-radius:10px;padding:12px;font-size:11px}.cr-privacy-note svg{display:inline-block;margin-right:6px;vertical-align:middle}
+@media(max-width:1450px){.cr-head-actions{gap:2px}.cr-head-actions button{font-size:11px;gap:4px;padding:8px 5px}.cr-head{padding:0 11px;gap:8px}.cr-shell{grid-template-columns:70px 260px minmax(280px,1fr) 260px}}
+@media(max-width:1060px){.cr-head-actions button span{display:none}.cr-head-actions button{min-width:34px;padding:9px}.cr-head-title small{display:none}}
+
+/* V3.4 — ordem das camadas + espelhamento para todos os elementos */
+.cr-arrange{margin:12px 0 20px;padding:11px;border-radius:12px;border:1px solid #564035;background:#251e1b}
+.cr-arrange .cr-section-label{margin:4px 0 9px!important}
+.cr-arrange-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.cr-arrange-grid button{display:flex;align-items:center;gap:6px;justify-content:center;min-height:38px;font-size:11px;font-weight:700;color:#f9d6bd;background:#342821;border:1px solid #6e4734;border-radius:9px;padding:7px;transition:background .15s,border-color .15s}
+.cr-arrange-grid button:hover:not(:disabled){background:#4a2d1e;border-color:#ff912e}
+.cr-arrange-grid button[aria-pressed=true]{color:#fff;background:#8b451b;border-color:#ff902e}
+.cr-arrange-grid button:disabled{opacity:.4;cursor:not-allowed}
+/* Fontes pessoais carregadas apenas na aba, sem armazenamento remoto. */
+.cr-private-fonts{border:1px solid #5b4030;border-radius:14px;padding:12px;margin:12px 0;background:#1d1817}
+.cr-local-font-upload{display:flex;align-items:center;justify-content:center;border:1px dashed #fa923e;border-radius:10px;background:#36261c;color:#ffd5ad;padding:12px;font-size:13px;font-weight:800;cursor:pointer}
+.cr-local-font-upload input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.cr-private-font-list{max-height:250px;overflow:auto;display:grid;gap:8px;margin-top:11px}
+
+/* V3.6: vídeo como fundo visual, editor Canvas transparente desenhado por cima. */
+.cr-stage{position:relative}.cr-video-preview{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none;z-index:0}.cr-stage>canvas{position:relative;z-index:1}.cr-stage>.cr-selection,.cr-stage>.cr-print-guides{z-index:3}
+.cr-canvas-actions input[type=number]{background:#221d1b;border:1px solid #674530;border-radius:6px;color:#fff;padding:5px}

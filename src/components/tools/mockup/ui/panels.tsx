@@ -1706,14 +1706,14 @@ function ImageTab() {
     if (busy || sending || tooBig) return;
     setSending(true);
     try {
-      // Transparência de verdade: sombra/iluminação do render são preservadas.
-      // A arte original continua exclusivamente no browser/IndexedDB.
+      // Sem sombra de piso no PNG transferido: o editor permite refazê-la para cada fundo.
+      // Iluminação/reflexos da cerâmica permanecem; arquivo só no browser/IndexedDB.
       const transferScale = Math.min(1, 2400 / Math.max(width, height));
       const res = await enqueueRender({
         width: Math.round(width * transferScale),
         height: Math.round(height * transferScale),
         format: "png", quality: 1, transparent: true,
-        background: "transparent", supersample: 2,
+        background: "transparent", supersample: 2, hideGroundShadow: true,
       });
       await writeHandoff(res.blob);
       setOpen(false);

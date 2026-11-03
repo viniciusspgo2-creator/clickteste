@@ -4,6 +4,7 @@ import {Archive,Check,CloudUpload,FolderOpen,Image as ImageIcon,Loader2,Search,T
 type Kind='template'|'element'|'background'|'font'|'animation';
 type Asset={id:string;kind:Kind;name:string;category:string;tags:string[];status:string;order:number;mimeType:string;url:string;bytes:number};
 const kindLabels:Record<Kind,string>={template:'Templates (PNG / MP4)',element:'Elementos (PNG / SVG)',background:'Fundos',font:'Fontes',animation:'Animações Lottie'};
+const FONT_EXT=/\.(ttf|otf|woff2?)$/i;
 const categorySuggestions:Record<Kind,string[]>={template:['Mockups de canecas','Divulgação de canecas','Natal','Dia das Mães','Dia dos Pais'],element:['Personagens','Objetos','Emojis','Molduras','Ornamentos','Natal','Flores','Sombras'],background:['Estampas de canecas','Natal','Romântico','Infantil','Religioso','Minimalista'],font:['Comercial','Elegante','Divertida','Manuscrita'],animation:['Partículas','Transições','Luzes']};
 export function CreativeAssetsPanel({onUnauthorized}:{onUnauthorized:()=>void}){
  const [kind,setKind]=useState<Kind>('template'),[assets,setAssets]=useState<Asset[]>([]),[total,setTotal]=useState(0),[page,setPage]=useState(1),[q,setQ]=useState('');
@@ -17,6 +18,30 @@ export function CreativeAssetsPanel({onUnauthorized}:{onUnauthorized:()=>void}){
   if(res.status===401){onUnauthorized();return;}const data=await res.json();if(!data.ok)throw Error(data.error||'Falha ao listar');setAssets(data.items);setTotal(data.total);
  }catch(e){setError(e instanceof Error?e.message:'Falha ao listar conteúdos.');}},[kind,page,q,onUnauthorized]);
  useEffect(()=>{void load();},[load]);
+ const stageFiles=async(incoming:File[])=>{
+  if(kind!=='font'||!incoming.some(f=>/\.zip$/i.test(f.name))){setFiles(incoming.slice(0,30));return;}
+  setBusy(true);setError('');const staged:File[]=[];let skipped=0;
+  try{
+   const JSZip=(await import('jszip')).default;
+   for(const file of incoming){
+    if(staged.length>=30)break;
+    if(!/\.zip$/i.test(file.name)){if(FONT_EXT.test(file.name)&&file.size<=4*1024*1024)staged.push(file);else skipped++;continue;}
+    if(file.size>80*1024*1024){skipped++;continue;}
+    const zip=await JSZip.loadAsync(file);
+    for(const item of Object.values(zip.files)){
+     if(staged.length>=30)break;
+     if(item.dir||!FONT_EXT.test(item.name)||item.name.startsWith('__MACOSX/')||item.name.includes('/._'))continue;
+     const size=(item as typeof item & {_data?:{uncompressedSize?:number}})._data?.uncompressedSize;
+     if(size && size>4*1024*1024){skipped++;continue;}
+     try{
+      const blob=await item.async('blob');if(blob.size>4*1024*1024){skipped++;continue;}
+      staged.push(new File([blob],item.name.split('/').pop()||'fonte.ttf',{type:'application/octet-stream'}));
+     }catch{skipped++;}
+    }
+   }
+   setFiles(staged);setProgress(`${staged.length} fontes preparadas para revisão. ${skipped} ignoradas. Confirme a licença antes de publicar.`);
+  }catch(e){setError(e instanceof Error?e.message:'Não foi possível ler o ZIP.');}finally{setBusy(false)}
+ };
  const upload=async()=>{if(!files.length||busy)return;if(kind==='font'&&!rightsConfirmed){setError('Confirme que sua licença permite disponibilizar a fonte para os usuários do Editor.');return;}setBusy(true);setError('');let success=0;
   try{for(let i=0;i<files.length;i++){
    const file=files[i];setProgress(`Enviando ${i+1}/${files.length}: ${file.name}`);
@@ -35,8 +60,8 @@ export function CreativeAssetsPanel({onUnauthorized}:{onUnauthorized:()=>void}){
    <div className="ca-category-presets"><span>CATEGORIAS SUGERIDAS PARA SUBLIMAÇÃO</span><div>{categorySuggestions[kind].map(c=><button type="button" key={c} aria-pressed={category===c} onClick={()=>setCategory(c)}>{c}</button>)}</div></div>
    <label>TAGS (SEPARADAS POR VÍRGULA)<input value={tags} onChange={e=>setTags(e.target.value)} placeholder="Natal, presente, caneca..."/></label>
    {kind==='font'&&<div className="ca-license-check"><label><input type="checkbox" checked={rightsConfirmed} onChange={e=>setRightsConfirmed(e.target.checked)}/>Confirmo que tenho licença para disponibilizar essas fontes aos usuários da Click & Gruda.</label><small>Fontes do seu RAR foram auditadas quanto a acentos, mas a maior parte não possui licença comprovada para redistribuição. O sistema classificará acentos de TTF, OTF e WOFF; WOFF2 sem análise será indicado como não verificado.</small></div>}
-   <div className="ca-drop" onClick={()=>input.current?.click()} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();setFiles(Array.from(e.dataTransfer.files).slice(0,30))}}><FolderOpen size={31}/><strong>Selecionar ou arrastar arquivos</strong><small>Até 30 por lote, 4 MB cada. Processamento sequencial para reduzir carga no servidor.</small></div>
-   <input ref={input} hidden multiple type="file" accept=".png,.jpg,.jpeg,.webp,.svg,.woff,.woff2,.ttf,.otf,.mp4,.json" onChange={e=>setFiles(Array.from(e.target.files||[]).slice(0,30))}/>
+   <div className="ca-drop" onClick={()=>input.current?.click()} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();void stageFiles(Array.from(e.dataTransfer.files))}}><FolderOpen size={31}/><strong>Selecionar ou arrastar arquivos</strong><small>Até 30 por lote, 4 MB cada. Fontes podem vir em ZIP após extrair o RAR. O upload só ocorre ao confirmar e clicar em Cadastrar.</small></div>
+   <input ref={input} hidden multiple type="file" accept={kind==='font'?'.woff,.woff2,.ttf,.otf,.zip':kind==='template'?'.png,.jpg,.jpeg,.webp,.mp4,.cgtemplate':'.png,.jpg,.jpeg,.webp,.svg,.mp4,.json'} onChange={e=>void stageFiles(Array.from(e.target.files||[]))}/>
    {files.length>0&&<div className="ca-selected"><strong>{files.length} arquivo(s)</strong><span>{files.slice(0,4).map(x=>x.name).join(' · ')}{files.length>4?' …':''}</span><button onClick={()=>setFiles([])}>Limpar</button></div>}
    <button className="ca-submit" disabled={!files.length||busy} onClick={()=>void upload()}>{busy?<Loader2 size={17} className="animate-spin"/>:<CloudUpload size={17}/>} {busy?'Enviando arquivos...':'Cadastrar arquivos'}</button>
    {progress&&<p className="ca-progress" role="status">{progress}</p>}

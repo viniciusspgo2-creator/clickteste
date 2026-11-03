@@ -26,6 +26,8 @@ export interface FrameOpts {
   width: number;
   height: number;
   transparent?: boolean;
+  /** Only for export-to-editor: omit all floor/contact shadows while preserving ceramic shading. */
+  hideGroundShadow?: boolean;
   /** overrides do estado da caneca p/ render da folha (lote de variantes) */
   mugOverride?: Partial<MugState>;
   /** desliga o supersampling (gravação em tempo real precisa ser leve) */
@@ -298,6 +300,13 @@ export function beginFrames(
       if (isEditorOverlay(o)) hide(o);
     });
     settleFloaters(scene);
+    if (opts.hideGroundShadow && session.usingTransparent) {
+      // The editor applies its own shadow, adjusted for the destination background.
+      // Only scene-contact shadows are hidden; light/shading on the ceramic remains.
+      scene.traverse(o => {
+        if (o.name === "ground" || o.name === "float-shadow" || o.name === "studio-contact-shadows") hide(o);
+      });
+    }
     if (session.usingTransparent || session.usingWhite) {
       scene.background = session.usingWhite ? new THREE.Color("#ffffff") : null;
       for (const name of ["backdrop", "glowboard", "bg-image"])
@@ -305,6 +314,7 @@ export function beginFrames(
       if (session.usingTransparent) hide(scene.getObjectByName("pedestal"));
       if (
         session.ground &&
+        !opts.hideGroundShadow &&
         !(session.ground.material instanceof THREE.ShadowMaterial)
       ) {
         session.oldGroundMat = session.ground.material as THREE.Material;

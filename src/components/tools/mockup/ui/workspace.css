@@ -1289,3 +1289,10 @@
 .cg-pose-advanced>summary svg{width:16px;height:16px;color:var(--cg-accent)}
 .cg-pose-advanced .cg-numeric-grid{margin-bottom:0}
 .cg-shadow-elite{width:100%;display:flex;align-items:center;justify-content:center;gap:9px;border-radius:12px;border:1px solid #e08a4d7b;padding:11px 14px;margin:14px 0 10px;font-size:13px;font-weight:750;color:#ffe2ca;background:linear-gradient(115deg,#592b1c,#282124);box-shadow:inset 0 1px #ffffff18,0 7px 25px #0002}.cg-shadow-elite:hover{border-color:#ffab6b;background:linear-gradient(115deg,#643019,#3a2423)}
+
+/* V3.4 — ações essenciais no rodapé do Studio */
+.cg-statusbar .cg-status-tools{display:flex;align-items:center;gap:5px;min-width:0}
+.cg-status-tools button{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;min-height:31px;border-radius:8px;border:1px solid var(--cg-line);padding:5px 9px;background:var(--cg-card);color:var(--cg-text);font-size:11px;font-weight:650;transition:background .15s}
+.cg-status-tools button:hover,.cg-status-tools button[aria-pressed=true]{background:color-mix(in srgb,var(--cg-accent) 15%,var(--cg-card));border-color:var(--cg-accent)}
+@media(max-width:1150px){.cg-status-tools button{font-size:0;padding:7px}.cg-statusbar .cg-shortcuts{display:none}.cg-status-tools svg{width:15px;height:15px}}
+@media(max-width:660px){.cg-statusbar{overflow-x:auto;gap:7px}.cg-statusbar .cg-status-tools{flex-shrink:0}.cg-statusbar .cg-guide-status{font-size:0}.cg-statusbar .cg-guide-status svg{width:16px;height:16px}}

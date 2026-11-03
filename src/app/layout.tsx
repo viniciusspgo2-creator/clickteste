@@ -4,6 +4,9 @@ import "./globals.css";
 import "@/components/site/studio-home.css";
 import { Toaster } from "@/components/ui/toaster";
 import { PageTracker } from "@/components/site/page-tracker";
+import {LanguageProvider} from "@/components/platform/language-provider";
+import {PlatformAnnouncements} from "@/components/platform/platform-announcements";
+import "@/components/platform/platform-announcements.css";
 import { DEFAULT_SEO, getSeoConfig } from "@/lib/site-config";
 
 const geistSans = Geist({
@@ -122,7 +125,7 @@ export default async function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${display.variable} antialiased bg-background text-foreground`}
       >
-        {children}
+        <LanguageProvider>{children}<PlatformAnnouncements/></LanguageProvider>
         <Toaster />
         <PageTracker />
         <script

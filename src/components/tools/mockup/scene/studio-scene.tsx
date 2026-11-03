@@ -88,7 +88,7 @@ export default function StudioCanvas({ paused = false }: { paused?: boolean }) {
           preserveDrawingBuffer: false,
         }}
         onCreated={({ gl }) => {
-          gl.shadowMap.type = THREE.PCFShadowMap;
+          gl.shadowMap.type = THREE.PCFSoftShadowMap;
           // Neutral is intended for product rendering: retain ink saturation while
           // rolling off only the bright photographic reflections.
           gl.toneMapping = THREE.NeutralToneMapping;

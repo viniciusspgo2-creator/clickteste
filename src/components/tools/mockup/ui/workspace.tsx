@@ -96,6 +96,7 @@ import { PoseControls } from "./pose-controls";
 import { ShadowPresets } from "./shadow-presets";
 import { StudioGuide, type GuideAction } from "./guide-panel";
 import { StudioConcierge } from "@/components/creative/studio-concierge";
+import {usePlatformLanguage} from "@/components/platform/language-provider";
 import { ArtAssistant } from "./art-assistant";
 import "./workspace.css";
 
@@ -160,6 +161,7 @@ export function Workspace({
   onGuideOpenChange?: (open: boolean) => void;
 }) {
   const st = useMockupStore();
+  const {t}=usePlatformLanguage();
   const [tab, setTab] = useState<Tab>("arts");
   const [advanced, setAdvanced] = useState(false);
   const [showProperties, setShowProperties] = useState(false);
@@ -328,8 +330,8 @@ export function Workspace({
           <Facebook />
         </a>
         <div className="cg-header-actions">
-          <ToolButton label="Guia do Studio" onClick={() => setGuideOpen(true)}><BookOpen /></ToolButton>
-          <ToolButton label="Assistente de sublimação" onClick={() => setConciergeOpen(true)}><MessageCircle /></ToolButton>
+          <ToolButton label={t('Guia do Studio')} onClick={() => setGuideOpen(true)}><BookOpen /></ToolButton>
+          <ToolButton label={t('Assistente de sublimação')} onClick={() => setConciergeOpen(true)}><MessageCircle /></ToolButton>
           <ToolButton
             label="Buscar ajustes · Ctrl+K"
             onClick={() => setSearchOpen(true)}
@@ -363,9 +365,9 @@ export function Workspace({
           <button
             className="cg-reset-btn"
             onClick={() => setResetOpen(true)}
-            title="Resetar tudo"
+            title={t('Resetar tudo')}
           >
-            <RotateCcw /> <span>Resetar tudo</span>
+            <RotateCcw /> <span>{t('Resetar tudo')}</span>
           </button>
         </div>
         <details className="cg-mobile-menu">
@@ -373,7 +375,7 @@ export function Workspace({
             <MoreHorizontal />
           </summary>
           <div>
-            <button type="button" onClick={(e) => { setGuideOpen(true); e.currentTarget.closest("details")?.removeAttribute("open"); }}><BookOpen />Guia do Studio</button>
+            <button type="button" onClick={(e) => { setGuideOpen(true); e.currentTarget.closest("details")?.removeAttribute("open"); }}><BookOpen />{t('Guia do Studio')}</button>
             <button
               type="button"
               onClick={(e) => {
@@ -451,14 +453,14 @@ export function Workspace({
                 setStageFocus(false);
                 setDrawer("library");
               }}
-              aria-label={n.label}
+              aria-label={t(n.label)}
             >
               <n.icon />
-              <span>{n.label}</span>
+              <span>{t(n.label)}</span>
             </button>
           ))}
           <button type="button" className={`cg-advanced-toggle ${advanced ? "is-active" : ""}`} aria-expanded={advanced} title={advanced ? "Ocultar ferramentas avançadas" : "Mostrar ferramentas avançadas"} onClick={() => { setAdvanced(v => !v); if (advanced && NAV.find(n => n.id === tab && "advanced" in n)) setTab("arts"); setStageFocus(false); }}>
-            <SlidersHorizontal /><span>{advanced ? "Menos" : "Mais"}</span>
+            <SlidersHorizontal /><span>{t(advanced ? 'Menos' : 'Mais')}</span>
           </button>
           <div className="cg-rail-bottom">
             <ToolButton
@@ -542,7 +544,7 @@ export function Workspace({
                 A arte será aplicada à caneca selecionada. Use o modo “Mover
                 arte” para arrastá-la diretamente na peça.
               </p>
-              <Section title="Arquivo de projeto" icon={FolderOpen}>
+              <Section title={t('Arquivo de projeto')} icon={FolderOpen}>
                 <button
                   className="cg-secondary"
                   onClick={() =>
@@ -640,7 +642,7 @@ export function Workspace({
           )}
           {tab === "models" && (
             <>
-              <Section title="Acabamento rápido da caneca" icon={Sparkles} defaultOpen>
+              <Section title={t('Acabamento rápido da caneca')} icon={Sparkles} defaultOpen>
                 <p className="cg-hint">Troque o material com um toque. Os detalhes completos do verniz continuam em Propriedades.</p>
                 <div className="cg-finish-presets" role="group" aria-label="Acabamentos da caneca">
                   {CERAMIC_FINISHES.map(finish=><button key={finish.id} type="button"
@@ -656,7 +658,7 @@ export function Workspace({
               <HandleControls active={active} />
               <CeramicPalette active={active} />
               <button type="button" className="cg-secondary" onClick={() => {setShowProperties(true);setDrawer("properties");setStageFocus(false);requestAnimationFrame(()=>document.getElementById("cg-finish-section")?.scrollIntoView({block:"start",behavior:"smooth"}));}}>Abrir acabamento e verniz profissional</button>
-              <Section title="Cores prontas" icon={Palette} defaultOpen>
+              <Section title={t('Cores prontas')} icon={Palette} defaultOpen>
                 <div className="cg-preset-grid">
                   {[
                     {
@@ -740,7 +742,7 @@ export function Workspace({
                   </button>
                 ))}
               </div>
-              <Section title="Bases de apoio" icon={Layers} defaultOpen>
+              <Section title={t('Bases de apoio')} icon={Layers} defaultOpen>
                 <div className="cg-pills">
                   {FLOOR_OPTIONS.map((f) => (
                     <button
@@ -1031,7 +1033,7 @@ export function Workspace({
               <div id="cg-art-section"><p className="cg-hint">Ajustes profissionais da peça. Para o básico, use as abas Produto, Estampa e Bocão.</p></div>
               <ArtAssistant active={active} art={art} locked={!!selected.locked} onNotice={notify} />
               {tab !== "models" && <HandleControls active={active} />}
-              <Section title="Poses prontas" icon={Move} defaultOpen>
+              <Section title={t('Poses prontas')} icon={Move} defaultOpen>
                 <div className="cg-pills">
                   {[
                     ["Em pé", 0, 0],
@@ -1064,7 +1066,7 @@ export function Workspace({
                   onChange={(locked) => st.patchObject(active, { locked })}
                 />
               </Section>
-              <Section title="Avançado (Modo Manual)" icon={SlidersHorizontal}>
+              <Section title={t('Avançado (Modo Manual)')} icon={SlidersHorizontal}>
                 <div className="cg-numeric-grid">
                   {(
                     [
@@ -1118,7 +1120,7 @@ export function Workspace({
                   ))}
                 </div>
               </Section>
-              <div id="cg-finish-section"><Section title="Cerâmica e acabamento" icon={Coffee} defaultOpen>
+              <div id="cg-finish-section"><Section title={t('Cerâmica e acabamento')} icon={Coffee} defaultOpen>
                 <ColorRow
                   label="Cor do corpo"
                   disabled={!!selected.locked}
@@ -1202,7 +1204,7 @@ export function Workspace({
                   </>
                 )}
               </Section></div>
-              <Section title="Ajustes de cor da arte" icon={ImagePlus}>
+              <Section title={t('Ajustes de cor da arte')} icon={ImagePlus}>
                 <p className="cg-quick-hint">Ajusta a imagem aplicada. Para brilho da superfície, use Verniz de estúdio.</p>
                 {st.compareArt && <button type="button" className="cg-compare-banner" onClick={() => st.setCompare(false)}>Você está vendo a arte sem filtros. Voltar aos ajustes <ArrowLeft /></button>}
                 {(
@@ -1261,7 +1263,7 @@ export function Workspace({
                   </button>
                 </div>
               </Section>
-              <Section title="Mais opções da arte" icon={ImagePlus}>
+              <Section title={t('Mais opções da arte')} icon={ImagePlus}>
                 <PrintLayersPanel />
                 <ArtPanel onUpload={onUpload} />
               </Section>
@@ -1322,7 +1324,7 @@ export function Workspace({
                   setQuery("");
                 }}
               >
-                <n.icon /> {n.label}
+                <n.icon /> {t(n.label)}
               </button>
             ))}
           </div>
@@ -1385,13 +1387,19 @@ export function Workspace({
       )}
       <footer className="cg-statusbar">
         <OutputFormatControl />
+        <div className="cg-status-tools" role="group" aria-label="Controles essenciais do Studio">
+          <button type="button" aria-pressed={st.tool === "move"} title="Arrastar e posicionar a caneca (tecla G)" onClick={()=>st.setTool(st.tool === "move" ? "select" : "move")}><Move /> {t('Mover caneca')}</button>
+          <button type="button" aria-pressed={st.tool === "pan"} title="Deslocar o cenário sem mover a caneca" onClick={()=>st.setTool(st.tool === "pan" ? "select" : "pan")}><Hand /> {t('Mover cenário')}</button>
+          <button type="button" title="Abrir os ajustes de iluminação e sombra" onClick={()=>{setTab("light");setStageFocus(false);setDrawer("library");}}><Sun /> {t('Luz/sombra')}</button>
+          <button type="button" title="Resetar ajustes, com confirmação" onClick={()=>setResetOpen(true)}><RotateCcw /> {t('Resetar')}</button>
+        </div>
         <button
           onClick={() =>
             st.patch("camera", { autoRotate: !st.camera.autoRotate })
           }
         >
           {st.camera.autoRotate ? <Pause /> : <Play />}
-          {st.camera.autoRotate ? "Pausar giro" : "Girar 360°"}
+          {t(st.camera.autoRotate ? 'Pausar giro' : 'Girar 360°')}
         </button>
         <button type="button" className="cg-guide-status" onClick={() => setGuideOpen(true)}><BookOpen /> Guia do Studio</button>
         <span className="cg-shortcuts">

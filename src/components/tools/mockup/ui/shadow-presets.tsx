@@ -16,7 +16,7 @@ export function ShadowPresets() {
     <p className="cg-hint" style={{ margin: 0 }}>Ajusta a sombra projetada no cenário, sem mudar a cor, a arte ou o verniz da caneca.</p>
     <button type="button" className="cg-shadow-elite" onClick={()=>{
       st.patch('bg',{contactShadow:true,castShadow:true,floatAnim:false});
-      st.patch('light',{shadowOpacity:.82,softness:.33,shadowColor:'#201a18',envIntensity:1.12});
+      st.patch('light',{shadowOpacity:.82,softness:.33,shadowColor:'#201a18',shadowShiftX:0.22,shadowShiftZ:-0.12,shadowSpread:1.06,envIntensity:1.12});
     }}><Sparkles size={17}/> Foto Elite · sombra de contato definida</button>
     <div className="cg-pose-presets" role="group" aria-label="Estilos de sombra">
       {presets.map(p=><button type="button" key={p.label}
@@ -27,6 +27,14 @@ export function ShadowPresets() {
       onChange={v=>st.patch("light",{shadowOpacity:v/100})} format={v=>`${Math.round(v)}%`} defaultValue={44}/>
     <SliderRow label="Borda suave" value={st.light.softness*100} min={0} max={100} step={1}
       onChange={v=>st.patch("light",{softness:v/100})} format={v=>`${Math.round(v)}%`}/>
+    <p className="cg-pose-tip">Ajuste manual da direção e da largura da sombra no chão para integrar a caneca a mesas, bases e cenários reais. Não altera a estampa.</p>
+    <SliderRow label="Sombra · deslocamento horizontal" value={st.light.shadowShiftX ?? 0} min={-4} max={4} step={0.1}
+      onChange={v=>st.patch('light',{shadowShiftX:v})} format={v=>`${v.toFixed(1)} cm`}/>
+    <SliderRow label="Sombra · deslocamento profundidade" value={st.light.shadowShiftZ ?? 0} min={-4} max={4} step={0.1}
+      onChange={v=>st.patch('light',{shadowShiftZ:v})} format={v=>`${v.toFixed(1)} cm`}/>
+    <SliderRow label="Sombra · tamanho da projeção" value={(st.light.shadowSpread ?? 1)*100} min={55} max={200} step={1}
+      onChange={v=>st.patch('light',{shadowSpread:v/100})} format={v=>`${Math.round(v)}%`}/>
+    <button type="button" className="cg-shadow-elite" onClick={()=>st.patch('light',{shadowShiftX:0,shadowShiftZ:0,shadowSpread:1,shadowOpacity:.62,softness:.55})}>Restaurar sombra natural</button>
     <ToggleRow label="Mostrar sombra de contato" checked={st.bg.contactShadow} onChange={contactShadow=>st.patch("bg",{contactShadow})}/>
     <ToggleRow label="Mostrar sombra projetada" checked={st.bg.castShadow} onChange={castShadow=>st.patch("bg",{castShadow})}/>
     <p className="cg-pose-tip">Em fundos fotográficos, a posição aparente da mesa depende da perspectiva da foto. Ajuste a altura e o enquadramento da caneca para aproximar a sombra da superfície.</p>

@@ -2,14 +2,14 @@ import {ensureDesignFonts} from './typefaces';
 /** Editor local: documento, desenho e exportação. Nada do usuário é enviado ao servidor. */
 export type NodeKind='text'|'image'|'rect'|'circle';
 export type DesignNode={id:string;kind:NodeKind;x:number;y:number;w:number;h:number;angle:number;opacity:number;
- role?:'template'|'background'|'mockup'|'content';locked?:boolean;aspectLock?:boolean;
- text?:string;src?:string;fill?:string;font?:string;size?:number;bold?:boolean;italic?:boolean;align?:CanvasTextAlign;
+ role?:'template'|'background'|'mockup'|'content'|'foreground';layerName?:string;maskSrc?:string;locked?:boolean;aspectLock?:boolean;
+ text?:string;src?:string;fill?:string;tint?:string;font?:string;size?:number;bold?:boolean;italic?:boolean;align?:CanvasTextAlign;
  shadow?:number;shadowColor?:string;shadowX?:number;shadowY?:number;blur?:number;brightness?:number;contrast?:number;saturation?:number;
  grayscale?:number;sepia?:number;hue?:number;radius?:number;stroke?:string;strokeWidth?:number;
  curve?:number;wave?:number;depth?:number;tracking?:number;lineSpacing?:number;skew?:number;
  flipX?:boolean;flipY?:boolean;crop?:{left:number;top:number;right:number;bottom:number};
 };
-export type DesignDocument={width:number;height:number;background:string;nodes:DesignNode[]};
+export type DesignDocument={width:number;height:number;background:string;nodes:DesignNode[];video?:{src:string;name:string;start:number;end?:number}};
 export type ExportFormat='png'|'jpeg'|'webp';
 export const formats=[{label:'Caneca 21 × 9,5 cm · 300 DPI',w:2480,h:1122},{label:'Área visível 19 × 8,5 cm · 300 DPI',w:2244,h:1004},{label:'Divulgação Instagram 1080 × 1350',w:1080,h:1350},{label:'Post quadrado 1080 × 1080',w:1080,h:1080},{label:'Story / Reels 1080 × 1920',w:1080,h:1920},{label:'Horizontal HD',w:1920,h:1080}] as const;
 export const uid=()=>crypto.randomUUID();
@@ -23,9 +23,14 @@ export function imageFor(src:string){
 export function invalidateImage(src:string){images.delete(src)}
 const limit=(n:number,min:number,max:number)=>Math.max(min,Math.min(max,n));
 function drawText(ctx:CanvasRenderingContext2D,n:DesignNode){
- const size=n.size||72,lines=(n.text||'').split('\n').slice(0,30),lineHeight=size*(n.lineSpacing||1.18);
- const align=n.align||'center',tracking=n.tracking||0;
- ctx.font=`${n.italic?'italic ':''}${n.bold?'800':'500'} ${size}px "${(n.font||'Arial').replace(/["\\]/g,'')}", Arial, sans-serif`;
+ const lines=(n.text||'').split('\n').slice(0,30),align=n.align||'center',tracking=n.tracking||0;
+ const fontFamily=(n.font||'Arial').replace(/["\\]/g,'');
+ const font=(sz:number)=>`${n.italic?'italic ':''}${n.bold?'800':'500'} ${sz}px "${fontFamily}", Arial, sans-serif`;
+ // Ajusta o tamanho TIPOGRÁFICO (não comprime os glifos na horizontal).
+ const requested=n.size||72;ctx.font=font(requested);
+ const naturalWidth=Math.max(1,...lines.map(line=>ctx.measureText(line).width+Math.max(0,Array.from(line).length-1)*tracking));
+ const size=requested*Math.min(1,n.w/naturalWidth),lineHeight=size*(n.lineSpacing||1.18);
+ ctx.font=font(size);
  ctx.textBaseline='middle';ctx.fillStyle=n.fill||'#fff';ctx.lineJoin='round';
  const drawGlyph=(glyph:string,x:number,y:number,angle:number)=>{
   ctx.save();ctx.translate(x,y);ctx.rotate(angle);ctx.textAlign='center';
@@ -42,9 +47,9 @@ function drawText(ctx:CanvasRenderingContext2D,n:DesignNode){
   if(!curve&&!wave&&!tracking){
    ctx.textAlign=align;const x=align==='left'?-n.w/2:align==='right'?n.w/2:0;
    const depth=limit(n.depth||0,0,22);
-   if(depth){ctx.save();ctx.fillStyle='#17100c';ctx.shadowBlur=0;for(let d=depth;d>0;d-=2)ctx.fillText(line,x+d*.65,y+d*.8,Math.max(5,n.w));ctx.restore();}
-   if((n.strokeWidth||0)>0&&n.stroke){ctx.lineWidth=n.strokeWidth||1;ctx.strokeStyle=n.stroke;ctx.strokeText(line,x,y,Math.max(5,n.w));}
-   ctx.fillText(line,x,y,Math.max(5,n.w));continue;
+   if(depth){ctx.save();ctx.fillStyle='#17100c';ctx.shadowBlur=0;for(let d=depth;d>0;d-=2)ctx.fillText(line,x+d*.65,y+d*.8);ctx.restore();}
+   if((n.strokeWidth||0)>0&&n.stroke){ctx.lineWidth=n.strokeWidth||1;ctx.strokeStyle=n.stroke;ctx.strokeText(line,x,y);}
+   ctx.fillText(line,x,y);continue;
   }
   const letters=Array.from(line);if(!letters.length)continue;
   const widths=letters.map(ch=>ctx.measureText(ch).width+tracking);
@@ -73,6 +78,9 @@ export async function drawDesign(canvas:HTMLCanvasElement,doc:DesignDocument){
  for(const n of doc.nodes){
   ctx.save();ctx.globalAlpha=limit(n.opacity,0,1);
   ctx.translate(n.x+n.w/2,n.y+n.h/2);ctx.rotate(n.angle*Math.PI/180);
+  // Espelhamento em torno do centro para textos, formas, SVG, fotos e demais elementos.
+  // O estado fica no documento e é aplicado também na exportação.
+  ctx.scale(n.flipX?-1:1,n.flipY?-1:1);
   if(n.skew)ctx.transform(1,0,Math.tan(limit(n.skew,-40,40)*Math.PI/180),1,0,0);
   ctx.shadowColor=n.shadowColor||'rgba(0,0,0,.74)';ctx.shadowBlur=n.shadow||0;
   ctx.shadowOffsetX=n.shadowX||0;ctx.shadowOffsetY=n.shadowY??(n.shadow||0)*.4;
@@ -87,8 +95,32 @@ export async function drawDesign(canvas:HTMLCanvasElement,doc:DesignDocument){
    if(sourceRatio>targetRatio){const fitW=sh*targetRatio;sx+=(sw-fitW)/2;sw=fitW;}
    else{const fitH=sw/targetRatio;sy+=(sh-fitH)/2;sh=fitH;}
    ctx.filter=`brightness(${n.brightness??100}%) contrast(${n.contrast??100}%) saturate(${n.saturation??100}%) blur(${n.blur||0}px) grayscale(${n.grayscale||0}%) sepia(${n.sepia||0}%) hue-rotate(${n.hue||0}deg)`;
-   ctx.scale(n.flipX?-1:1,n.flipY?-1:1);
-   ctx.drawImage(img,sx,sy,sw,sh,-n.w/2,-n.h/2,n.w,n.h);
+   if(n.tint&&/^#[0-9a-fA-F]{6}$/.test(n.tint)){
+    // Colorize a silhouette in an isolated canvas, so other nodes never get recolored.
+    // Alpha is preserved. For photographs the inspector recommends keeping original colors.
+    const tmp=document.createElement('canvas');
+    const tw=Math.max(1,Math.min(4096,Math.ceil(n.w))),th=Math.max(1,Math.min(4096,Math.ceil(n.h)));
+    tmp.width=tw;tmp.height=th;
+    const tc=tmp.getContext('2d');if(!tc)throw new Error('Canvas de cor indisponível');
+    tc.drawImage(img,sx,sy,sw,sh,0,0,tw,th);
+    tc.globalCompositeOperation='source-in';tc.fillStyle=n.tint;tc.fillRect(0,0,tw,th);
+    ctx.drawImage(tmp,-n.w/2,-n.h/2,n.w,n.h);
+   }else if(n.maskSrc){
+    // Máscara não destrutiva: branco revela, preto oculta e cinza suaviza.
+    // A máscara fica restrita ao objeto selecionado, não às outras camadas.
+    const m=await imageFor(n.maskSrc);const cw=Math.min(4096,Math.max(1,Math.round(n.w))),ch=Math.min(4096,Math.max(1,Math.round(n.h)));
+    const layer=document.createElement('canvas');layer.width=cw;layer.height=ch;
+    const lc=layer.getContext('2d',{willReadFrequently:true});if(!lc)throw new Error('Canvas de máscara indisponível');
+    lc.drawImage(img,sx,sy,sw,sh,0,0,cw,ch);
+    const colors=lc.getImageData(0,0,cw,ch);
+    lc.clearRect(0,0,cw,ch);lc.drawImage(m,0,0,cw,ch);
+    const mask=lc.getImageData(0,0,cw,ch);
+    for(let i=0;i<colors.data.length;i+=4){
+     const amount=(mask.data[i]*.2126+mask.data[i+1]*.7152+mask.data[i+2]*.0722)/255;
+     colors.data[i+3]=Math.round(colors.data[i+3]*amount*mask.data[i+3]/255);
+    }
+    lc.putImageData(colors,0,0);ctx.drawImage(layer,-n.w/2,-n.h/2,n.w,n.h);
+   }else ctx.drawImage(img,sx,sy,sw,sh,-n.w/2,-n.h/2,n.w,n.h);
   }catch{/* Imagem inválida não interrompe a exportação das demais. */}}
   if(n.kind==='rect'||n.kind==='circle'){
    ctx.beginPath();if(n.kind==='circle')ctx.ellipse(0,0,Math.max(1,n.w/2),Math.max(1,n.h/2),0,0,Math.PI*2);

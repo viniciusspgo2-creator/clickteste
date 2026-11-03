@@ -226,9 +226,13 @@ const REFERENCE_HANDLE_POINTS: Partial<Record<HandleStyle, number[][]>> = {
   // Perfil opcional inspirado na foto da caneca branca 325 ml enviada pelo proprietário.
   // Raízes na parede, abertura longa em D, ombro superior suave e base arredondada.
   // Mantém inalterado o modelo clássico e os projetos previamente salvos.
-  livesub: [[0,8.02,-3.90],[0,8.02,-4.50],[0,8.05,-5.25],[0,7.67,-6.25],
-    [0,6.70,-7.18],[0,5.25,-7.54],[0,3.95,-7.36],[0,2.78,-6.72],
-    [0,1.89,-5.70],[0,1.79,-4.70],[0,1.79,-3.90]],
+  // Foto 325ml: duas raízes suaves na parede, pescoço superior quase horizontal,
+  // arco externo em D ligeiramente vertical e canto inferior contínuo.
+  // Dimensões relativas estimadas da única vista frontal (não é escaneamento 3D).
+  livesub: [[0,7.60,-3.95],[0,7.60,-4.28],[0,7.58,-4.95],
+    [0,7.49,-5.62],[0,7.10,-6.46],[0,6.27,-7.24],
+    [0,5.22,-7.52],[0,4.03,-7.47],[0,3.03,-7.07],
+    [0,2.26,-6.29],[0,1.96,-5.38],[0,1.95,-4.61],[0,1.95,-3.95]],
   spoon: [[0,7.7,-3.89],[0,7.7,-4.55],[0,7.3,-5.75],[0,6.4,-6.7],[0,5.1,-6.9],[0,3.8,-6.15],[0,2.5,-4.65],[0,2.5,-3.89]],
   "heart-asymmetric": [[0,8,-3.89],[0,8,-4.3],[0,7.85,-4.55],[0,6.7,-5.25],[0,6.9,-6.15],[0,7.05,-7.3],[0,6.4,-7.95],[0,5.25,-7.8],[0,4.1,-6.85],[0,3,-5.2],[0,2.35,-4.55],[0,2.35,-3.89]],
   heart: [[0,7.45,-3.89],[0,7.45,-4.35],[0,8.1,-4.8],[0,8.15,-5.3],[0,7.5,-5.95],[0,6.95,-6.25],[0,7.2,-7.15],[0,6.85,-7.95],[0,5.9,-8.12],[0,4.75,-7.45],[0,3.65,-6.15],[0,2.8,-5.2],[0,3.15,-4.75],[0,3.65,-4.35],[0,3.65,-3.89]],
@@ -250,9 +254,9 @@ export function handleExtentR(): number {
 export function buildHandleGeometry(style: HandleStyle = "classic"): THREE.BufferGeometry {
   const curve = getHandleCurve(style);
   const rounded = style !== "classic";
-  const sectionX = style === "heart" || style === "heart-asymmetric" ? 0.42 : style === "oval-gold" ? 0.49 : rounded ? 0.58 : HANDLE_A_X;
-  const sectionN = style === "heart" || style === "heart-asymmetric" ? 0.42 : style === "spoon" ? 0.39 : HANDLE_B_N;
-  const weldStrength = style === "heart" || style === "heart-asymmetric" ? 0.45 : 0.72;
+  const sectionX = style === 'livesub' ? 0.49 : style === "heart" || style === "heart-asymmetric" ? 0.42 : style === "oval-gold" ? 0.49 : rounded ? 0.58 : HANDLE_A_X;
+  const sectionN = style === 'livesub' ? 0.38 : style === "heart" || style === "heart-asymmetric" ? 0.42 : style === "spoon" ? 0.39 : HANDLE_B_N;
+  const weldStrength = style === 'livesub' ? 0.30 : style === "heart" || style === "heart-asymmetric" ? 0.45 : 0.72;
   const tubular = 144,
     radial = 40,
     ring = radial + 1;

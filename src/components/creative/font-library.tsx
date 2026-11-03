@@ -2,6 +2,8 @@
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {Search,CheckCircle2,AlertCircle} from 'lucide-react';
 import {loadCuratedTypeface,typefaces,type CuratedTypeface} from '@/lib/creative/typefaces';
+import type {LocalTypeface} from '@/lib/creative/local-fonts';
+import {usePlatformLanguage} from '@/components/platform/language-provider';
 export type AdminTypeface={id:string;name:string;tags?:string[];url:string;mimeType:string};
 function FontPreview({font,onChoose}:{font:CuratedTypeface;onChoose:(font:string)=>void}){
  const root=useRef<HTMLButtonElement>(null),[loaded,setLoaded]=useState(false);
@@ -37,14 +39,20 @@ function AdminFontPreview({font,onChoose}:{font:AdminTypeface;onChoose:(name:str
   <small className={s.group===0?'cr-status-good':s.group===3?'cr-status-unknown':'cr-status-limited'}>{s.group===0?<CheckCircle2 size={13}/>:<AlertCircle size={13}/>} {s.label}</small>
  </button>;
 }
-export function FontLibrary({assets,onChoose}:{assets:AdminTypeface[];onChoose:(name:string,asset?:AdminTypeface)=>void}){
+export function FontLibrary({assets,onChoose,localFonts,onImport}:{assets:AdminTypeface[];onChoose:(name:string,asset?:AdminTypeface)=>void;localFonts:LocalTypeface[];onImport:(files:FileList|null)=>void}){
+ const {t}=usePlatformLanguage();
  const [query,setQuery]=useState('');
  const filtered=useMemo(()=>typefaces.filter(f=>(`${f.name} ${f.category}`).toLowerCase().includes(query.toLowerCase())),[query]);
  const admins=useMemo(()=>assets.filter(f=>f.name.toLowerCase().includes(query.toLowerCase())).sort((a,b)=>status(a.tags).group-status(b.tags).group),[assets,query]);
  return <div className="cr-font-library">
   <div className="cr-search"><Search size={16}/><input aria-label="Buscar fontes" placeholder="Buscar por fonte ou estilo..." value={query} onChange={e=>setQuery(e.target.value)}/></div>
   <div className="cr-font-explainer"><CheckCircle2 size={16}/><span>Tipografia para canecas, com prévia em português. As Google Fonts carregam quando necessárias; acentos das fontes do Admin são auditados por arquivo quando possível.</span></div>
-  <p className="cr-section-label">GOOGLE FONTS · CURADORIA LIVRE</p>
+  <section className="cr-private-fonts"><p className="cr-section-label">{t('SUAS FONTES · USO NESTE NAVEGADOR')}</p>
+   <p className="cr-helper">{t('Importe TTF, OTF, WOFF ou WOFF2, individualmente ou em ZIP. O arquivo não será enviado ao servidor. Reimporte após atualizar a página; mantenha seus originais. RAR deve ser extraído antes do uso.')}</p>
+   <label className="cr-local-font-upload">+ Carregar fontes particulares<input type="file" multiple accept=".ttf,.otf,.woff,.woff2,.zip" onChange={e=>{onImport(e.target.files);e.target.value='';}} /></label>
+   {localFonts.length>0&&<div className="cr-private-font-list">{[...localFonts].sort((a,b)=>status([a.status]).group-status([b.status]).group).map(f=><button className="cr-font-card" key={f.name} onClick={()=>onChoose(f.name)}><strong>{f.name.replace(/^Local · /,'')}</strong><span className="cr-font-sample" style={{fontFamily:`'${f.name.replace(/'/g,'')}',sans-serif`}}>Caneca, coração, você, mamãe, bênção</span><small>{status([f.status]).label}{f.missing?` · faltam: ${f.missing}`:''}</small></button>)}</div>}
+  </section>
+  <p className="cr-section-label">{t('GOOGLE FONTS · CURADORIA LIVRE')}</p>
   {(['Sans premium','Serif elegante','Display','Manuscrita'] as const).map(group=><div key={group}>
    {filtered.some(f=>f.category===group)&&<h3 className="cr-font-group">{group}</h3>}
    {filtered.filter(f=>f.category===group).map(font=><FontPreview key={font.name} font={font} onChoose={name=>onChoose(name)}/>)}

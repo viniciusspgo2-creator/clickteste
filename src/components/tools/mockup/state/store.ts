@@ -119,6 +119,10 @@ export interface LightState {
   softness: number; // 0..1 suavidade da sombra
   shadowOpacity?: number;
   shadowColor?: string;
+  /** Offsets and spread of the photographic floor shadow (cm / relative multiplier). */
+  shadowShiftX?: number;
+  shadowShiftZ?: number;
+  shadowSpread?: number;
   envIntensity: number; // 0..2 reflexos do estúdio
 }
 
@@ -426,7 +430,7 @@ const initialArt: ArtState = {
 
 const initialMug: MugState = {
   model: "classic",
-  handleStyle: "classic",
+  handleStyle: "livesub",
   bodyColor: "#ffffff",
   interiorColor: "#ffffff",
   handleColor: "#ffffff",
@@ -457,6 +461,7 @@ const initialLight: LightState = {
   softness: 0.5,
   shadowOpacity: 0.44,
   shadowColor: "#242424",
+  shadowShiftX: 0, shadowShiftZ: 0, shadowSpread: 1,
   envIntensity: 1,
 };
 

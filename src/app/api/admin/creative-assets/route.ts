@@ -7,7 +7,7 @@ import { r2Request } from '@/lib/creative/r2';
 import { classifyFont } from '@/lib/creative/font-coverage';
 export const runtime='nodejs';
 const ERR=(message:string,status=400)=>NextResponse.json({ok:false,error:message},{status});
-const MIME:Record<string,string>={png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp',svg:'image/svg+xml',woff:'font/woff',woff2:'font/woff2',ttf:'font/ttf',otf:'font/otf',json:'application/json',mp4:'video/mp4'};
+const MIME:Record<string,string>={png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp',svg:'image/svg+xml',woff:'font/woff',woff2:'font/woff2',ttf:'font/ttf',otf:'font/otf',json:'application/json',mp4:'video/mp4',cgtemplate:'application/x-clickgruda-template'};
 function validate(bytes:Buffer,ext:string){
   const start=bytes.subarray(0,16).toString('hex');
   const text=(ext==='svg'||ext==='json')?bytes.toString('utf8'):'';
@@ -15,6 +15,7 @@ function validate(bytes:Buffer,ext:string){
   if(['jpg','jpeg'].includes(ext)) return start.startsWith('ffd8ff');
   if(ext==='webp')return bytes.toString('ascii',0,4)==='RIFF'&&bytes.toString('ascii',8,12)==='WEBP';
   if(ext==='mp4')return bytes.toString('ascii',4,8)==='ftyp';
+  if(ext==='cgtemplate')return bytes.toString('binary',0,4)==='PK\u0003\u0004';
   if(ext==='woff')return bytes.toString('ascii',0,4)==='wOFF';
   if(ext==='woff2')return bytes.toString('ascii',0,4)==='wOF2';
   if(ext==='ttf')return start.startsWith('00010000');
@@ -42,10 +43,19 @@ export async function POST(req:Request){
     if(!MIME[ext])return ERR('Formato não suportado.');
     if(kind==='font'&&!['woff','woff2','ttf','otf'].includes(ext))return ERR('Fontes devem ser WOFF, WOFF2, TTF ou OTF.');
     if(kind==='animation'&&ext!=='json')return ERR('Animações devem ser Lottie JSON.');
-    if(kind==='template'&&!['png','jpg','jpeg','webp','mp4'].includes(ext))return ERR('Templates devem ser imagens ou MP4.');
+    if(kind==='template'&&!['png','jpg','jpeg','webp','mp4','cgtemplate'].includes(ext))return ERR('Templates devem ser imagens, MP4 ou pacote .cgtemplate.');
     if(['element','background'].includes(kind)&&!['png','jpg','jpeg','webp','svg'].includes(ext))return ERR('Use imagens estáticas ou SVG.');
     const bytes=Buffer.from(await file.arrayBuffer());
     if(!validate(bytes,ext))return ERR('Arquivo inválido, inseguro ou incompatível com o formato.');
+    if(ext==='cgtemplate'){
+      const JSZip=(await import('jszip')).default;
+      const zip=await JSZip.loadAsync(bytes,{checkCRC32:true});
+      const list=Object.keys(zip.files);if(list.length>12||!zip.file('manifest.json'))return ERR('Template inteligente inválido: manifest.json ausente ou muitos arquivos.');
+      if(list.some(path=>path.startsWith('/')||path.includes('..')||(!path.endsWith('/')&&!/^[-_\w./ ]+\.(png|jpe?g|webp|json)$/i.test(path))))return ERR('Template contém arquivos incompatíveis.');
+      const json=JSON.parse(await zip.file('manifest.json')!.async('text'));
+      if(json.format!=='clickgruda-smart-template'||json.version!==1||!Number.isFinite(json.width)||!Number.isFinite(json.height)||json.width>4096||json.height>4096||json.width<100||json.height<100)return ERR('Manifest de template inteligente inválido.');
+      for(const field of ['background','foreground','mask','shadow'])if(json[field]&&!zip.file(json[field]))return ERR(`Arquivo ausente no template: ${field}`);
+    }
     if(kind==='font'){const coverage=classifyFont(bytes,ext);tags.push(coverage.status);if(coverage.missing)tags.push('faltando-'+coverage.missing.slice(0,18));}
     const key=`creative/${kind}/${randomUUID()}.${ext}`;
     await r2Request('PUT',key,bytes,MIME[ext]);

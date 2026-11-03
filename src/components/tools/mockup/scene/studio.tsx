@@ -136,7 +136,7 @@ export function StudioLights() {
         shadow-radius={20 + light.softness * 80}
         shadow-blurSamples={12}
         shadow-bias={-0.0001}
-        shadow-normalBias={0.015}
+        shadow-normalBias={0.024}
       >
         <orthographicCamera
           attach="shadow-camera"
@@ -182,7 +182,7 @@ export function StudioLights() {
       ) : (
         <Environment
           key={envKey}
-          resolution={mobile ? 512 : 1024}
+          resolution={mobile ? 384 : 1024}
           frames={1}
           background={false}
           environmentIntensity={light.envIntensity}
@@ -414,6 +414,9 @@ export function FloatShadows() {
   const contactEnabled = useMockupStore((s) => s.bg.contactShadow);
   const shadowOpacity = useMockupStore((s) => s.light.shadowOpacity);
   const shadowColor = useMockupStore((s) => s.light.shadowColor);
+  const shadowShiftX = useMockupStore(s => s.light.shadowShiftX ?? 0);
+  const shadowShiftZ = useMockupStore(s => s.light.shadowShiftZ ?? 0);
+  const shadowSpread = useMockupStore(s => s.light.shadowSpread ?? 1);
   const companions = useMockupStore((s) => s.companions);
   const mug = useMockupStore((s) => s.mug);
   const mugPosY = mug.posY;
@@ -449,8 +452,8 @@ export function FloatShadows() {
             name="mug-ground-shadow"
             userData={{ objectId: m.id }}
             rotation={[-Math.PI / 2, 0, 0]}
-            position={[m.x, 0.02, m.z]}
-            scale={11 * m.scale * soft}
+            position={[m.x + shadowShiftX, 0.02, m.z + shadowShiftZ]}
+            scale={11 * m.scale * soft * shadowSpread}
           >
             <planeGeometry args={[1, 1]} />
             <meshBasicMaterial
@@ -609,7 +612,7 @@ function MirrorFloor() {
     >
       <planeGeometry args={[90, 90]} />
       <MeshReflectorMaterial
-        resolution={mobile ? 512 : 1024}
+        resolution={mobile ? 384 : 1024}
         blur={[mobile ? 200 : 320, mobile ? 60 : 100]}
         mixBlur={0.9}
         mixStrength={mobile ? 1.7 : 3}
@@ -645,11 +648,17 @@ export function StudioContactShadows() {
   const softness = useMockupStore((s) => s.light.softness);
   const shadowOpacity = useMockupStore((s) => s.light.shadowOpacity);
   const shadowColor = useMockupStore((s) => s.light.shadowColor);
+  const shadowShiftX = useMockupStore(s => s.light.shadowShiftX ?? 0);
+  const shadowShiftZ = useMockupStore(s => s.light.shadowShiftZ ?? 0);
+  const shadowSpread = useMockupStore(s => s.light.shadowSpread ?? 1);
   const companions = useMockupStore((s) => s.companions);
   const mug = useMockupStore((s) => s.mug);
   const mobile = useMemo(() => detectMobile(), []);
   const footprint = useMemo(() => sceneFootprint(mug, companions), [mug, companions]);
-  const contactScale = useMemo<[number, number]>(() => [footprint.width, footprint.depth], [footprint.width, footprint.depth]);
+  const spread = useMockupStore(s => s.light.shadowSpread ?? 1);
+  const shiftX = useMockupStore(s => s.light.shadowShiftX ?? 0);
+  const shiftZ = useMockupStore(s => s.light.shadowShiftZ ?? 0);
+  const contactScale = useMemo<[number, number]>(() => [footprint.width * spread, footprint.depth * spread], [footprint.width, footprint.depth, spread]);
   const floor = bg.floor ?? "continuo";
   if (!bg.contactShadow || floor === "flutuante") return null;
   const { x, z } = footprint;
@@ -662,24 +671,24 @@ export function StudioContactShadows() {
   return (
     <group name="studio-contact-shadows">
       <ContactPass
-        position={[x, topY + 0.001, z]}
+        position={[x + shiftX, topY + 0.006, z + shiftZ]}
         opacity={Math.min(1, (shadowOpacity ?? 0.44) * 1.05)}
         scale={contactScale}
         near={-0.05}
         blur={0.7 + softness * 0.6}
         far={0.8}
-        resolution={mobile ? 512 : 1024}
+        resolution={mobile ? 384 : 1024}
         color={shadowColor ?? "#242424"}
         frames={Infinity}
       />
       <ContactPass
-        position={[x, topY, z]}
+        position={[x + shiftX, topY + 0.003, z + shiftZ]}
         opacity={Math.min(1, (shadowOpacity ?? 0.44) * 0.75)}
         scale={contactScale}
         near={-0.05}
         blur={2.2 + softness * 2.4}
         far={4.2}
-        resolution={mobile ? 512 : 1024}
+        resolution={mobile ? 384 : 1024}
         color={shadowColor ?? "#242424"}
         frames={Infinity}
       />

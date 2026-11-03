@@ -25,6 +25,8 @@ export interface ExportOpts {
   background?: "scene" | "white" | "transparent";
   dpi?: number;
   supersample?: number;
+  /** Export-to-editor only: excludes shadows on floor and contact surface. */
+  hideGroundShadow?: boolean;
 }
 
 export interface ExportResult {
@@ -45,6 +47,7 @@ export async function exportImage(opts: ExportOpts): Promise<ExportResult> {
   // Let React paint the progress state before allocating the large buffer.
   await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
   const session = beginFrames(width, height, { transparent: usingTransparent,
+    hideGroundShadow: opts.hideGroundShadow,
     whiteBackground: opts.background === "white" || (requestedTransparent && opts.format === "jpeg"),
     ssCap: opts.supersample ?? 4 });
   try {
@@ -90,6 +93,7 @@ export async function exportImageCanvas(
   const requestedTransparent = opts.background === "transparent" || (opts.background == null && opts.transparent);
   const session = beginFrames(width, height, {
     transparent: requestedTransparent && opts.format !== "jpeg",
+    hideGroundShadow: opts.hideGroundShadow,
     whiteBackground: opts.background === "white" || (requestedTransparent && opts.format === "jpeg"),
     ssCap: 2,
   });
