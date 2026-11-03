@@ -12,13 +12,43 @@ export function detectImageSignature(bytes:Uint8Array):ImageOutputFormat|null{
  return null;
 }
 const FORMAT_LABEL:Record<ImageOutputFormat,string>={png:'PNG',jpeg:'JPEG',webp:'WebP'};
+/** Validate the actual browser export with cheap boundary reads. This rejects a
+ * truncated encoder result without loading a potentially large photo into RAM.
+ * It checks container boundaries, not the decoded pixels/colour profile.
+ */
 export async function assertExportBlobFormat(blob:Blob,expected:ImageOutputFormat):Promise<void>{
  if(blob.size<12)throw new Error('O navegador produziu uma imagem vazia ou incompleta.');
- const prefix=new Uint8Array(await blob.slice(0,16).arrayBuffer());
+ const prefix=new Uint8Array(await blob.slice(0,20).arrayBuffer());
  const actual=detectImageSignature(prefix);
  if(actual!==expected){
   if(actual)throw new Error(`O navegador devolveu ${FORMAT_LABEL[actual]} em vez de ${FORMAT_LABEL[expected]}. Escolha PNG ou utilize um navegador com suporte a ${FORMAT_LABEL[expected]}.`);
   throw new Error('O navegador produziu um arquivo de imagem não reconhecido. Nenhum download incorreto foi salvo.');
+ }
+ if(actual==='png'){
+  // PNG begins with a 13-byte IHDR and ends in the fixed zero-length IEND.
+  if(blob.size<45)throw new Error('O PNG exportado está incompleto. Tente exportar novamente.');
+  if(prefix[8]!==0||prefix[9]!==0||prefix[10]!==0||prefix[11]!==13||
+   String.fromCharCode(...prefix.subarray(12,16))!=='IHDR')
+   throw new Error('O PNG exportado não possui cabeçalho IHDR válido.');
+  const tail=new Uint8Array(await blob.slice(-12).arrayBuffer());
+  const iend=[0,0,0,0,73,69,78,68,174,66,96,130];
+  if(!iend.every((value,index)=>tail[index]===value))
+   throw new Error('O PNG exportado está incompleto ou sem finalização válida.');
+ }else if(actual==='jpeg'){
+  const tail=new Uint8Array(await blob.slice(-2).arrayBuffer());
+  if(tail[0]!==0xff||tail[1]!==0xd9)
+   throw new Error('O JPEG exportado está incompleto ou sem marcador de finalização.');
+ }else{
+  // WebP is a RIFF file: 4-byte little-endian size excludes the RIFF header.
+  // A real image also needs a VP8/VP8L/VP8X image chunk after WEBP.
+  if(prefix.length<20)throw new Error('O WebP exportado está incompleto.');
+  const view=new DataView(prefix.buffer,prefix.byteOffset,prefix.byteLength);
+  const declaredSize=view.getUint32(4,true)+8;
+  const firstChunk=String.fromCharCode(...prefix.subarray(12,16));
+  const firstChunkBytes=view.getUint32(16,true);
+  const firstChunkEnd=20+firstChunkBytes+(firstChunkBytes%2);
+  if(declaredSize!==blob.size||!['VP8 ','VP8L','VP8X'].includes(firstChunk)||firstChunkBytes<1||firstChunkEnd>blob.size)
+   throw new Error('O WebP exportado possui tamanho ou estrutura incompatível. Nenhum arquivo incorreto foi salvo.');
  }
 }
 
@@ -71,5 +101,10 @@ export function addPngDpiToBytes(bytes:Uint8Array,dpi:number):Uint8Array{
 }
 export async function addPngDpiMetadata(blob:Blob,dpi:number):Promise<Blob>{
  const modified=addPngDpiToBytes(new Uint8Array(await blob.arrayBuffer()),dpi);
- return new Blob([modified],{type:'image/png'});
+ // BlobPart requires an ArrayBuffer-backed payload on modern TypeScript DOM types.
+ // The function returns Uint8Array<ArrayBufferLike>, which can also represent
+ // SharedArrayBuffer: copy into an explicitly owned ArrayBuffer instead of casting.
+ const owned=new ArrayBuffer(modified.byteLength);
+ new Uint8Array(owned).set(modified);
+ return new Blob([owned],{type:'image/png'});
 }

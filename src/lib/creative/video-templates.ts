@@ -77,6 +77,14 @@ export function videoOutputSize(width:number,height:number,maxWidth=1280,maxHeig
  return {width:even(width*factor),height:even(height*factor)};
 }
 /** Cover fills the whole template; contain leaves letterboxing without cutting the mug. */
+/** Export is not complete until the muxer and MP4 sample table pass validation.
+ * Keep 100% reserved for verified successful output, even for a 1-frame clip.
+ */
+export function safeVideoProgress(completedFrames:number,totalFrames:number):number{
+ if(!Number.isSafeInteger(completedFrames)||!Number.isSafeInteger(totalFrames)||totalFrames<1||completedFrames<0||completedFrames>totalFrames)
+  throw new Error('Progresso de exportação inválido.');
+ return Math.min(99,Math.round(completedFrames/totalFrames*100));
+}
 export function videoFrameBounds(sourceW:number,sourceH:number,outputW:number,outputH:number,fit:'cover'|'contain'='cover'){
  if(![sourceW,sourceH,outputW,outputH].every(v=>Number.isFinite(v)&&v>0))throw new Error('Dimensões do quadro inválidas');
  const ratio=fit==='contain'?Math.min(outputW/sourceW,outputH/sourceH):Math.max(outputW/sourceW,outputH/sourceH);
@@ -252,7 +260,7 @@ export async function renderMp4Template(doc:DesignDocument,onProgress?:(n:number
    }
    const frame=new VideoFrame(stage,{timestamp:Math.round(i*1e6/fps),duration:Math.round(1e6/fps)});
    encoder.encode(frame,{keyFrame:i%fps===0});frame.close();
-   if(i%8===0)onProgress?.(Math.round((i+1)/frames*100));
+   if(i%8===0)onProgress?.(safeVideoProgress(i+1,frames));
    if(encoder.encodeQueueSize>4)await flushVideoEncoder(encoder,signal);
   }
   await flushVideoEncoder(encoder,signal);if(encodingError)throw encodingError;abortIfNeeded(signal);
