@@ -13,7 +13,7 @@ function load(file,stubs={}){
  return module.exports;
 }
 const videoPath='src/lib/creative/video-templates.ts';
-const video=()=>load(videoPath,{'mp4-muxer':{},'./design':{}});
+const video=()=>load(videoPath,{'mp4-muxer':{},'./mp4-integrity':{inspectRenderedMp4:()=>({})},'./design':{}});
 
 test('H.264: configura saída AVC em vez de Annex B, com perfil baseline alternativo',async()=>{
  const before=globalThis.VideoEncoder;const calls=[];
@@ -48,7 +48,7 @@ test('MP4: não entrega arquivo se encoder emitir menos quadros que o necessári
  };
  const muxer={ArrayBufferTarget:class{buffer=new Uint8Array(256).buffer},Muxer:class{addVideoChunk(){}finalize(){finalized=true}}};
  try{
-  const engine=load(videoPath,{'mp4-muxer':muxer,'./design':{assertDesignAssetsReady:async()=>{},drawDesign:async()=>{}}});
+  const engine=load(videoPath,{'mp4-muxer':muxer,'./mp4-integrity':{inspectRenderedMp4:()=>({})},'./design':{assertDesignAssetsReady:async()=>{},drawDesign:async()=>{}}});
   const design={width:800,height:450,background:'#fff',nodes:[],video:{src:'data:video/mp4;base64,YQ==',start:0,end:.125}};
   await assert.rejects(engine.renderMp4Template(design),/incompleta.*1 de 3 quadros/);
   assert.equal(closed,true);assert.equal(finalized,false);

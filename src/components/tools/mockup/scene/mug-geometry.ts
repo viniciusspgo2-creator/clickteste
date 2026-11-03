@@ -6,6 +6,7 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import type { HandleStyle } from "../lib/handle-styles";
 import { referenceHandleSection } from "../lib/reference-handle-section";
+import { LIVE_SUB_HANDLE_POINTS } from "../lib/reference-handle-profile";
 export type { HandleStyle } from "../lib/handle-styles";
 import { MUG, V_EXT, V_INT, texV, type PrintArea } from "../lib/config";
 
@@ -232,13 +233,7 @@ const REFERENCE_HANDLE_POINTS: Partial<Record<HandleStyle, number[][]>> = {
   // Dimensões relativas estimadas da única vista frontal (não é escaneamento 3D).
   // Perfil estimado da referência fotográfica frontal (não digitalizado em 3D).
   // Dois apoios discretos na parede, abertura longa em D e arco externo suave.
-  livesub: [
-    [0,7.58,-3.92],[0,7.58,-4.38],[0,7.51,-5.02],
-    [0,7.28,-5.68],[0,6.85,-6.36],[0,6.13,-7.02],
-    [0,5.36,-7.34],[0,4.45,-7.39],[0,3.53,-7.15],
-    [0,2.78,-6.63],[0,2.26,-5.94],[0,2.02,-5.13],
-    [0,2.03,-4.44],[0,2.03,-3.92]
-  ],
+  livesub: LIVE_SUB_HANDLE_POINTS.map(point => [...point]),
   spoon: [[0,7.7,-3.89],[0,7.7,-4.55],[0,7.3,-5.75],[0,6.4,-6.7],[0,5.1,-6.9],[0,3.8,-6.15],[0,2.5,-4.65],[0,2.5,-3.89]],
   "heart-asymmetric": [[0,8,-3.89],[0,8,-4.3],[0,7.85,-4.55],[0,6.7,-5.25],[0,6.9,-6.15],[0,7.05,-7.3],[0,6.4,-7.95],[0,5.25,-7.8],[0,4.1,-6.85],[0,3,-5.2],[0,2.35,-4.55],[0,2.35,-3.89]],
   heart: [[0,7.45,-3.89],[0,7.45,-4.35],[0,8.1,-4.8],[0,8.15,-5.3],[0,7.5,-5.95],[0,6.95,-6.25],[0,7.2,-7.15],[0,6.85,-7.95],[0,5.9,-8.12],[0,4.75,-7.45],[0,3.65,-6.15],[0,2.8,-5.2],[0,3.15,-4.75],[0,3.65,-4.35],[0,3.65,-3.89]],
@@ -262,7 +257,7 @@ export function buildHandleGeometry(style: HandleStyle = "classic"): THREE.Buffe
   const rounded = style !== "classic";
   const sectionX = style === 'livesub' ? 0.46 : style === "heart" || style === "heart-asymmetric" ? 0.42 : style === "oval-gold" ? 0.49 : rounded ? 0.58 : HANDLE_A_X;
   const sectionN = style === 'livesub' ? 0.34 : style === "heart" || style === "heart-asymmetric" ? 0.42 : style === "spoon" ? 0.39 : HANDLE_B_N;
-  const weldStrength = style === 'livesub' ? 0.24 : style === "heart" || style === "heart-asymmetric" ? 0.45 : 0.72;
+  const weldStrength = style === 'livesub' ? 0.12 : style === "heart" || style === "heart-asymmetric" ? 0.45 : 0.72;
   const tubular = 144,
     radial = 40,
     ring = radial + 1;
@@ -291,10 +286,14 @@ export function buildHandleGeometry(style: HandleStyle = "classic"): THREE.Buffe
       // Superelipse arredondada, ligeiramente mais larga na face externa.
       const ca = Math.cos(a),
         sa = Math.sin(a);
+      // A alça da referência tem faces suaves um pouco achatadas, como
+      // porcelana moldada. Outras alças preservam a seção anterior.
+      const shapeExponentX = style === "livesub" ? 0.88 : rounded ? 1 : 0.85;
+      const shapeExponentN = style === "livesub" ? 0.90 : rounded ? 1 : 0.9;
       const ox =
-        Math.sign(ca) * Math.pow(Math.abs(ca), rounded ? 1 : 0.85) * sectionX * weld * section.width;
+        Math.sign(ca) * Math.pow(Math.abs(ca), shapeExponentX) * sectionX * weld * section.width;
       const on =
-        Math.sign(sa) * Math.pow(Math.abs(sa), rounded ? 1 : 0.9) * sectionN * weld * section.thickness;
+        Math.sign(sa) * Math.pow(Math.abs(sa), shapeExponentN) * sectionN * weld * section.thickness;
       positions.push(
         center.x + ox,
         center.y + perp.y * on,

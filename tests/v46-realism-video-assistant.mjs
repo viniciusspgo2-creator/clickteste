@@ -17,7 +17,7 @@ function load(name,stubs={}){
 }
 const profile=load('src/components/tools/mockup/lib/reference-handle-section.ts').referenceHandleSection;
 const history=load('src/lib/creative/assistant-history.ts').sanitizeAssistantHistory;
-const video=load('src/lib/creative/video-templates.ts',{'mp4-muxer':{},'./design':{}});
+const video=load('src/lib/creative/video-templates.ts',{'mp4-muxer':{},'./mp4-integrity':{inspectRenderedMp4:()=>({})},'./design':{}});
 test('Alça: seção progressiva nas junções e simetria de largura',()=>{
  assert.ok(profile(.3).width>profile(0).width);
  assert.ok(profile(.5).width>profile(.1).width);

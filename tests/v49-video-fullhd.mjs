@@ -16,7 +16,7 @@ function load(file,stubs={}){
  });
  return module.exports;
 }
-const video=()=>load('src/lib/creative/video-templates.ts',{'mp4-muxer':{},'./design':{}});
+const video=()=>load('src/lib/creative/video-templates.ts',{'mp4-muxer':{},'./mp4-integrity':{inspectRenderedMp4:()=>({})},'./design':{}});
 const doc={width:1920,height:1080,background:'#ffffff',nodes:[],video:{src:'data:video/mp4;base64,YQ==',start:0,end:2}};
 
 test('MP4 mantém 720p como padrão e Full HD apenas quando selecionado',()=>{
@@ -66,7 +66,7 @@ test('MP4 usa configuração selecionada no muxer, quadros e nome do arquivo',as
   addVideoChunk(){}finalize(){calls.finalized++}
  }};
  try{
-  const engine=load('src/lib/creative/video-templates.ts',{'mp4-muxer':muxer,'./design':{assertDesignAssetsReady:async()=>{},drawDesign:async()=>{}}});
+  const engine=load('src/lib/creative/video-templates.ts',{'mp4-muxer':muxer,'./mp4-integrity':{inspectRenderedMp4:()=>({})},'./design':{assertDesignAssetsReady:async()=>{},drawDesign:async()=>{}}});
   const result=await engine.renderMp4Template({...doc,video:{...doc.video,end:.1}},n=>calls.progress.push(n),undefined,{fps:30,preset:'fullhd'});
   assert.equal(result.type,'video/mp4');
   assert.equal(calls.frames.length,3);assert.equal(calls.chunks,3);

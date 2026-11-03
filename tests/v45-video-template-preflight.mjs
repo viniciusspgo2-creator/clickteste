@@ -14,7 +14,7 @@ function load(path,stubs={}){
  },module,module.exports);
  return module.exports;
 }
-const video=()=>load('src/lib/creative/video-templates.ts',{'mp4-muxer':{},'./design':{}});
+const video=()=>load('src/lib/creative/video-templates.ts',{'mp4-muxer':{},'./mp4-integrity':{inspectRenderedMp4:()=>({})},'./design':{}});
 const smart=()=>load('src/lib/creative/smart-templates.ts',{jszip:{},'./design':{uid:()=> 'mock-id'}});
 const doc={width:1920,height:1080,nodes:[{id:'t1',keyframes:[{t:0}],visible:true},{id:'t2',keyframes:[{t:0}],visible:false}],video:{src:'data:video/mp4;base64,xxx',start:0,end:7}};
 test('Preflight MP4: conserva resolução 720p, informa fps e conta apenas animações visíveis',()=>{

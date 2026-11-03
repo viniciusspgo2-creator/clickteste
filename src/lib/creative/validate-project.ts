@@ -15,9 +15,16 @@ const mediaUrl=(value:unknown,type:'image'|'video')=>{
  if(/^data:image\/(png|jpeg|webp|gif|bmp|avif);base64,/i.test(s))return true;
  // Bundled vector backgrounds are embedded as SVG data URIs.
  if(/^data:image\/svg\+xml[,;]/i.test(s)){
-  let raw=s.slice(19);
-  try{raw=decodeURIComponent(raw);}catch{return false;}
-  return !/<\s*(script|foreignObject|iframe|image|use|animate|set)\b|\bon\w+\s*=|javascript\s*:|\b(href|src)\s*=|<!DOCTYPE|<!ENTITY|@import|url\s*\(\s*https?:/i.test(raw);
+  const comma=s.indexOf(',');if(comma<0)return false;
+  const mediaType=s.slice(0,comma);
+  // Decode both URI-encoded and base64 SVG *before* inspecting its markup.
+  // Otherwise a data:image/svg+xml;base64 payload can hide script/links.
+  if(!/^data:image\/svg\+xml(?:;utf8|;charset=utf-8)?(?:;base64)?$/i.test(mediaType))return false;
+  let raw:string;
+  try{raw=mediaType.toLowerCase().endsWith(';base64')?atob(s.slice(comma+1)):decodeURIComponent(s.slice(comma+1));}
+  catch{return false;}
+  if(raw.length>2_000_000)return false;
+  return !/<\s*(script|foreignObject|iframe|image|use|animate|set)\b|\bon[a-z]+\s*=|javascript\s*:|\b(?:href|src)\s*=|<!DOCTYPE|<!ENTITY|@import|url\s*\(\s*(?:https?:|\/\/)|<\?xml-stylesheet/i.test(raw);
  }
  return false;
 };

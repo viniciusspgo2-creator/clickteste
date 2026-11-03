@@ -38,6 +38,7 @@ import { studioRefs } from "./studio-refs";
 import { MUG_CONTACT_LAYER, sceneFootprint } from "./scene-layout";
 import { createSoftboxTexture } from "./softbox";
 import { projectedShadowPose } from "../lib/shadow-pose";
+import { contactShadowRenderBudget, contactShadowSceneKey } from "../lib/contact-shadow-policy";
 
 function configureContactCamera(group: THREE.Group | null) {
   group?.traverse(object => {
@@ -649,52 +650,63 @@ export function Ground() {
 
 export function StudioContactShadows() {
   const bg = useMockupStore((s) => s.bg);
-  const softness = useMockupStore((s) => s.light.softness);
-  const shadowOpacity = useMockupStore((s) => s.light.shadowOpacity);
-  const shadowColor = useMockupStore((s) => s.light.shadowColor);
-  const shadowShiftX = useMockupStore(s => s.light.shadowShiftX ?? 0);
-  const shadowShiftZ = useMockupStore(s => s.light.shadowShiftZ ?? 0);
-  const shadowSpread = useMockupStore(s => s.light.shadowSpread ?? 1);
+  const light = useMockupStore((s) => s.light);
   const companions = useMockupStore((s) => s.companions);
   const mug = useMockupStore((s) => s.mug);
+  const autoRotate = useMockupStore((s) => s.camera.autoRotate);
+  const tool = useMockupStore((s) => s.tool);
   const mobile = useMemo(() => detectMobile(), []);
   const footprint = useMemo(() => sceneFootprint(mug, companions), [mug, companions]);
-  const spread = useMockupStore(s => s.light.shadowSpread ?? 1);
-  const shiftX = useMockupStore(s => s.light.shadowShiftX ?? 0);
-  const shiftZ = useMockupStore(s => s.light.shadowShiftZ ?? 0);
-  const contactScale = useMemo<[number, number]>(() => [footprint.width * spread, footprint.depth * spread], [footprint.width, footprint.depth, spread]);
+  const budget = contactShadowRenderBudget({ autoRotate, tool, mobile });
   const floor = bg.floor ?? "continuo";
+  // Remount the depth passes after a pose/light change, so a still scene can
+  // reuse two clean captures instead of rendering two passes on every frame.
+  // Gestures and 360° animation retain live depth updates.
+  const sceneKey = useMemo(
+    () => contactShadowSceneKey(mug, companions, light, floor),
+    [mug, companions, light, floor],
+  );
   if (!bg.contactShadow || floor === "flutuante") return null;
-  const { x, z } = footprint;
+  const contactScale: [number, number] = [
+    footprint.width * (light.shadowSpread ?? 1),
+    footprint.depth * (light.shadowSpread ?? 1),
+  ];
+  const x = footprint.x + (light.shadowShiftX ?? 0);
+  const z = footprint.z + (light.shadowShiftZ ?? 0);
   const topY =
     floor === "pedestal"
       ? PEDESTAL_H + 0.002
       : floor === "base-redonda" || floor === "base-quadrada"
         ? PLATE_H + 0.002
         : 0.002;
+  const softness = light.softness;
+  const shadowOpacity = light.shadowOpacity;
+  const shadowColor = light.shadowColor;
   return (
     <group name="studio-contact-shadows">
       <ContactPass
-        position={[x + shiftX, topY + 0.006, z + shiftZ]}
+        key={`contact-sharp-${sceneKey}-${budget.dynamic}`}
+        position={[x, topY + 0.006, z]}
         opacity={Math.min(1, (shadowOpacity ?? 0.44) * 1.05)}
         scale={contactScale}
         near={-0.05}
         blur={0.7 + softness * 0.6}
         far={0.8}
-        resolution={mobile ? 384 : 1024}
+        resolution={budget.resolution}
         color={shadowColor ?? "#242424"}
-        frames={Infinity}
+        frames={budget.frames}
       />
       <ContactPass
-        position={[x + shiftX, topY + 0.003, z + shiftZ]}
+        key={`contact-soft-${sceneKey}-${budget.dynamic}`}
+        position={[x, topY + 0.003, z]}
         opacity={Math.min(1, (shadowOpacity ?? 0.44) * 0.75)}
         scale={contactScale}
         near={-0.05}
         blur={2.2 + softness * 2.4}
         far={4.2}
-        resolution={mobile ? 384 : 1024}
+        resolution={budget.resolution}
         color={shadowColor ?? "#242424"}
-        frames={Infinity}
+        frames={budget.frames}
       />
     </group>
   );

@@ -18,7 +18,7 @@ function load(p,stubs={}){
  });
  return mod.exports;
 }
-const video=()=>load('src/lib/creative/video-templates.ts',{'mp4-muxer':{},'./design':{}});
+const video=()=>load('src/lib/creative/video-templates.ts',{'mp4-muxer':{},'./mp4-integrity':{inspectRenderedMp4:()=>({})},'./design':{}});
 const template=()=>load('src/lib/creative/smart-templates.ts',{jszip:{},'./design':{uid:()=> 'generated-id'}});
 const mockup={id:'one',kind:'image',x:80,y:30,w:800,h:400,angle:24,opacity:1,role:'mockup'};
 const slot={x:300,y:100,w:500,h:400};
@@ -70,7 +70,7 @@ test('UI, schema e renderer aceitam fit e previsualização do mesmo enquadramen
 test('Studio 3D integra alça calibrada e contato com duas penumbras leves',()=>{
  const geometry=source('src/components/tools/mockup/scene/mug-geometry.ts');
  const studio=source('src/components/tools/mockup/scene/studio.tsx');
- assert.match(geometry,/livesub: \[/);
+ assert.match(geometry,/livesub: (?:\[|LIVE_SUB_HANDLE_POINTS\.map)/);
  assert.match(geometry,/style === 'livesub' \? 0\.46/);
  assert.match(studio,/name="mug-contact-penumbra"/);
  assert.match(studio,/opacity \* 0\.34/);

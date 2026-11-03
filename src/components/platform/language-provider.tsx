@@ -73,6 +73,12 @@ const words:Record<string,[string,string]>={
  'Limpar máscara':['Clear mask','Quitar máscara'],
  'Máscara de imagem':['Image mask','Máscara de imagen'],
  'Reencaixar caneca':['Refit mug','Reencajar taza'],
+ 'Testar compatibilidade do MP4':['Check MP4 compatibility','Verificar compatibilidad MP4'],
+ 'Verificando vídeo…':['Checking video…','Verificando video…'],
+ 'Compatibilidade inicial confirmada':['Initial compatibility confirmed','Compatibilidad inicial confirmada'],
+ 'A exportação completa depende também da memória e do hardware.':['Full export also depends on device memory and hardware.','La exportación completa también depende de la memoria y el hardware.'],
+ 'Verificação não passou':['Compatibility check failed','La verificación no pasó'],
+ 'Falha desconhecida':['Unknown error','Error desconocido'],
  'Caneca reenquadrada no template.':['Mug refitted to the template.','Taza reencajada en la plantilla.'],
 };
 const extraWords:Record<string,[string,string]> = {

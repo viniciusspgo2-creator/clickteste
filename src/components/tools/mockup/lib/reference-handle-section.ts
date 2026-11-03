@@ -8,8 +8,10 @@ export function referenceHandleSection(t: number): { width: number; thickness: n
   if (!Number.isFinite(t)) throw new Error('Parâmetro da alça inválido');
   const u = Math.max(0, Math.min(1, t));
   const dist = Math.min(u, 1 - u);
-  const transition = Math.max(0, Math.min(1, dist / 0.085));
-  const smooth = transition * transition * (3 - 2 * transition);
+  const transition = Math.max(0, Math.min(1, dist / 0.15));
+  // Quinto grau na raiz: aceleração sem quina nem caroço onde a alça
+  // emerge da parede. A seção cheia só começa após a junção.
+  const smooth = transition * transition * transition * (10 + transition * (-15 + 6 * transition));
   // A seção termina dentro da cerâmica com pescoço fino, sem calço aparente.
   const root = 0.35 + 0.65 * smooth;
   // Na parte onde a mão segura, a seção é um pouco mais cheia e lisa.

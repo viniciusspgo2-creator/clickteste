@@ -150,3 +150,6 @@
 .cr-mp4-options .cr-dialog-footer{margin:0;flex-wrap:wrap}
 .cr-mp4-options label{min-width:0}
 @media(max-width:600px){.cr-mp4-options{padding:12px}.cr-mp4-options .cr-dialog-footer>button{flex:1;justify-content:center}}
+
+/* V5.0: resultado da verificação local de H.264 antes da exportação. */
+.cr-video-diagnostic{font-size:12px;line-height:1.5;padding:10px 12px;border:1px solid rgba(249,115,22,.35);border-radius:10px;background:rgba(249,115,22,.08);color:inherit;overflow-wrap:anywhere;}

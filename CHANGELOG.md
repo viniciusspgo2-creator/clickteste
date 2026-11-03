@@ -1,3 +1,26 @@
+## V5.5 — Proteção do backup local e projetos portáteis (staging)
+
+- Exportação `.cgdesign` agora incorpora imagens, máscaras e vídeos que utilizam referências `blob:`/HTTPS, com erro explícito para recursos não recuperáveis.
+- Salvamento manual no navegador preserva mídias temporárias dentro do limite de armazenamento; rascunho automático não promete salvar URLs `blob:` vencidas.
+- Importação de `.cgdesign` antigo com URLs temporárias avisa sobre a incompatibilidade.
+- Validação reforçada de SVG base64 contra conteúdo ativo/referências externas.
+- 116 testes locais aprovados e teste de backup com `FileReader` no Chromium; build Next.js completo pendente de dependências npm.
+- Relatório: `docs/CLICKGRUDA-V5-5-BACKUP-PORTATIL-SEGURANCA.md`.
+
+## V5.4 — Transições seguras de templates e build preventivo (staging)
+
+- Corrige concorrência ao importar templates inteligentes pelo Admin, por upload ou pelo exemplo; ignora resultados obsoletos em vez de sobrescrever o trabalho.
+- Fundos comuns não substituem edições feitas durante a carga e preservam máscaras autorais ao limpar máscaras automáticas.
+- Workflow GitHub Actions com testes de regressão, checagem TypeScript e build sem execução de migrações.
+- 110/110 testes locais e 665 imports conferidos; build Next.js não executado por dependências ausentes (`prisma: not found`).
+
+## V5.0 — Diagnóstico local do MP4 antes da exportação (staging)
+
+- Novo botão de compatibilidade H.264, que verifica codec, vídeo decodificável, leitura/CORS e resolução sem iniciar renderização de MP4.
+- Mesmo cálculo de trecho de vídeo na checagem e no exportador; resultado cancela/é descartado ao trocar arquivo, intervalo, resolução ou FPS.
+- Avisos de compatibilidade traduzidos em PT/EN/ES e status honesto de indisponibilidade temporária do provedor IA, com guia local.
+- 86 testes locais aprovados, incluindo a regressão V4.9, e 659 imports internos sem problemas. Build Next.js completo e H.264 real ainda pendentes na Vercel.
+
 ## V4.9 — MP4 Full HD opcional e correções TS da Vercel (staging)
 
 - Editor: MP4 H.264 em 720p ou até 1080p, 24/30 fps; os controles de exportação e a inspeção usam os mesmos parâmetros.
@@ -151,3 +174,22 @@ Corrigidos a restauração do preview após exportação, a tipagem do giro de v
 - Prompts: `FUNDOS_PROMPTS.md`; resultados e comandos: `VALIDACAO_MOCKUP_STUDIO.md`.
 - Limites e evolução: `PROXIMA_VERSAO.md`. Não se declara equivalência integral aos concorrentes.
 - Nenhum deploy, migração, alteração de ambiente, dependências, lockfile, configuração de build ou API administrativa/banco.
+
+## V5.1 — Validação de integridade do MP4 (staging)
+- Novo `mp4-integrity.ts`: valida contêiner H.264, resolução e amostras antes de entregar download MP4.
+- Exportador verifica a estrutura do MP4 depois de finalizar o multiplexador e interrompe downloads incorretos.
+- Pré-verificação de vídeo testa também imagens/máscaras das camadas visíveis antes de decodificar.
+- Dois MP4s sintéticos de referência em `tests/fixtures`, testes adicionais e relatório `docs/CLICKGRUDA-V5-1-INTEGRIDADE-MP4.md`.
+- 92 testes locais aprovados; build Next.js e WebCodecs completos ainda pendentes de homologação na Vercel.
+
+## V5.2 — Geometria da alça e eficiência das sombras de contato (staging)
+- Referência 325 ml: pontos de contorno independentes e transição suave das junções à parede cerâmica, sem alterar IDs de modelos antigos.
+- Dois passes de sombra de contato são reutilizados em cena estática e atualizados ao mudar pose/iluminação; modo dinâmico preservado no giro e nas ferramentas de transformação.
+- Ajuste da resolução enquanto o usuário arrasta objetos para reduzir a carga em GPU mobile.
+- Testes de geometria, invalidação de sombra, privacidade da chave de cache e regressões. Consultar `docs/CLICKGRUDA-V5-2-ALCA-SOMBRAS.md`.
+
+## V5.3 — Transferência transparente e segurança da exportação (staging)
+- Recorte automático do espaço alfa vazio do PNG ao usar Studio 3D → Editor. Conserva pixels de cerâmica/estampa e uma margem de segurança, sem alterar a composição 3D.
+- Transferência ao Editor funciona mesmo quando o tamanho escolhido excede o limite do download comum (a imagem transferida continua limitada a 2400 px).
+- Verificação do MIME real no download PNG/JPEG/WebP para evitar arquivo com extensão incorreta.
+- Fallback de decodificação local do PNG, testes de regressão e teste isolado no Chromium. Relatório: `docs/CLICKGRUDA-V5-3-TRANSFERENCIA-E-EXPORTACAO.md`.

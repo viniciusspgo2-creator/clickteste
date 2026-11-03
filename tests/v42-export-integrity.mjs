@@ -67,7 +67,7 @@ test('MP4 H.264: tentativa de perfil alternativo quando o primeiro não é supor
   return {supported:true,config};
  }};
  try{
-  const video=transpiled('src/lib/creative/video-templates.ts',{'mp4-muxer':{},'./design':{}});
+  const video=transpiled('src/lib/creative/video-templates.ts',{'mp4-muxer':{},'./mp4-integrity':{inspectRenderedMp4:()=>({})},'./design':{}});
   const result=await video.chooseH264Config(1280,720,24);
   assert.equal(result.codec,'avc1.4d001f');
   assert.deepEqual(attempted,['avc1.42001f','avc1.4d001f']);

@@ -75,6 +75,14 @@ export async function exportImage(opts: ExportOpts): Promise<ExportResult> {
         opts.quality,
       ),
     );
+    // Some browsers silently export PNG when WebP is unsupported. Never save
+    // PNG bytes under a .webp/.jpg extension: the downstream Editor and print
+    // software would misinterpret the file.
+    if (blob.type !== mime) {
+      throw new ExportError(
+        `Este navegador não conseguiu gerar ${opts.format.toUpperCase()}. Use PNG ou outro formato compatível.`,
+      );
+    }
     if (opts.dpi && opts.format === "png") blob = await withPngDpi(blob, opts.dpi);
     const ext = opts.format === "jpeg" ? "jpg" : opts.format;
     const filename = `mockup-caneca-${width}x${height}-${Date.now()}.${ext}`;

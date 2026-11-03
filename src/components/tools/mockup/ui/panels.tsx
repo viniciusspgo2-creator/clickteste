@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { writeHandoff } from "@/lib/creative/handoff";
+import { trimTransparentMockup } from "@/lib/creative/transparent-crop";
 import { FinalPreviewViewer } from "./final-preview-viewer";
 import {
   ImagePlus,
@@ -1703,7 +1704,7 @@ function ImageTab() {
   };
 
   const sendToEditor = async () => {
-    if (busy || sending || tooBig) return;
+    if (busy || sending) return;
     setSending(true);
     try {
       // Sem sombra de piso no PNG transferido: o editor permite refazê-la para cada fundo.
@@ -1715,7 +1716,10 @@ function ImageTab() {
         format: "png", quality: 1, transparent: true,
         background: "transparent", supersample: 2, hideGroundShadow: true,
       });
-      await writeHandoff(res.blob);
+      // Remova apenas as margens alfa vazias. O Editor encaixa a caneca pelo
+      // tamanho real do produto, não pelo quadro 16:9 da exportação.
+      const handoff = await trimTransparentMockup(res.blob);
+      await writeHandoff(handoff.blob);
       setOpen(false);
       router.push("/editor-artes?from=mockup");
     } catch (e) {
@@ -1965,12 +1969,12 @@ function ImageTab() {
         }}><Download className="h-4 w-4" />Confirmar e baixar imagem</PrimaryButton>
       </div>}
 
-      <button type="button" onClick={() => void sendToEditor()} disabled={busy || sending || tooBig}
+      <button type="button" onClick={() => void sendToEditor()} disabled={busy || sending}
         className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#e67f2c]/50 bg-[#422719] px-4 py-3 text-sm font-bold text-[#ffad68] transition-colors hover:bg-[#59321f] disabled:opacity-40">
         {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
         {sending ? "Transferindo composição..." : "Enviar mockup para o Editor de Artes"}
       </button>
-      <p className="text-xs text-neutral-500">A caneca é transferida em PNG transparente pelo próprio navegador, sem upload para o servidor.</p>
+      <p className="text-xs text-neutral-500">A caneca é transferida em PNG transparente pelo próprio navegador, sem upload para o servidor. As margens transparentes são recortadas automaticamente para facilitar o encaixe nos templates.</p>
       <PrimaryButton
         onClick={doExport}
         disabled={busy || tooBig}

@@ -4,6 +4,7 @@
  */
 import {Muxer,ArrayBufferTarget} from 'mp4-muxer';
 import {assertDesignAssetsReady,drawDesign,type DesignDocument,type DesignNode} from './design';
+import {inspectRenderedMp4} from './mp4-integrity';
 /** Full HD is opt-in: HD 720p remains the default on low-powered devices. */
 export type VideoExportPreset='hd'|'fullhd';
 export type VideoExportOptions={preset?:VideoExportPreset;fps?:24|30};
@@ -138,6 +139,64 @@ export function inspectVideoExport(doc:DesignDocument,fps=24,preset:VideoExportP
  if(output.width*output.height>(preset==='fullhd'?1920*1080:1280*720))throw new Error('Resolução de vídeo excede o limite do Editor.');
  return {width:output.width,height:output.height,fps,maxDuration:20,hasAudio:false,animatedNodes:doc.nodes.filter(n=>n.visible!==false&&n.keyframes?.length).length};
 }
+/** Preflight real no navegador: testa codec, decodificação e leitura do quadro
+ * antes de uma exportação custosa. Não promete sucesso de codificação de toda a
+ * linha do tempo; isso ainda depende de memória, hardware e quadros restantes.
+ * Nenhum upload ou chamada à API é feito. */
+export type VideoBrowserPreflight={
+ width:number;height:number;fps:24|30;codec:string;
+ sourceWidth:number;sourceHeight:number;duration:number;
+ start:number;end:number;frameCount:number;
+};
+export function resolveVideoInterval(
+ source:NonNullable<DesignDocument['video']>,duration:number,
+):{start:number;end:number}{
+ if(!Number.isFinite(duration)||duration<=0)throw new Error('A duração do MP4 não foi identificada. Utilize um arquivo completo.');
+ if(source.start!==undefined&&(!Number.isFinite(source.start)||source.start<0))throw new Error('Início do vídeo inválido.');
+ if(source.end!==undefined&&(!Number.isFinite(source.end)||source.end<=0))throw new Error('Fim do vídeo inválido.');
+ const start=Math.max(0,Math.min(source.start??0,Math.max(0,duration-.1)));
+ const end=Math.min(duration,source.end??duration,start+20);
+ if(!Number.isFinite(end)||end<=start)throw new Error('Defina um intervalo válido de vídeo.');
+ return {start,end};
+}
+export async function probeVideoExport(
+ doc:DesignDocument,signal?:AbortSignal,options:VideoExportOptions={},
+):Promise<VideoBrowserPreflight>{
+ const fps=options.fps??24;
+ const inspection=inspectVideoExport(doc,fps,options.preset??'hd');
+ const source=doc.video;
+ if(!source?.src)throw new Error('Selecione um vídeo antes de verificar.');
+ if(typeof VideoEncoder==='undefined'||typeof VideoFrame==='undefined')
+  throw new Error('Este navegador não oferece WebCodecs para exportar MP4. Atualize o Chrome/Edge em HTTPS.');
+ abortIfNeeded(signal);
+ // Consultar o codec primeiro evita abrir vídeos grandes sem necessidade.
+ const config=await chooseH264Config(inspection.width,inspection.height,fps);
+ abortIfNeeded(signal);
+ // Validate image/mask layers before reading any video frames.
+ await assertDesignAssetsReady(doc);
+ abortIfNeeded(signal);
+ const video=document.createElement('video');
+ video.crossOrigin='anonymous';video.muted=true;video.preload='auto';video.playsInline=true;video.src=source.src;
+ try{
+  await waitForVideoData(video,signal);
+  abortIfNeeded(signal);
+  if(video.videoWidth<2||video.videoHeight<2)throw new Error('O vídeo não possui quadros decodificáveis.');
+  const {start,end}=resolveVideoInterval(source,video.duration);
+  await seekVideoFrame(video,start,signal);
+  abortIfNeeded(signal);
+  // Tainted canvases read a decoded frame but fail when exporting; check this now.
+  const canvas=document.createElement('canvas');canvas.width=2;canvas.height=2;
+  const ctx=canvas.getContext('2d',{willReadFrequently:true});
+  if(!ctx)throw new Error('Canvas 2D indisponível neste navegador.');
+  try{ctx.drawImage(video,0,0,2,2);ctx.getImageData(0,0,1,1)}
+  catch{throw new Error('O navegador não permite ler este vídeo (possível bloqueio CORS). Importe um MP4 local.');}
+  return {width:inspection.width,height:inspection.height,fps:fps as 24|30,
+   codec:config.codec,sourceWidth:video.videoWidth,sourceHeight:video.videoHeight,
+   duration:video.duration,start,end,frameCount:Math.ceil((end-start)*fps)};
+ }finally{
+  video.pause();video.removeAttribute('src');video.load();
+ }
+}
 type RenderRun={animated:boolean;nodes:DesignNode[];canvas:HTMLCanvasElement};
 async function renderRuns(doc:DesignDocument):Promise<RenderRun[]>{
  const runs:RenderRun[]=[];
@@ -166,12 +225,7 @@ export async function renderMp4Template(doc:DesignDocument,onProgress?:(n:number
   abortIfNeeded(signal);const supportedConfig=await chooseH264Config(w,h,fps);
   await waitForVideoData(video,signal);
   if(video.videoWidth<2||video.videoHeight<2)throw new Error('O MP4 não possui quadros de vídeo decodificáveis.');
-  if(!Number.isFinite(video.duration)||video.duration<=0)throw new Error('A duração do vídeo não foi identificada. Utilize um MP4 completo, com duração finita.');
-  if(source.start!==undefined&&!Number.isFinite(source.start))throw new Error('Início do vídeo inválido.');
-  if(source.end!==undefined&&!Number.isFinite(source.end))throw new Error('Fim do vídeo inválido.');
-  const start=Math.max(0,Math.min(source.start??0,Math.max(0,video.duration-.1)));
-  const end=Math.min(video.duration,source.end??video.duration,start+20);
-  if(!Number.isFinite(end)||end<=start)throw new Error('Defina um intervalo válido de vídeo.');
+  const {start,end}=resolveVideoInterval(source,video.duration);
   const outputDoc=reducedDocument(doc,w,h);const runs=await renderRuns(outputDoc);abortIfNeeded(signal);
   const stage=document.createElement('canvas');stage.width=w;stage.height=h;
   const ctx=stage.getContext('2d',{alpha:false});if(!ctx)throw new Error('Canvas de vídeo indisponível');
@@ -201,6 +255,9 @@ export async function renderMp4Template(doc:DesignDocument,onProgress?:(n:number
   if(encodedChunks!==frames)throw new Error(`O vídeo foi codificado de forma incompleta (${encodedChunks} de ${frames} quadros). Nenhum arquivo parcial foi salvo.`);
   muxer.finalize();onProgress?.(100);
   if(!target.buffer||target.buffer.byteLength<128)throw new Error('O codificador não produziu um arquivo MP4 válido. Nenhum arquivo parcial foi salvo.');
+  // Validate MP4 container, H.264 sample table and frame count before download.
+  // A successful encoder.flush() alone does not guarantee a playable MP4.
+  inspectRenderedMp4(target.buffer as ArrayBuffer,{width:w,height:h,frames});
   return new Blob([target.buffer as ArrayBuffer],{type:'video/mp4'});
  }finally{if(encoder&&encoder.state!=='closed')encoder.close();video.removeAttribute('src');video.load();}
 }

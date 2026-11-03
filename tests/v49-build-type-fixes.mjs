@@ -37,7 +37,7 @@ test('TS18048: MP4 exporter type-checks with optional document.video',()=>{
  declare function drawDesign(canvas:HTMLCanvasElement,doc:DesignDocument,time?:number,opts?:{strict:boolean}):Promise<void>;
  `;
  const virtual=path.resolve(root,'tests/__v49_typecheck_virtual.ts');
- const content=original.replace(importLines,stub);
+ const content=original.replace(importLines,stub).replace("import {inspectRenderedMp4} from './mp4-integrity';","declare function inspectRenderedMp4(buffer:ArrayBuffer,expected:{width:number;height:number;frames:number}):unknown;");
  const options={target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext,lib:['lib.es2022.d.ts','lib.dom.d.ts'],strict:true,skipLibCheck:true,noEmit:true};
  const host=ts.createCompilerHost(options);
  const readFile=host.readFile.bind(host),fileExists=host.fileExists.bind(host);

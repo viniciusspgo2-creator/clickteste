@@ -4,7 +4,9 @@ import Link from 'next/link';
 import { ArrowLeft, Undo2, Redo2, ImagePlus, Type, Shapes, Layers3, Trash2, Copy, ChevronUp, ChevronDown, Download, SlidersHorizontal, Search, Upload, RectangleHorizontal, Circle, Sparkles, FolderOpen, Save, WandSparkles, X, Plus, Maximize, FlipHorizontal2, FlipVertical2, Crop, LockKeyhole, Users, Eye, EyeOff, Lock, Unlock, Layers2, RotateCcw, BookOpen, Sticker, Shapes as ObjectsIcon, Paintbrush, Pipette, RotateCw, ShieldCheck, History, AlertTriangle } from 'lucide-react';
 import { asDataUrl,blankDocument,clearDesignRenderCache,drawDesign,exportDesign,formats,imageFor,saveBlob,uid,type DesignDocument,type DesignNode,type ExportFormat } from '@/lib/creative/design';
 import { readHandoff } from '@/lib/creative/handoff';
+import {detachAutomaticSmartMask,replaceFlatScene,canCommitAsyncTemplate} from '@/lib/creative/template-transition';
 import {validateProjectDocument} from '@/lib/creative/validate-project';
+import {createPortableProjectBlob,makePortableDocument,hasTemporaryMedia} from '@/lib/creative/portable-project';
 import {builtInPresets,makeBuiltInPreset,type PresetId} from '@/lib/creative/presets';
 import {resizeFromCorner,type Corner} from '@/lib/creative/geometry';
 import {reorderNodes,mirrorNode,canSelectOnCanvas,type LayerMove} from '@/lib/creative/node-actions';
@@ -33,10 +35,12 @@ const initials=(name:string)=>name.split(' ').slice(0,2).map(x=>x[0]).join('').t
 const backgroundPresets=['#141112','#080808','#ffffff','#f4eee6','#e96d18','#1b2838','#d5d1c7','#f6bac9','#285141','transparent'];
 
 export function CreativeEditor(){
- const {t}=usePlatformLanguage();
+ const {t,language}=usePlatformLanguage();
  const [history,setHistory]=useState<DesignDocument[]>([blankDocument()]);
  const [step,setStep]=useState(0);
  const stateRef=useRef({history,step});
+ // Um pedido mais recente invalida qualquer carregamento de template ainda pendente.
+ const templateRequestRef=useRef(0);
  const doc=history[step];
  const [selected,setSelected]=useState<string|null>(null);
  const [panel,setPanel]=useState<Panel>('templates');
@@ -53,8 +57,13 @@ export function CreativeEditor(){
  const [localProjects,setLocalProjects]=useState<SavedCreativeProject[]>([]),[draftReady,setDraftReady]=useState(false);
  const [videoProgress,setVideoProgress]=useState<number|null>(null);
  const [videoPreset,setVideoPreset]=useState<'hd'|'fullhd'>('hd');
+ const [videoChecking,setVideoChecking]=useState(false);
+ const [videoDiagnostic,setVideoDiagnostic]=useState<string|null>(null);
  const [videoFps,setVideoFps]=useState<24|30>(24);
  const videoAbort=useRef<AbortController|null>(null);
+ const videoCheckAbort=useRef<AbortController|null>(null);
+ useEffect(()=>()=>videoCheckAbort.current?.abort(),[]);
+ useEffect(()=>{videoCheckAbort.current?.abort();setVideoDiagnostic(null);setVideoChecking(false)},[doc.video?.src,doc.video?.start,doc.video?.end]);
  const [previewSecond,setPreviewSecond]=useState(0);
  const [eyedropper,setEyedropper]=useState<'background'|'element'|null>(null);
  const [sceneDragId,setSceneDragId]=useState<string|null>(null);
@@ -99,15 +108,29 @@ export function CreativeEditor(){
   }catch(e){setNotice(e instanceof Error?e.message:'Não foi possível abrir o arquivo.');}
  },[update]);
  const applyTemplate=useCallback(async(src:string,role:'template'|'background'='template')=>{
+   const captured=stateRef.current.history[stateRef.current.step];
+   const request=++templateRequestRef.current;
    try{const image=await imageFor(src);
+    if(!canCommitAsyncTemplate(request,templateRequestRef.current,captured,stateRef.current.history[stateRef.current.step])){
+     if(request===templateRequestRef.current)setNotice('A arte foi modificada enquanto o fundo carregava. Selecione-o novamente para preservar seu trabalho.');
+     return;
+    }
     update(d=>{const factor=Math.max(d.width/image.naturalWidth,d.height/image.naturalHeight);
      const w=image.naturalWidth*factor,h=image.naturalHeight*factor;
      const n:DesignNode={id:uid(),kind:'image',role,aspectLock:true,src,x:(d.width-w)/2,y:(d.height-h)/2,w,h,angle:0,opacity:1};
-     return {...d,smartTemplate:undefined,nodes:[n,...d.nodes.filter(x=>x.role!==role)]};});setSelected(null);
-   }catch{setNotice('Não foi possível carregar o template.');}
+     return replaceFlatScene(d,n);});setSelected(null);setNotice('Cenário aplicado. Mockup e elementos pessoais preservados.');
+   }catch{if(request===templateRequestRef.current)setNotice('Não foi possível carregar o template.');}
  },[update]);
- const applyPreset=(preset:PresetId)=>{const base=makeBuiltInPreset(preset);update(d=>{
-   const keep=d.nodes.filter(n=>n.role!=='template'&&n.role!=='background');
+ const commitSmartTemplate=(request:number,captured:DesignDocument,result:Awaited<ReturnType<typeof importSmartTemplate>>)=>{
+  if(!canCommitAsyncTemplate(request,templateRequestRef.current,captured,stateRef.current.history[stateRef.current.step])){
+   if(request===templateRequestRef.current)setNotice('A arte mudou durante a importação. Selecione o template novamente para preservar suas alterações.');
+   return false;
+  }
+  update(()=>result.document);setSelected(null);setPanel('layers');setNotice(result.warning);
+  return true;
+ };
+ const applyPreset=(preset:PresetId)=>{++templateRequestRef.current;const base=makeBuiltInPreset(preset);update(d=>{
+   const keep=detachAutomaticSmartMask(d).filter(n=>n.role!=='template'&&n.role!=='background'&&n.role!=='foreground');
    // O layout troca. O mockup e os elementos do usuário são mantidos e adaptados à nova tela.
    const f=Math.min(base.width/d.width,base.height/d.height);const ox=(base.width-d.width*f)/2,oy=(base.height-d.height*f)/2;
    const adapted=keep.map(n=>({...n,x:n.x*f+ox,y:n.y*f+oy,w:n.w*f,h:n.h*f,size:n.size?Math.max(8,n.size*f):undefined,shadow:n.shadow?Math.max(1,n.shadow*f):n.shadow}));
@@ -132,14 +155,19 @@ export function CreativeEditor(){
  };
  const useAsset=(a:Asset)=>{
   if(a.mimeType==='application/x-clickgruda-template'){
-   void fetch(a.url).then(async r=>{if(!r.ok)throw Error('Pacote não encontrado');const file=new File([await r.blob()],`${a.name}.cgtemplate`);return importSmartTemplate(file,doc)}).then(template=>{update(()=>template.document);setSelected(null);setPanel('layers');setNotice(template.warning)}).catch(()=>setNotice('Não foi possível abrir o template inteligente.'));return;
+   const captured=stateRef.current.history[stateRef.current.step];
+   const request=++templateRequestRef.current;
+   void fetch(a.url).then(async r=>{
+    if(!r.ok)throw Error('Pacote não encontrado');
+    const file=new File([await r.blob()],`${a.name}.cgtemplate`);
+    return importSmartTemplate(file,captured);
+   }).then(template=>{commitSmartTemplate(request,captured,template);})
+    .catch(()=>{if(request===templateRequestRef.current)setNotice('Não foi possível abrir o template inteligente.');});return;
   }
   if(a.mimeType.startsWith('video/')){setVideoTemplate(a.url,a.name);return;}
   if(a.kind==='animation'){setNotice('Animações JSON estão no acervo. A edição e exportação animada não fazem parte desta fase.');return;}
   if(a.kind==='background'){
-   void imageFor(a.url).then(img=>{
-    void applyTemplate(a.url,'background');setNotice(`Fundo aplicado · ${img.naturalWidth} × ${img.naturalHeight}`);
-   }).catch(()=>setNotice('Não foi possível aplicar fundo.'));
+   void applyTemplate(a.url,'background');
   }else if(a.kind==='template'){
    // Template: preenche o documento por baixo de textos e do mockup existente.
    void applyTemplate(a.url);
@@ -194,7 +222,7 @@ export function CreativeEditor(){
  // eslint-disable-next-line react-hooks/exhaustive-deps
  },[]);
  // Rascunho local temporário, sem requisições à API. Navegador pode apagar dados automaticamente.
- useEffect(()=>{if(!draftReady)return;const timer=window.setTimeout(()=>{void saveCreativeProject(doc,'Rascunho automático',LOCAL_DRAFT_ID).catch(()=>{/* Quota indisponível: o usuário ainda pode exportar .cgdesign */});},4500);return()=>clearTimeout(timer);},[doc,draftReady]);
+ useEffect(()=>{if(!draftReady||hasTemporaryMedia(doc))return;const timer=window.setTimeout(()=>{void saveCreativeProject(doc,'Rascunho automático',LOCAL_DRAFT_ID).catch(()=>{/* Quota indisponível: o usuário ainda pode exportar .cgdesign */});},4500);return()=>clearTimeout(timer);},[doc,draftReady]);
  // Catálogo administrativo: o arquivo binário é carregado apenas ao escolher a fonte.
  const [fontAssets,setFontAssets]=useState<Asset[]>([]);
  useEffect(()=>{void fetch('/api/creative-assets?kind=font').then(r=>r.json()).then(d=>setFontAssets((d.items||[]) as Asset[])).catch(()=>{});},[]);
@@ -260,7 +288,7 @@ export function CreativeEditor(){
  const resetDocument=()=>{clearDesignRenderCache();const next=blankDocument();stateRef.current={history:[next],step:0};setHistory([next]);setStep(0);setSelected(null);setSceneDragId(null);setPanel('backgrounds');setGuides(true);setEyedropper(null);setResetOpen(false);void deleteAutomaticDraft().catch(()=>{});setNotice('Projeto reiniciado. Arquivos salvos anteriormente no seu navegador continuam disponíveis em Histórico local.');};
  const refreshLocalProjects=async()=>{try{setLocalProjects((await listCreativeProjects()).filter(p=>p.id!==LOCAL_DRAFT_ID));}catch{setNotice('O histórico local deste navegador está indisponível.');}};
  const openHistory=()=>{setHistoryOpen(true);void refreshLocalProjects()};
- const saveLocal=async()=>{try{const project=await saveCreativeProject(doc,`Arte de caneca · ${new Date().toLocaleDateString('pt-BR')}`);setNotice('Projeto salvo no navegador. Salve também um .cgdesign para ter uma cópia segura.');}catch(e){setNotice(e instanceof Error?e.message:'Não foi possível salvar no navegador.');}};
+ const saveLocal=async()=>{try{const snapshot=hasTemporaryMedia(doc)?await makePortableDocument(doc):doc;const project=await saveCreativeProject(snapshot,`Arte de caneca · ${new Date().toLocaleDateString('pt-BR')}`);setNotice('Projeto salvo no navegador. Salve também um .cgdesign para ter uma cópia segura.');}catch(e){setNotice(e instanceof Error?e.message:'Não foi possível salvar no navegador.');}};
  const restoreLocal=async(id:string)=>{try{const project=await readCreativeProject(id);if(!project)return;const d=project.document;validateProjectDocument(d);stateRef.current={history:[d],step:0};setHistory([d]);setStep(0);setSelected(null);setHistoryOpen(false);setNotice('Projeto do histórico local recuperado.');}catch{setNotice('Não foi possível recuperar este projeto.');}};
  const applyColor=(color:string,target:'background'|'element')=>{if(target==='background')update(d=>({...d,background:color}));else if(active)patch(active.id,active.kind==='image'?{tint:color}:{fill:color});};
  const pickScreenColor=async(target:'background'|'element')=>{
@@ -322,8 +350,10 @@ export function CreativeEditor(){
      const extracted=await importPsdLayers(file);
      loadLayeredDocument(extracted.document,`PSD: ${extracted.count} camadas raster móveis. ${extracted.warning}`);
     }else if(/\.cgtemplate$/i.test(file.name)){
-     const template=await importSmartTemplate(file,doc);
-     update(()=>template.document);setSelected(null);setPanel('layers');setNotice(template.warning);
+     const captured=stateRef.current.history[stateRef.current.step];
+     const request=++templateRequestRef.current;
+     const template=await importSmartTemplate(file,captured);
+     commitSmartTemplate(request,captured,template);
     }else if(/\.mp4$/i.test(file.name)){
      if(file.size>30*1024*1024)throw new Error('Vídeo acima de 30 MB; otimize o MP4 antes de importar.');
      const src=await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=()=>reject(new Error('Vídeo inválido'));reader.readAsDataURL(file)});
@@ -331,6 +361,20 @@ export function CreativeEditor(){
     }else{const src=await readLocalAsset(file);await addImage(src);}
    }
   }catch(e){setNotice(e instanceof Error?e.message:'Falha ao importar arquivo');}finally{setBusy(false);if(fileRef.current)fileRef.current.value='';}
+ };
+ const checkVideoCompatibility=async()=>{
+  if(!doc.video)return;
+  videoCheckAbort.current?.abort();
+  const controller=new AbortController();videoCheckAbort.current=controller;
+  setVideoChecking(true);setVideoDiagnostic(null);
+  try{
+   const {probeVideoExport}=await import('@/lib/creative/video-templates');
+   const result=await probeVideoExport(doc,controller.signal,{preset:videoPreset,fps:videoFps});
+   if(controller.signal.aborted)return;
+   const details=`${result.width} × ${result.height}, ${result.fps} fps, ${result.codec}. ${result.sourceWidth} × ${result.sourceHeight}; ${(result.end-result.start).toFixed(1)} s (${result.frameCount} ${language==='en'?'frames':language==='es'?'fotogramas':'quadros'}).`;
+   setVideoDiagnostic(`${t('Compatibilidade inicial confirmada')}: ${details} ${t('A exportação completa depende também da memória e do hardware.')}`);
+  }catch(e){if(!controller.signal.aborted)setVideoDiagnostic(`${t('Verificação não passou')}: ${e instanceof Error?e.message:t('Falha desconhecida')}`)}
+  finally{if(videoCheckAbort.current===controller){videoCheckAbort.current=null;setVideoChecking(false)}}
  };
  const doVideoExport=async()=>{
   if(!doc.video)return;
@@ -345,12 +389,13 @@ export function CreativeEditor(){
   setBusy(true);try{const blob=await exportDesign(doc,format,scale,mirrorPrint);saveBlob(blob,`click-gruda-criativo-${doc.width*scale}x${doc.height*scale}${mirrorPrint?'-espelhado':''}.${format==='jpeg'?'jpg':format}`);setExportOpen(false);}
   catch(e){setNotice(e instanceof Error?e.message:'Erro ao exportar');}finally{setBusy(false);}
  };
- const saveProject=()=>{const blob=new Blob([JSON.stringify({format:'cgdesign',version:1,document:doc})],{type:'application/json'});saveBlob(blob,'meu-projeto-clickgruda.cgdesign');};
+ const saveProject=async()=>{setBusy(true);try{const blob=await createPortableProjectBlob(doc);saveBlob(blob,'meu-projeto-clickgruda.cgdesign');setNotice('Backup portátil gerado neste navegador, com imagens e vídeos incorporados.');}catch(e){setNotice(e instanceof Error?e.message:'Não foi possível criar o backup portátil.');}finally{setBusy(false);}};
  const readProject=async(file?:File)=>{
   if(!file)return;try{if(file.size>45*1024*1024)throw new Error('Projeto excede 45 MB');const json=JSON.parse(await file.text());
    if(json.format!=='cgdesign'||json.version!==1||!json.document||!Array.isArray(json.document.nodes))throw new Error('Arquivo de projeto incompatível');
    const d=json.document as DesignDocument;
    validateProjectDocument(d);
+   if(hasTemporaryMedia(d))throw new Error('Este .cgdesign contém referências temporárias de outra sessão. Reimporte as mídias originais ou abra um backup portátil atualizado.');
    stateRef.current={history:[d],step:0};setHistory([d]);setStep(0);setSelected(null);setNotice('Projeto carregado localmente.');
   }catch(e){setNotice(e instanceof Error?e.message:'Não foi possível abrir o projeto.');}if(projectRef.current)projectRef.current.value='';
  };
@@ -360,14 +405,15 @@ export function CreativeEditor(){
  return <div className="cg-creative">
   <header className="cr-head"><Link href="/" className="cr-mark"><ArrowLeft size={17}/><span>Click <b>&</b> Gruda</span></Link><span className="cr-separator"/><div className="cr-head-title"><strong>{t('Editor de Artes').toUpperCase()}</strong><small>{t('100% para canecas · uploads temporários somente neste navegador')}</small></div>
    <div className="cr-head-actions"><button onClick={()=>setShowAgent(v=>!v)} title="Assistente de sublimação"><BookOpen size={16}/> Ajuda</button><button onClick={undo} disabled={step===0} title="Desfazer (Ctrl+Z) · sem limite fixo de etapas enquanto a aba permanecer aberta"><Undo2 size={18}/></button><button onClick={redo} disabled={step>=history.length-1} title="Refazer (Ctrl+Y)"><Redo2 size={18}/></button><span className="cr-separator"/>
-    <button onClick={()=>setResetOpen(true)} className="cr-reset-action" title="Reinicia a arte com confirmação"><RotateCcw size={16}/><span>{t('Resetar projeto')}</span></button><button onClick={openHistory}><History size={16}/><span>{t('Histórico local')}</span></button><button onClick={()=>void saveLocal()} title="Salvar temporariamente neste navegador"><Save size={16}/><span>{t('Salvar no navegador')}</span></button><button onClick={()=>projectRef.current?.click()}><FolderOpen size={16}/><span>{t('Abrir projeto')}</span></button><button onClick={saveProject}><Download size={16}/><span>.cgdesign</span></button><button className="cr-primary" onClick={()=>setExportOpen(true)}><Download size={17}/> Exportar</button>{doc.video&&<button title="Configurar e exportar MP4 H.264 local (720p ou Full HD; até 20 segundos e sem áudio)" onClick={()=>setExportOpen(true)} disabled={busy}><Download size={16}/> {videoProgress!==null?`${videoProgress}%`:'MP4'}</button>}{videoProgress!==null&&<button onClick={()=>videoAbort.current?.abort()} title="Interromper renderização do vídeo">Cancelar MP4</button>}</div>
+    {hasTemporaryMedia(doc)&&<span role="status" title="Mídia temporária no navegador: faça um backup .cgdesign para preservá-la. O rascunho automático não inclui vídeos blob:." style={{fontSize:11,color:'#ffb868',maxWidth:160}}>Mídia temporária · faça backup</span>}
+    <button onClick={()=>setResetOpen(true)} className="cr-reset-action" title="Reinicia a arte com confirmação"><RotateCcw size={16}/><span>{t('Resetar projeto')}</span></button><button onClick={openHistory}><History size={16}/><span>{t('Histórico local')}</span></button><button onClick={()=>void saveLocal()} title="Salvar temporariamente neste navegador"><Save size={16}/><span>{t('Salvar no navegador')}</span></button><button onClick={()=>projectRef.current?.click()}><FolderOpen size={16}/><span>{t('Abrir projeto')}</span></button><button onClick={()=>void saveProject()} disabled={busy} title="Criar backup portátil com os arquivos do projeto"><Download size={16}/><span>.cgdesign</span></button><button className="cr-primary" onClick={()=>setExportOpen(true)}><Download size={17}/> Exportar</button>{doc.video&&<button title="Configurar e exportar MP4 H.264 local (720p ou Full HD; até 20 segundos e sem áudio)" onClick={()=>setExportOpen(true)} disabled={busy}><Download size={16}/> {videoProgress!==null?`${videoProgress}%`:'MP4'}</button>}{videoProgress!==null&&<button onClick={()=>videoAbort.current?.abort()} title="Interromper renderização do vídeo">Cancelar MP4</button>}</div>
   </header>
   <div className="cr-shell"><nav className="cr-rail" aria-label="Ferramentas">
    {([['templates','Layouts',Layers3],['layers','Camadas',Layers2],['elements','Elementos',Shapes],['personagens','Personagens',Users],['texts','Textos',Type],['backgrounds','Fundos',ImagePlus],['uploads','Uploads',Upload],['icons','Ícones',Sticker],['objects','Objetos',ObjectsIcon],['effects','Efeitos',Sparkles]] as const).map(([id,label,Icon])=><button key={id} aria-current={panel===id?'page':undefined} onClick={()=>setPanel(id)}><Icon size={21}/><small>{t(label)}</small></button>)}
   </nav><aside className="cr-left"><div className="cr-panel-head"><h2>{t(panel==='templates'?'Templates':panel==='layers'?'Camadas':panel==='elements'?'Elementos':panel==='texts'?'Tipografia':panel==='backgrounds'?'Fundos':panel==='personagens'?'Personagens & Emojis':panel==='icons'?'Biblioteca de Ícones':panel==='objects'?'Objetos Vetoriais':panel==='effects'?'Filtros & Efeitos':'Seus arquivos')}</h2><span>{t('CRIAR COM LIBERDADE')}</span></div>
    {kind&&<><div className="cr-search"><Search size={16}/><input placeholder="Buscar no acervo..." value={assetQuery} onChange={e=>setAssetQuery(e.target.value)}/></div>
     {panel==='templates'&&<><div className="cr-feature" role="note"><Sparkles size={18}/><div><strong>{t('Comece por um layout')}</strong><p>{t('Escolha um dos 4 layouts editáveis ou use templates publicados pelo admin.')}</p></div></div>
-    <div className="cr-feature" role="note"><Layers3 size={18}/><div><strong>Template inteligente · máscaras e profundidade</strong><p>Importe um pacote .cgtemplate pela aba Uploads ou experimente o modelo demonstrativo. Sua caneca permanece independente.</p><button type="button" className="cr-primary" onClick={()=>{void fetch('/templates/template-inteligente-demonstracao.cgtemplate').then(async r=>{if(!r.ok)throw Error('Template indisponível');return importSmartTemplate(new File([await r.blob()],'demonstracao.cgtemplate'),doc)}).then(a=>{update(()=>a.document);setSelected(null);setPanel('layers');setNotice(a.warning)}).catch(()=>setNotice('Não foi possível abrir a demonstração.'));}}>Experimentar template com máscara</button></div></div><p className="cr-section-label">{t('LAYOUTS EDITÁVEIS INCLUSOS')}</p><div className="cr-preset-list">{builtInPresets.map(p=><button key={p.id} onClick={()=>applyPreset(p.id)}><span className={`cr-preset-thumb ${p.id}`}>{p.name}</span><span><strong>{p.name}</strong><small>{p.description}</small></span></button>)}</div></>}
+    <div className="cr-feature" role="note"><Layers3 size={18}/><div><strong>Template inteligente · máscaras e profundidade</strong><p>Importe um pacote .cgtemplate pela aba Uploads ou experimente o modelo demonstrativo. Sua caneca permanece independente.</p><button type="button" className="cr-primary" onClick={()=>{const captured=stateRef.current.history[stateRef.current.step];const request=++templateRequestRef.current;void fetch('/templates/template-inteligente-demonstracao.cgtemplate').then(async r=>{if(!r.ok)throw Error('Template indisponível');return importSmartTemplate(new File([await r.blob()],'demonstracao.cgtemplate'),captured)}).then(a=>{commitSmartTemplate(request,captured,a)}).catch(()=>{if(request===templateRequestRef.current)setNotice('Não foi possível abrir a demonstração.')});}}>Experimentar template com máscara</button></div></div><p className="cr-section-label">{t('LAYOUTS EDITÁVEIS INCLUSOS')}</p><div className="cr-preset-list">{builtInPresets.map(p=><button key={p.id} onClick={()=>applyPreset(p.id)}><span className={`cr-preset-thumb ${p.id}`}>{p.name}</span><span><strong>{p.name}</strong><small>{p.description}</small></span></button>)}</div></>}
     {panel==='backgrounds'&&<><p className="cr-section-label">{t('FUNDOS PRONTOS SEM TEXTO · PARA SUBLIMAÇÃO')}</p><div className="cr-background-grid">{backgroundKits.map(b=><button key={b.id} title={b.name} onClick={()=>void applyTemplate(backgroundSvg(b.id,doc.width,doc.height),'background')}><span style={{background:`linear-gradient(130deg,${b.a},${b.b} 68%,${b.c})`}}/><small>{b.name}</small></button>)}</div><p className="cr-section-label">{t('CORES & TRANSPARÊNCIA')}</p><div className="cr-background-custom"><label>{t('Cor do fundo')} <input type="color" value={doc.background==='transparent'?'#ffffff':doc.background} onChange={e=>update(d=>({...d,background:e.target.value}))}/></label><button type="button" onClick={()=>void pickScreenColor('background')}><Pipette size={16}/> {t('Conta-gotas')}</button></div><div className="cr-colors">{backgroundPresets.map(c=><button key={c} title={c} aria-label={`Fundo ${c}`} onClick={()=>update(d=>({...d,background:c}))} className={doc.background===c?'active':''} style={{background:c==='transparent'?'conic-gradient(#eee 25%,#ccc 0 50%,#eee 0 75%,#ccc 0) 0 0/20px 20px':c}}/>)}</div></>}
     <p className="cr-section-label">{t('ACERVO ADMINISTRATIVO')} · {assetTotal} ITENS</p><div className="cr-assets">{assets.map(a=><button key={a.id} title={a.name} onClick={()=>useAsset(a)} className="cr-asset">{a.mimeType.startsWith('image/')?<img src={a.url} alt="" loading="lazy"/>:<div className="cr-asset-generic">{initials(a.name)}</div>}<span>{a.name}</span></button>)}
     {!assets.length&&<div className="cr-empty">{t('Sem itens publicados nessa categoria. Adicione materiais pelo Painel Admin.')}</div>}
@@ -446,7 +492,7 @@ export function CreativeEditor(){
   {notice&&<div className="cr-notice" role="status"><span>{notice}</span><button onClick={()=>setNotice('')} aria-label="Fechar"><X size={16}/></button></div>}
   {resetOpen&&<div className="cr-backdrop" onClick={()=>setResetOpen(false)}><div role="alertdialog" aria-modal="true" aria-labelledby="cr-reset-title" className="cr-dialog" onClick={e=>e.stopPropagation()}><div className="cr-dialog-header"><div><small>RESETAR PROJETO</small><h2 id="cr-reset-title">{t('Começar uma nova arte?')}</h2></div><button onClick={()=>setResetOpen(false)} aria-label="Fechar"><X size={19}/></button></div><p><AlertTriangle size={17} className="inline-block text-orange-400 mr-2"/>{t('Os elementos, os fundos e o histórico de desfazer desta composição serão limpos. Arquivos exportados e projetos salvos anteriormente no navegador não serão apagados.')}</p><div className="cr-dialog-footer"><button onClick={()=>setResetOpen(false)}>{t('Cancelar')}</button><button className="cr-primary" onClick={resetDocument}><RotateCcw size={17}/>{t('Resetar projeto')}</button></div></div></div>}
   {historyOpen&&<div className="cr-backdrop" onClick={()=>setHistoryOpen(false)}><div role="dialog" aria-modal="true" aria-label="Histórico de projetos locais" className="cr-dialog cr-history-dialog" onClick={e=>e.stopPropagation()}><div className="cr-dialog-header"><div><small>SEU NAVEGADOR</small><h2>{t('Histórico local')}</h2></div><button onClick={()=>setHistoryOpen(false)} aria-label="Fechar"><X size={19}/></button></div><p>{t('O histórico fica temporariamente neste dispositivo, por até 14 dias, sujeito à limpeza automática do navegador. Nenhum arquivo é enviado ao servidor. Exporte .cgdesign para ter um backup confiável.')}</p><button className="cr-primary" onClick={()=>void saveLocal()}><Save size={16}/> Salvar composição atual</button><div className="cr-history-list">{localProjects.length?localProjects.map(project=><div key={project.id} className="cr-history-item"><div><strong>{project.name}</strong><small>{new Date(project.updatedAt).toLocaleString('pt-BR')} · {project.document.width} × {project.document.height}</small></div><button onClick={()=>{if(window.confirm('Abrir este projeto? A composição atual será substituída.'))void restoreLocal(project.id)}}>Abrir</button><button title="Excluir este projeto local" aria-label="Excluir projeto local" onClick={()=>{if(window.confirm('Excluir este arquivo do histórico deste navegador?'))void deleteCreativeProject(project.id).then(refreshLocalProjects)}}><Trash2 size={15}/></button></div>):<p>Nenhum projeto salvo manualmente neste navegador.</p>}</div><div className="cr-dialog-footer"><button onClick={()=>setHistoryOpen(false)}>Fechar</button></div></div></div>}
-  {exportOpen&&<div className="cr-backdrop" onClick={()=>setExportOpen(false)}><div className="cr-dialog" role="dialog" aria-modal="true" aria-label="Exportar criativo" onClick={e=>e.stopPropagation()}><div className="cr-dialog-header"><div><small>EXPORTAR</small><h2>Sua arte pronta para impressão ou divulgação.</h2></div><button onClick={()=>setExportOpen(false)} aria-label="Fechar"><X size={20}/></button></div><p>Para imprimir na caneca, use 21 × 9,5 cm em PNG, escala 100%, com 2480 × 1122 pixels e metadados de 300 DPI. Nenhuma arte é enviada ao servidor.</p><div className="cr-print-check" role="status"><strong>VERIFICAÇÃO ANTES DE EXPORTAR</strong>{[...printChecks.filter(entry=>entry.kind!=='success'||(!checkingQuality&&!qualityChecks.some(q=>q.kind==='warning'))),...qualityChecks].map((entry,i)=><p key={i} className={`cr-print-message ${entry.kind}`}>{entry.kind==='warning'?<AlertTriangle size={14}/>:<ShieldCheck size={14}/>}<span>{entry.message}</span></p>)}{checkingQuality&&<p className="cr-print-message info">Conferindo a resolução das imagens no navegador…</p>}</div>{doc.video&&<section className="cr-mp4-options" aria-label="Configurações do vídeo MP4"><p><strong>VÍDEO MP4 · H.264</strong></p><p>Exportação local, sem áudio, até 20 segundos. O modo Full HD é opcional, exige mais processamento e não aumenta o detalhe de vídeos de baixa resolução.</p><label>QUALIDADE<select aria-label="Qualidade MP4" value={videoPreset} disabled={videoProgress!==null} onChange={e=>setVideoPreset(e.target.value as 'hd'|'fullhd')}><option value="hd">HD 720p · recomendado</option><option value="fullhd">Full HD 1080p · qualidade superior</option></select></label><label>FLUIDEZ<select aria-label="Quadros por segundo MP4" value={videoFps} disabled={videoProgress!==null} onChange={e=>setVideoFps(Number(e.target.value) as 24|30)}><option value={24}>24 fps · mais leve</option><option value={30}>30 fps · mais fluido</option></select></label><p role="status">Saída prevista: {Math.max(2,Math.floor(doc.width*Math.min(1,(videoPreset==='fullhd'?1920:1280)/doc.width,(videoPreset==='fullhd'?1080:720)/doc.height)/2)*2)} × {Math.max(2,Math.floor(doc.height*Math.min(1,(videoPreset==='fullhd'?1920:1280)/doc.width,(videoPreset==='fullhd'?1080:720)/doc.height)/2)*2)} · {videoFps} fps.</p><div className="cr-dialog-footer"><button className="cr-primary" disabled={busy} onClick={()=>void doVideoExport()}><Download size={17}/>{videoProgress!==null?`Exportando ${videoProgress}%`:'Exportar MP4'}</button>{videoProgress!==null&&<button type="button" onClick={()=>videoAbort.current?.abort()}>Cancelar MP4</button>}</div></section>}<label>FORMATO<select value={format} onChange={e=>setFormat(e.target.value as ExportFormat)}><option value="png">PNG · Transparência</option><option value="jpeg">JPEG · Arquivo leve</option><option value="webp">WebP · Otimizado</option></select></label><label>RESOLUÇÃO<select value={scale} onChange={e=>setScale(Number(e.target.value))}><option value={.5}>50% · {Math.round(doc.width*.5)} × {Math.round(doc.height*.5)}</option><option value={1}>100% · {doc.width} × {doc.height}</option><option value={2}>200% · {doc.width*2} × {doc.height*2}</option></select></label><label className="cr-mirror-print"><input type="checkbox" checked={mirrorPrint} onChange={e=>setMirrorPrint(e.target.checked)}/><span><strong>Espelhar horizontalmente só na exportação</strong><small>Para transferência térmica quando necessário. Não ative se o software ou a impressora já espelha a arte. A prévia e o projeto continuam normais.</small></span></label><div className="cr-dialog-footer"><button onClick={()=>setExportOpen(false)}>Cancelar</button><button className="cr-primary" disabled={busy} onClick={()=>void doExport()}><Download size={17}/>{busy?'Preparando imagem...':'Exportar composição'}</button></div></div></div>}
+  {exportOpen&&<div className="cr-backdrop" onClick={()=>setExportOpen(false)}><div className="cr-dialog" role="dialog" aria-modal="true" aria-label="Exportar criativo" onClick={e=>e.stopPropagation()}><div className="cr-dialog-header"><div><small>EXPORTAR</small><h2>Sua arte pronta para impressão ou divulgação.</h2></div><button onClick={()=>setExportOpen(false)} aria-label="Fechar"><X size={20}/></button></div><p>Para imprimir na caneca, use 21 × 9,5 cm em PNG, escala 100%, com 2480 × 1122 pixels e metadados de 300 DPI. Nenhuma arte é enviada ao servidor.</p><div className="cr-print-check" role="status"><strong>VERIFICAÇÃO ANTES DE EXPORTAR</strong>{[...printChecks.filter(entry=>entry.kind!=='success'||(!checkingQuality&&!qualityChecks.some(q=>q.kind==='warning'))),...qualityChecks].map((entry,i)=><p key={i} className={`cr-print-message ${entry.kind}`}>{entry.kind==='warning'?<AlertTriangle size={14}/>:<ShieldCheck size={14}/>}<span>{entry.message}</span></p>)}{checkingQuality&&<p className="cr-print-message info">Conferindo a resolução das imagens no navegador…</p>}</div>{doc.video&&<section className="cr-mp4-options" aria-label="Configurações do vídeo MP4"><p><strong>VÍDEO MP4 · H.264</strong></p><p>Exportação local, sem áudio, até 20 segundos. O modo Full HD é opcional, exige mais processamento e não aumenta o detalhe de vídeos de baixa resolução.</p><label>QUALIDADE<select aria-label="Qualidade MP4" value={videoPreset} disabled={videoProgress!==null} onChange={e=>{setVideoPreset(e.target.value as 'hd'|'fullhd');setVideoDiagnostic(null)}}><option value="hd">HD 720p · recomendado</option><option value="fullhd">Full HD 1080p · qualidade superior</option></select></label><label>FLUIDEZ<select aria-label="Quadros por segundo MP4" value={videoFps} disabled={videoProgress!==null} onChange={e=>{setVideoFps(Number(e.target.value) as 24|30);setVideoDiagnostic(null)}}><option value={24}>24 fps · mais leve</option><option value={30}>30 fps · mais fluido</option></select></label><p role="status">Saída prevista: {Math.max(2,Math.floor(doc.width*Math.min(1,(videoPreset==='fullhd'?1920:1280)/doc.width,(videoPreset==='fullhd'?1080:720)/doc.height)/2)*2)} × {Math.max(2,Math.floor(doc.height*Math.min(1,(videoPreset==='fullhd'?1920:1280)/doc.width,(videoPreset==='fullhd'?1080:720)/doc.height)/2)*2)} · {videoFps} fps.</p><button type="button" disabled={busy||videoChecking} onClick={()=>void checkVideoCompatibility()} title="Testa o codec H.264 e a leitura do primeiro quadro sem iniciar a exportação">{videoChecking?t('Verificando vídeo…'):t('Testar compatibilidade do MP4')}</button>{videoDiagnostic&&<p role="status" aria-live="polite" className="cr-video-diagnostic">{videoDiagnostic}</p>}<div className="cr-dialog-footer"><button className="cr-primary" disabled={busy||videoChecking} onClick={()=>void doVideoExport()}><Download size={17}/>{videoProgress!==null?`Exportando ${videoProgress}%`:'Exportar MP4'}</button>{videoProgress!==null&&<button type="button" onClick={()=>videoAbort.current?.abort()}>Cancelar MP4</button>}</div></section>}<label>FORMATO<select value={format} onChange={e=>setFormat(e.target.value as ExportFormat)}><option value="png">PNG · Transparência</option><option value="jpeg">JPEG · Arquivo leve</option><option value="webp">WebP · Otimizado</option></select></label><label>RESOLUÇÃO<select value={scale} onChange={e=>setScale(Number(e.target.value))}><option value={.5}>50% · {Math.round(doc.width*.5)} × {Math.round(doc.height*.5)}</option><option value={1}>100% · {doc.width} × {doc.height}</option><option value={2}>200% · {doc.width*2} × {doc.height*2}</option></select></label><label className="cr-mirror-print"><input type="checkbox" checked={mirrorPrint} onChange={e=>setMirrorPrint(e.target.checked)}/><span><strong>Espelhar horizontalmente só na exportação</strong><small>Para transferência térmica quando necessário. Não ative se o software ou a impressora já espelha a arte. A prévia e o projeto continuam normais.</small></span></label><div className="cr-dialog-footer"><button onClick={()=>setExportOpen(false)}>Cancelar</button><button className="cr-primary" disabled={busy} onClick={()=>void doExport()}><Download size={17}/>{busy?'Preparando imagem...':'Exportar composição'}</button></div></div></div>}
  </div>;
 }
 function Range({label,value,min,max,unit,change}:{label:string;value:number;min:number;max:number;unit:string;change:(v:number)=>void}){

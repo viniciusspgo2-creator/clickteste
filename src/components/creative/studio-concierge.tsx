@@ -39,6 +39,7 @@ const generalHelp={
 export function StudioConcierge({area,onClose,onAction}:{area:Area;onClose:()=>void;onAction?:(action:Action)=>boolean}){
  const {language}=usePlatformLanguage();
  const [aiAvailable,setAiAvailable]=useState<boolean|null>(null);
+ const [providerUnavailable,setProviderUnavailable]=useState(false);
  useEffect(()=>{let mounted=true;void fetch('/api/creative-assistant',{cache:'no-store'})
   .then(res=>res.ok?res.json():Promise.reject(new Error('status unavailable')))
   .then(status=>{if(mounted)setAiAvailable(Boolean(status.aiEnabled));})
@@ -61,7 +62,7 @@ export function StudioConcierge({area,onClose,onAction}:{area:Area;onClose:()=>v
   setPending(null);setConversation(c=>[...c,text].slice(-6));setQuery('');setIsAnswering(true);
   // A instalação sem chave de API responde imediatamente pelo guia local.
   if(aiAvailable===false){
-   setReply(match?.message||generalHelp[language]);
+   setReply(language==='pt'?(match?.message||generalHelp[language]):generalHelp[language]);
    setPending(match?.action&&match.label&&actionAllowed(area,match.action)?{action:match.action,label:match.label}:null);
    requestRef.current.controller=null;setIsAnswering(false);return;
   }
@@ -70,14 +71,16 @@ export function StudioConcierge({area,onClose,onAction}:{area:Area;onClose:()=>v
    const info=await response.json();
    if(!current())return;
    if(info?.ok&&typeof info.reply==='string'&&info.reply.trim()){
+    setProviderUnavailable(false);
     setReply(info.reply);
     setPending(actionAllowed(area,info.action)&&typeof info.label==='string'&&info.label.trim()?{action:info.action,label:info.label}:null);
     return;
    }
-  }catch{if(!current())return;/* documented local assistant fallback */}
+  }catch{if(!current())return;/* fallback local sem expor credenciais */}
   finally{if(current()){requestRef.current.controller=null;setIsAnswering(false);}}
   if(!current())return;
-  setReply(match?.message||generalHelp[language]);
+  setProviderUnavailable(true);
+  setReply(language==='pt'?(match?.message||generalHelp[language]):generalHelp[language]);
   setPending(match?.action&&match.label&&actionAllowed(area,match.action)?{action:match.action,label:match.label}:null);
  };
  return <div className="cr-concierge" role="dialog" aria-label="Guia interativo de sublimação de canecas" aria-modal="false">
@@ -86,6 +89,6 @@ export function StudioConcierge({area,onClose,onAction}:{area:Area;onClose:()=>v
    {pending&&<div className="cr-concierge-confirm"><strong>Quer ativar a opção “{pending.label}”?</strong><p>Digite SIM ou clique em Confirmar. Nenhuma configuração será alterada sem essa ação.</p><div><button type="button" onClick={()=>setPending(null)}>Cancelar</button><button type="button" disabled={isAnswering} onClick={()=>{const ok=onAction?.(pending.action)??false;setReply(ok?`Opção “${pending.label}” aberta. Você pode continuar editando normalmente.`:`Esta opção fica em outra ferramenta da plataforma. Abra o módulo correspondente para ativá-la.`);setPending(null)}}><CheckCircle2 size={15}/> Confirmar</button></div></div>}
    {!pending&&<div className="cr-concierge-suggestions">{suggestions.map(s=><button key={s} type="button" onClick={()=>void ask(s)}>{s}</button>)}</div>}</div>
   <form onSubmit={e=>{e.preventDefault();if(pending&&/^(sim|s[ií]|yes)$/i.test(query.trim())){const ok=onAction?.(pending.action)??false;setReply(ok?`Opção “${pending.label}” aberta.`:'Para acessar esta função, abra o módulo correspondente.');setPending(null);setQuery('');}else void ask(query);}}><input aria-label="Pergunte ao assistente" value={query} onChange={e=>setQuery(e.target.value)} placeholder={pending?'Digite SIM para confirmar...':'Como faço para...'} maxLength={300}/><button type="submit" aria-label="Enviar pergunta" disabled={isAnswering&&query.trim().length===0}><Send size={17}/></button></form>
-  <div className="cr-concierge-foot"><Sparkles size={13}/> {aiAvailable===true?'IA disponível nesta instalação':aiAvailable===false?'Guia local · IA não configurada':'Verificando disponibilidade da IA'} · Somente perguntas de texto são enviadas ao provedor quando habilitado; nunca arquivos ou projetos. Ações exigem confirmação.</div>
+  <div className="cr-concierge-foot"><Sparkles size={13}/> {aiAvailable===true?(providerUnavailable?'IA temporariamente indisponível · guia local ativo':'IA disponível nesta instalação'):aiAvailable===false?'Guia local · IA não configurada':'Verificando disponibilidade da IA'} · Somente perguntas de texto são enviadas ao provedor quando habilitado; nunca arquivos ou projetos. Ações exigem confirmação.</div>
  </div>;
 }
