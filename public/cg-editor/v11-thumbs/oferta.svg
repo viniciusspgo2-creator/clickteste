@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="172" viewBox="0 0 256 172" role="img" aria-hidden="true">
+    <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0a0c16"/><stop offset="1" stop-color="#3c2422"/></linearGradient>
+    <radialGradient id="shine"><stop stop-color="#ffffff" stop-opacity=".42"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
+    <linearGradient id="metal" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#fff"/><stop offset=".5" stop-color="#d3d3da"/><stop offset="1" stop-color="#81818b"/></linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="6" stdDeviation="5" flood-color="#000" flood-opacity=".25"/></filter></defs>
+    <rect width="256" height="172" fill="url(#bg)"/><circle cx="190" cy="20" r="145" fill="url(#shine)"/>
+    <g filter="url(#shadow)"><rect x="66" y="36" width="132" height="107" rx="18" fill="#ff8a28"/><rect x="75" y="46" width="114" height="87" rx="12" fill="#121218"/><path d="M94 73h75m-75 16h49m-49 16h66" stroke="#fff" stroke-width="8" stroke-linecap="round"/><circle cx="181" cy="126" r="22" fill="#ff5a1a"/></g></svg>
