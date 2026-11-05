@@ -1047,3 +1047,5 @@
 .cg-creative .cr-left>.cr-responsive-panel .cr-curated{min-height:420px}.cg-creative .cr-rail button small{white-space:nowrap;font-size:10px;letter-spacing:0;word-break:normal}
 
 .cr-font-viewport{height:450px;overflow:auto;position:relative;scrollbar-width:thin}.cr-font-choice{position:relative;height:124px}.cr-font-choice .cr-font-card{height:124px;width:100%;margin:0;padding:12px 28px 10px 10px;overflow:hidden}.cr-font-choice[data-current=true] .cr-font-card{border-color:#ff8a30}.cr-font-favorite{position:absolute;right:6px;top:7px;color:#c2a587;padding:4px}.cr-font-favorite[aria-pressed=true]{color:#ff9a3c}.cr-font-choice .cr-font-sample{white-space:nowrap;text-overflow:ellipsis;overflow:hidden;max-width:100%;display:block;font-size:23px}.cr-font-name{font-weight:500}
+
+.cr-effect-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.cr-effect-grid button{border:1px solid #393941;border-radius:10px;padding:7px;text-align:left;font-size:11px}.cr-effect-grid button[aria-pressed=true]{border-color:#ff8a30}.cr-effect-grid img{width:100%;border-radius:6px;margin-bottom:5px}.cr-effect-grid button:disabled{opacity:.4}

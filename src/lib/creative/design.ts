@@ -1,3 +1,4 @@
+import {paintLayerEffect,type LayerEffect} from './layer-effects';
 import {vectorShapePath} from './vector-shapes';
 import {drawEditablePath,lineStyle,type EditablePoint} from './vector-path';
 import {ensureDesignFonts,waitForFontLayout} from './typefaces';
@@ -13,6 +14,7 @@ export type ColorGradient={kind:'linear'|'radial';from:string;to:string;angle:nu
 export type BezierPoints={sx:number;sy:number;c1x:number;c1y:number;c2x:number;c2y:number;ex:number;ey:number};
 export type EraserStroke={size:number;points:{x:number;y:number}[]};
 export type DesignNode={id:string;kind:NodeKind;x:number;y:number;w:number;h:number;angle:number;opacity:number;
+ effectKind?:LayerEffect;effectIntensity?:number;effectColor?:string;
  shapeId?:string;shapePoints?:number;pathPoints?:EditablePoint[];pathClosed?:boolean;lineCap?:CanvasLineCap;lineJoin?:CanvasLineJoin;dashStyle?:'solid'|'dashed'|'dotted';dashSpacing?:number;
  role?:'template'|'background'|'mockup'|'content'|'foreground';layerName?:string;maskSrc?:string;maskMode?:'luminance'|'alpha';maskInvert?:boolean;maskSpace?:'element'|'canvas';locked?:boolean;visible?:boolean;aspectLock?:boolean;
  text?:string;src?:string;fill?:string;tint?:string;gradient?:ColorGradient;bezier?:BezierPoints;eraserStrokes?:EraserStroke[];font?:string;size?:number;bold?:boolean;italic?:boolean;align?:CanvasTextAlign;
@@ -122,6 +124,13 @@ export async function drawDesign(canvas:HTMLCanvasElement,doc:DesignDocument,tim
  if(doc.background!=='transparent'){ctx.fillStyle=doc.background;ctx.fillRect(0,0,doc.width,doc.height);}
  await Promise.all(renderedNodes.filter(n=>n.kind==='image'&&n.src).map(n=>imageFor(n.src!).catch(()=>null)));
  for(const n of renderedNodes){
+  if(n.effectKind){
+   const layer=document.createElement('canvas');
+   await drawDesign(layer,{...doc,background:'transparent',nodes:[{...n,effectKind:undefined,opacity:1,shadow:0}]},undefined,options);
+   const effect=document.createElement('canvas');effect.width=layer.width;effect.height=layer.height;
+   paintLayerEffect(effect.getContext('2d')!,layer,n);ctx.save();ctx.globalAlpha=n.opacity;ctx.drawImage(effect,0,0);ctx.restore();layer.width=layer.height=effect.width=effect.height=1;continue;
+  }
+
   ctx.save();ctx.globalAlpha=limit(n.opacity,0,1);
   ctx.translate(n.x+n.w/2,n.y+n.h/2);ctx.rotate(n.angle*Math.PI/180);
   // Espelhamento em torno do centro para textos, formas, SVG, fotos e demais elementos.

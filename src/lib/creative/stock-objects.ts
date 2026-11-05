@@ -1,4 +1,5 @@
 /** Ornamentos SVG originais parametrizados: não dependem de pacotes de imagem. */
+import {vectorShapePath} from './vector-shapes';
 export type StockObject={id:string;name:string;category:string;art:string};
 export const stockObjects:StockObject[]=[
  {id:'starburst',name:'Explosão de estrelas',category:'Destaques',art:'<path d="M400 35 468 231 686 133 565 325 774 400 563 471 678 676 470 558 400 764 329 561 126 681 242 470 27 400 237 327 125 128 331 231Z" />'},
@@ -21,6 +22,10 @@ export const stockObjects:StockObject[]=[
  {id:'price-tag',name:'Etiqueta de preço',category:'Comercial',art:'<path d="M80 188h407l241 208-241 215H80V188Z"/><circle cx="586" cy="396" r="35" fill="#fff"/>'},
  {id:'crown',name:'Coroa',category:'Destaques',art:'<path d="m89 225 150 179 161-299 160 299 150-179-60 425H150Z"/><rect x="138" y="672" width="524" height="74" rx="20"/>'},
 ];
+const addedObjects:[string,string,string,string][]=[
+ ['oval-frame','Moldura oval','Molduras','round-frame'],['double-frame','Moldura dupla fina','Molduras','double-frame'],['heart-frame','Coração vazado','Romântico','heart'],['rounded-tag','Etiqueta arredondada','Comercial','tag'],['chevron-ribbon','Faixa chevron','Destaques','chevron'],['boho-arch','Arco boho','Molduras','arc'],['ornament-drop','Gota decorativa','Natureza','drop'],['ornament-cloud','Nuvem decorativa','Cartoons','cloud'],['ornament-sun','Sol radiante','Natureza','sun'],['ornament-bolt','Raio energético','Destaques','bolt'],['ornament-thought','Balão pensamento','Cartoons','thought'],['ornament-divider','Divisor elegante','Texturas','divider'],['ornament-polygon','Medalhão hexagonal','Destaques','polygon-6'],['ornament-star8','Estrela de oito pontas','Destaques','star-8'],['ornament-cross','Cruz decorativa','Presentes','cross'],['ornament-semicircle','Meia-lua gráfica','Texturas','semicircle'],['ornament-arrow','Seta dupla destaque','Comercial','double-arrow'],['ornament-badge','Selo de presente','Presentes','badge'],['ornament-flower','Flor radial','Natureza','flower'],
+];
+stockObjects.push(...addedObjects.map(([id,name,category,shape])=>({id,name,category,art:`<g transform="scale(.8)"><path d="${vectorShapePath(shape)}" fill-rule="evenodd"/></g>`})));
 export function objectDataUrl(id:string,color='#ff922e'){
  const o=stockObjects.find(x=>x.id===id);if(!o)throw Error('Objeto não encontrado');
  const safe=/^#[a-fA-F0-9]{6}$/.test(color)?color:'#ff922e';

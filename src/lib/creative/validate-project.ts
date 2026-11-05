@@ -1,6 +1,7 @@
 /** Validation for imported .cgdesign files (untrusted JSON, processed only locally).
  * A file that renders is not necessarily a safe or well-formed editor document.
  */
+import {effectKinds} from './layer-effects';
 import {vectorShapes} from './vector-shapes';
 import type {DesignDocument} from './design';
 const kinds=new Set(['text','image','rect','circle','bezier']);
@@ -49,6 +50,9 @@ export function validateProjectDocument(input:unknown):asserts input is DesignDo
   for(const key of ['x','y','angle'])if(!numeric(n[key],-65536,65536))throw new Error(`Geometria inválida no elemento ${index+1}.`);
   for(const key of ['w','h'])if(!numeric(n[key],0.01,16384))throw new Error(`Tamanho inválido no elemento ${index+1}.`);
   if(!numeric(n.opacity,0,1))throw new Error(`Transparência inválida no elemento ${index+1}.`);
+  if(n.effectKind!==undefined&&!effectKinds.includes(n.effectKind as typeof effectKinds[number]))throw Error('Efeito inválido.');
+  if(n.effectIntensity!==undefined&&!numeric(n.effectIntensity,0,100))throw Error('Intensidade inválida.');
+  if(n.effectColor!==undefined&&(typeof n.effectColor!=='string'||!/^#[a-f0-9]{6}$/i.test(n.effectColor)))throw Error('Cor do efeito inválida.');
   if(n.shapeId!==undefined&&(!vectorShapes.some(s=>s.id===n.shapeId)||n.kind!=='rect'))throw Error('Forma inválida.');
   if(n.shapePoints!==undefined&&!numeric(n.shapePoints,3,32))throw Error('Quantidade de pontas inválida.');
   if(n.lineCap!==undefined&&!['round','butt','square'].includes(String(n.lineCap)))throw Error('Ponta de linha inválida.');
