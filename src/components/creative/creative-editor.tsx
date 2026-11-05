@@ -80,6 +80,7 @@ export function CreativeEditor(){
  const documentSessionRef=useRef<DocumentSession>(new DocumentSession());
  const doc=history[step];
  const [selected,setSelected]=useState<string|null>(null);
+ const [previewFont,setPreviewFont]=useState<{id:string;font:string}|null>(null);
  const [panel,setPanel]=useState<Panel>('templates');
  const [leftCollapsed,setLeftCollapsed]=useState(false),[rightCollapsed,setRightCollapsed]=useState(false);
  useEffect(()=>{try{setLeftCollapsed(localStorage.getItem('cg:left-collapsed')==='1');setRightCollapsed(localStorage.getItem('cg:right-collapsed')==='1');}catch{}},[]);
@@ -340,7 +341,7 @@ export function CreativeEditor(){
  useEffect(()=>{
   const seq=++renderId.current;const canvas=canvasRef.current;if(!canvas)return;
   const work=document.createElement('canvas');
-  void drawDesign(work,doc,doc.video?previewSecond:undefined).then(()=>{
+  void drawDesign(work,previewFont?{...doc,nodes:doc.nodes.map(n=>n.id===previewFont.id?{...n,font:previewFont.font}:n)}:doc,doc.video?previewSecond:undefined).then(()=>{
    if(seq!==renderId.current)return;
    if(canvas.width!==work.width)canvas.width=work.width;
    if(canvas.height!==work.height)canvas.height=work.height;
@@ -349,7 +350,7 @@ export function CreativeEditor(){
   if(visibleCtx){visibleCtx.clearRect(0,0,canvas.width,canvas.height);visibleCtx.drawImage(work,0,0);}
   }).catch(()=>{if(seq===renderId.current)setNotice('Não foi possível renderizar um dos elementos.');});
   return()=>{renderId.current++};
- },[doc,fontRevision,previewSecond,activeTabId]);
+ },[doc,fontRevision,previewSecond,activeTabId,previewFont]);
  // Handoff: dados binários ficam exclusivamente no IndexedDB do navegador.
  useEffect(()=>{let mounted=true;let initialSession=documentSessionRef.current.capture();void (async()=>{
   try{
@@ -860,7 +861,7 @@ export function CreativeEditor(){
     {active&&['foreground','background'].includes(active.role||'')&&!active.locked&&active.visible!==false&&<button type="button" className={`cr-scene-drag ${sceneDragId===active.id?'active':''}`} onClick={()=>setSceneDragId(v=>v===active.id?null:active.id)}>{sceneDragId===active.id?'Concluir movimento do cenário':'Mover esta camada de cenário no palco'}</button>}
     <p className="cr-helper">{t('Camadas ocultas não aparecem na exportação. Selecione fundo e primeiro plano aqui, mesmo quando ocuparem a tela inteira.')}</p>
    </div>}
-   {panel==='texts'&&<><div className="cr-text-shortcuts"><button onClick={()=>addText('Seu título aqui')}>+ Título</button><button onClick={()=>addText('Feliz aniversário')}>+ Mensagem</button></div><FontLibrary assets={fontAssets} localFonts={localFonts} onImport={files=>void importLocalFonts(files)} onChoose={(name,asset)=>void chooseFont(name,asset)}/></>}
+   {panel==='texts'&&<><div className="cr-text-shortcuts"><button onClick={()=>addText('Seu título aqui')}>+ Título</button><button onClick={()=>addText('Feliz aniversário')}>+ Mensagem</button></div><FontLibrary sample={active?.kind==='text'?active.text:undefined} current={active?.kind==='text'?active.font:undefined} onPreview={name=>setPreviewFont(name&&active?.kind==='text'?{id:active.id,font:name}:null)} assets={fontAssets} localFonts={localFonts} onImport={files=>void importLocalFonts(files)} onChoose={(name,asset)=>{setPreviewFont(null);void chooseFont(name,asset);}}/></>}
    {panel==='elements'&&<div className="cr-shapes"><button onClick={()=>addShape('rect')}><RectangleHorizontal size={32}/>Retângulo</button><button onClick={()=>addShape('circle')}><Circle size={32}/>Elipse</button><button onClick={addBezier}><PenTool size={32}/>Curva Bézier</button></div>}
    {panel==='library'&&<CuratedLibrary onOpenBackgrounds={()=>setPanel('backgrounds')} color={assetColor} onColorChange={setAssetColor} width={doc.width} height={doc.height} onInsertImage={src=>addImage(src)} onApplyBackground={src=>applyTemplate(src,'background')} onInsertText={text=>addText(text)} onOpenModels={()=>setPanel('templates')}/>}
    {panel==='icons'&&<><div className="cr-asset-color"><span>{t('COR DOS ÍCONES')}</span><input type="color" value={assetColor} onChange={e=>setAssetColor(e.target.value)}/></div><StockLibrary kind="icons" color={assetColor} add={src=>addImage(src)}/></>}
