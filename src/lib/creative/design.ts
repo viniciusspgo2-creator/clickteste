@@ -4,6 +4,7 @@ import {PixelBoundedCache,effectKey,clearAssetTokens} from './effect-cache';
 import {drawOutputWithMirror} from './export-transform';
 import {loadImageWithTimeout} from './async-image-load';
 import {assertExportBlobFormat, addPngDpiMetadata} from './image-export-integrity';
+import type {DesignGuide} from './guides';
 /** Editor local: documento, desenho e exportação. Nada do usuário é enviado ao servidor. */
 export type NodeKind='text'|'image'|'rect'|'circle'|'bezier';
 export type ColorGradient={kind:'linear'|'radial';from:string;to:string;angle:number};
@@ -17,7 +18,7 @@ export type DesignNode={id:string;kind:NodeKind;x:number;y:number;w:number;h:num
  curve?:number;wave?:number;depth?:number;tracking?:number;lineSpacing?:number;skew?:number;
  flipX?:boolean;flipY?:boolean;crop?:{left:number;top:number;right:number;bottom:number};keyframes?:MotionPoint[];
 };
-export type DesignDocument={width:number;height:number;background:string;nodes:DesignNode[];video?:{src:string;name:string;start:number;end?:number;fit?:'cover'|'contain'};smartTemplate?:{slot:{x:number;y:number;w:number;h:number};maskSrc?:string;maskMode?:'luminance'|'alpha';maskInvert?:boolean}};
+export type DesignDocument={width:number;height:number;background:string;nodes:DesignNode[];guides?:DesignGuide[];video?:{src:string;name:string;start:number;end?:number;fit?:'cover'|'contain'};smartTemplate?:{slot:{x:number;y:number;w:number;h:number};maskSrc?:string;maskMode?:'luminance'|'alpha';maskInvert?:boolean}};
 export type ExportFormat='png'|'jpeg'|'webp';
 export const formats=[{label:'Caneca 21 × 9,5 cm · 300 DPI',w:2480,h:1122},{label:'Área visível 19 × 8,5 cm · 300 DPI',w:2244,h:1004},{label:'Divulgação Instagram 1080 × 1350',w:1080,h:1350},{label:'Post quadrado 1080 × 1080',w:1080,h:1080},{label:'Story / Reels 1080 × 1920',w:1080,h:1920},{label:'Horizontal HD',w:1920,h:1080}] as const;
 export const uid=()=>crypto.randomUUID();

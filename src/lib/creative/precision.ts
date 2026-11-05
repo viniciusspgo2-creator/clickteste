@@ -31,9 +31,11 @@ export function nudgeDelta(key:string,shift=false,alt=false){
  }
 }
 /** Nearest edge/center match; tolerance stays constant as the canvas zooms. */
-export function snapPosition(node:DesignNode,doc:DesignDocument,zoom:number){
+export function snapPosition(node:DesignNode,doc:DesignDocument,zoom:number,useGuides=true){
  const b=visualBounds(node),threshold=6/Math.max(.08,zoom);
- const xs=[0,doc.width/2,doc.width],ys=[0,doc.height/2,doc.height];
+ const xs=useGuides?(doc.guides||[]).filter(g=>g.axis==='x'&&g.position<=doc.width).map(g=>g.position):[];
+ const ys=useGuides?(doc.guides||[]).filter(g=>g.axis==='y'&&g.position<=doc.height).map(g=>g.position):[];
+ xs.push(0,doc.width/2,doc.width);ys.push(0,doc.height/2,doc.height);
  for(const other of doc.nodes){
   if(other.id===node.id||other.visible===false||other.role==='background'||other.role==='foreground'||other.role==='template')continue;
   const bounds=visualBounds(other);

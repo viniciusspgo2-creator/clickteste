@@ -78,3 +78,48 @@
 @media(max-width:600px){.cg-reference-v11 .cr-canvas-zone{padding:36px}.cg-reference-v11 .cr-shortcut-trigger span{display:none}.cg-reference-v11 .cr-viewport-tools :is(button,select){padding-inline:6px}.cg-reference-v11 .cr-alignment-grid button{min-height:38px}}
 @media(max-width:1020px){.cg-reference-v11 .cr-left{max-height:none}.cg-reference-v11 .cr-left .cr-responsive-panel[open]{max-height:620px}}
 @media(prefers-reduced-motion:reduce){.cg-reference-v11 .cr-curated-card{transition:none}}
+/* Ruler-created guides and editing actions remain outside the exported canvas. */
+.cg-reference-v11 .cr-ruler-horizontal,.cg-reference-v11 .cr-ruler-vertical{pointer-events:auto;touch-action:none;user-select:none;cursor:crosshair}
+.cg-reference-v11 .cr-ruler-horizontal:hover,.cg-reference-v11 .cr-ruler-vertical:hover{background:#333047;color:#ffe1c4}
+.cg-reference-v11 .cr-rulers svg:focus-visible{outline:2px solid #ffb576;outline-offset:1px}
+.cg-reference-v11 .cr-rulers g{pointer-events:none}
+.cg-reference-v11 .cr-manual-guides{position:absolute;inset:0;pointer-events:none;z-index:8}
+.cg-reference-v11 .cr-manual-guide{position:absolute;pointer-events:auto;touch-action:none;border:0;border-radius:0;padding:0;background:none!important;box-shadow:none;overflow:visible;outline-offset:0}
+.cg-reference-v11 .cr-manual-guide-x{top:0;bottom:0;width:10px;margin-left:-5px;cursor:ew-resize}
+.cg-reference-v11 .cr-manual-guide-y{left:0;right:0;height:10px;margin-top:-5px;cursor:ns-resize}
+.cg-reference-v11 .cr-manual-guide:before{content:"";position:absolute;pointer-events:none}
+.cg-reference-v11 .cr-manual-guide-x:before{left:4px;top:0;bottom:0;border-left:1px dashed #14cfeb}
+.cg-reference-v11 .cr-manual-guide-y:before{top:4px;left:0;right:0;border-top:1px dashed #14cfeb}
+.cg-reference-v11 .cr-manual-guide.selected:before{border-color:#ffbb74;border-style:solid;filter:drop-shadow(0 0 2px #000)}
+.cg-reference-v11 .cr-manual-guide.locked{pointer-events:none;opacity:.7}
+.cg-reference-v11 .cr-guide-coordinate{display:none;position:absolute;white-space:nowrap;background:#182d38;color:#d8fcff;border:1px solid #5bd6eb70;border-radius:4px;padding:3px 6px;font:10px Arial,sans-serif;pointer-events:none}
+.cg-reference-v11 .cr-manual-guide:hover .cr-guide-coordinate,.cg-reference-v11 .cr-manual-guide.selected .cr-guide-coordinate{display:block}
+.cg-reference-v11 .cr-manual-guide-x .cr-guide-coordinate{top:4px;left:9px}
+.cg-reference-v11 .cr-manual-guide-y .cr-guide-coordinate{left:4px;top:9px}
+.cg-reference-v11 .cr-guide-drag-value{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);padding:6px 10px;border-radius:6px;background:#102b37ed;color:#c9faff;font-size:11px;white-space:nowrap;pointer-events:none;z-index:20;box-shadow:0 2px 9px #0006}
+.cg-reference-v11 .cr-precision-bar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:9px 12px;background:#1c1d28;border-bottom:1px solid #ffffff16;font-size:11px}
+.cg-reference-v11 .cr-precision-bar>span,.cg-reference-v11 .cr-precision-bar>div{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.cg-reference-v11 .cr-precision-bar>span>svg{color:#65d9ed}
+.cg-reference-v11 .cr-precision-bar strong{font-size:11px;font-weight:550;color:#d6ecf2}
+.cg-reference-v11 .cr-precision-bar small{color:#9596ab;font-size:10px}
+.cg-reference-v11 .cr-precision-bar button{display:flex;align-items:center;gap:6px;padding:6px 9px;border-radius:6px;background:#282a38;border:1px solid #ffffff1f;font-size:11px;min-height:30px}
+.cg-reference-v11 .cr-precision-bar button b{background:#414458;border-radius:4px;padding:1px 5px;font-weight:500}
+.cg-reference-v11 .cr-guide-controls{padding:12px;background:#171c28;border-bottom:1px solid #62c6df44;display:flex;flex-direction:column;gap:10px;font-size:12px}
+.cg-reference-v11 .cr-guide-controls-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.cg-reference-v11 .cr-guide-controls-head>div{display:flex;flex-direction:column;gap:4px}
+.cg-reference-v11 .cr-guide-controls small{font-size:11px;line-height:1.5;color:#b4b5c7}
+.cg-reference-v11 .cr-guide-control-actions,.cg-reference-v11 .cr-guide-fields{display:flex;align-items:end;flex-wrap:wrap;gap:6px}
+.cg-reference-v11 .cr-guide-control-actions button,.cg-reference-v11 .cr-guide-fields>button{display:flex;align-items:center;gap:5px;background:#282c3d;border:1px solid #ffffff22;border-radius:6px;padding:7px 9px;min-height:32px;font-size:11px}
+.cg-reference-v11 .cr-guide-fields label{display:flex;flex-direction:column;gap:4px;font-size:11px;color:#c7c7d6}
+.cg-reference-v11 .cr-guide-fields select,.cg-reference-v11 .cr-guide-fields input{border:1px solid #ffffff29;background:#111622;border-radius:6px;padding:7px;color:#eee;min-width:0;max-width:240px;font-size:12px;font-variant-numeric:tabular-nums}
+.cg-reference-v11 .cr-guide-fields input{width:115px}
+.cg-reference-v11 .cr-selection-toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:7px 12px;background:#24212c;border-bottom:1px solid #ff9b3533;font-size:11px}
+.cg-reference-v11 .cr-selection-toolbar>strong{color:#ffd0a9;font-size:11px;font-weight:600}
+.cg-reference-v11 .cr-selection-tools{display:flex;align-items:center;gap:3px;border-left:1px solid #ffffff20;padding-left:7px}
+.cg-reference-v11 .cr-selection-toolbar button{display:flex;align-items:center;justify-content:center;gap:5px;min-width:30px;min-height:30px;padding:4px 6px;border-radius:5px;border:1px solid transparent;color:#dad5e4}
+.cg-reference-v11 .cr-selection-toolbar button:hover{border-color:#ffad7166;background:#ffffff08}
+.cg-reference-v11 .cr-selection-toolbar button[aria-pressed=true]{background:#ff9d3026;color:#ffc688}
+.cg-reference-v11 .cr-selection-toolbar input[type=color]{width:29px;height:29px;border:1px solid #ffffff30;background:none;border-radius:5px;padding:3px}
+.cg-reference-v11 :is(.cr-canvas-top,.cr-precision-bar,.cr-selection-toolbar,.cr-guide-controls,.cr-motion-timeline,.cr-bottom){flex-shrink:0}
+@media(max-width:1020px){.cg-reference-v11 .cr-shell{grid-template-rows:minmax(560px,70dvh) minmax(320px,auto) auto}}
+@media(max-width:600px){.cg-reference-v11 .cr-precision-bar small{display:none}.cg-reference-v11 .cr-precision-bar{padding:7px 9px}.cg-reference-v11 .cr-selection-toolbar{gap:4px;padding:6px}.cg-reference-v11 .cr-guide-fields select{max-width:180px}.cg-reference-v11 .cr-guide-controls{max-height:260px;overflow:auto}}

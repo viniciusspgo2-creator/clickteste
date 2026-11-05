@@ -1,7 +1,7 @@
 "use client";
 import { useCallback,useEffect,useMemo,useRef,useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Undo2, Redo2, ImagePlus, Type, Shapes, Layers3, Trash2, Copy, ChevronUp, ChevronDown, Download, SlidersHorizontal, Search, Upload, RectangleHorizontal, Circle, Sparkles, FolderOpen, Save, WandSparkles, X, Plus, Maximize, FlipHorizontal2, FlipVertical2, Crop, LockKeyhole, Users, Eye, EyeOff, Lock, Unlock, Layers2, RotateCcw, BookOpen, Sticker, Shapes as ObjectsIcon, Paintbrush, Pipette, RotateCw, ShieldCheck, History, AlertTriangle, Scissors, ClipboardPaste, Eraser, PenTool, Ruler, Magnet, Keyboard, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal, Minus } from 'lucide-react';
+import { ArrowLeft, Undo2, Redo2, ImagePlus, Type, Shapes, Layers3, Trash2, Copy, ChevronUp, ChevronDown, Download, SlidersHorizontal, Search, Upload, RectangleHorizontal, Circle, Sparkles, FolderOpen, Save, WandSparkles, X, Plus, Maximize, FlipHorizontal2, FlipVertical2, Crop, LockKeyhole, Users, Eye, EyeOff, Lock, Unlock, Layers2, RotateCcw, BookOpen, Sticker, Shapes as ObjectsIcon, Paintbrush, Pipette, RotateCw, ShieldCheck, History, AlertTriangle, Scissors, ClipboardPaste, Eraser, PenTool, Ruler, Magnet, Keyboard, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal, Minus, Palette } from 'lucide-react';
 import { asDataUrl,blankDocument,clearDesignRenderCache,drawDesign,exportDesign,formats,imageFor,saveBlob,uid,type DesignDocument,type DesignNode,type ExportFormat } from '@/lib/creative/design';
 import { readHandoff } from '@/lib/creative/handoff';
 import {detachAutomaticSmartMask,replaceFlatScene,canCommitAsyncTemplate} from '@/lib/creative/template-transition';
@@ -32,6 +32,9 @@ import {loadBrowserFonts,type LocalTypeface} from '@/lib/creative/browser-fonts'
 import {saveCreativeProject,readCreativeProject,listCreativeProjects,deleteCreativeProject,deleteAutomaticDraft,LOCAL_DRAFT_ID,type SavedCreativeProject} from '@/lib/creative/browser-projects';
 import {usePlatformLanguage} from '@/components/platform/language-provider';
 import {CanvasRulers} from './canvas-rulers';
+import {GuideControls} from './guide-controls';
+import {SelectionToolbar} from './selection-toolbar';
+import {MAX_GUIDES,type DesignGuide} from '@/lib/creative/guides';
 import {SvgColorEditor} from './svg-color-editor';
 import {ObjectMeasurements} from './object-measurements';
 import {centerOnMugFace,isMugDocument,oppositeMugFace} from '@/lib/creative/mug-layout';
@@ -89,6 +92,11 @@ export function CreativeEditor(){
  const [exportOpen,setExportOpen]=useState(false);const [format,setFormat]=useState<ExportFormat>('png');const [scale,setScale]=useState(1);
  const [mirrorPrint,setMirrorPrint]=useState(false);
  const [rulers,setRulers]=useState(true);
+ const [freeGuidesVisible,setFreeGuidesVisible]=useState(true);
+ const [guidePanelOpen,setGuidePanelOpen]=useState(false);
+ const [selectedGuide,setSelectedGuide]=useState<string|null>(null);
+ const guideDraggingRef=useRef(false);
+ const onGuideInteraction=useCallback((active:boolean)=>{guideDraggingRef.current=active;},[]);
  const [mugFaceGuides,setMugFaceGuides]=useState(false);
  const [rulerUnit,setRulerUnit]=useState<RulerUnit>('mm');
  const [snapping,setSnapping]=useState(true);
@@ -131,6 +139,7 @@ export function CreativeEditor(){
  const [eyedropper,setEyedropper]=useState<'background'|'element'|null>(null);
  const [sceneDragId,setSceneDragId]=useState<string|null>(null);
 
+ const svgFileRef=useRef<HTMLInputElement>(null);
  const videoRef=useRef<HTMLVideoElement>(null);
  const canvasRef=useRef<HTMLCanvasElement>(null),zoneRef=useRef<HTMLDivElement>(null),fileRef=useRef<HTMLInputElement>(null),backgroundFileRef=useRef<HTMLInputElement>(null),projectRef=useRef<HTMLInputElement>(null),maskRef=useRef<HTMLInputElement>(null);
  const gesture=useRef<Gesture|null>(null);
@@ -159,6 +168,16 @@ export function CreativeEditor(){
   setHistory(next);setStep(next.length-1);
  },[]);
  const patch=useCallback((id:string,p:Partial<DesignNode>)=>update(d=>({...d,nodes:d.nodes.map(n=>n.id===id&&!n.locked?{...n,...p}:n)})),[update]);
+ const selectGuide=(id:string)=>{setSelectedGuide(id);setSelected(null);setFreeGuidesVisible(true);};
+ const changeGuides=(guides:DesignGuide[])=>{if(guides.length<=MAX_GUIDES)update(d=>({...d,guides}));};
+ const commitGuide=(id:string,guide:DesignGuide|null,before:DesignDocument)=>{
+  if(stateRef.current.history[stateRef.current.step]!==before){setNotice('A arte mudou durante o arraste da guia. Tente novamente.');return;}
+  const existing=before.guides?.find(g=>g.id===id);if(existing?.locked||!guide&&!existing)return;
+  if(guide&&existing?.position===guide.position)return;
+  if(guide&&!existing&&(before.guides?.length||0)>=MAX_GUIDES)return;
+  update(d=>({...d,guides:guide?(d.guides||[]).some(g=>g.id===id)?d.guides!.map(g=>g.id===id?guide:g):[...(d.guides||[]),guide]:(d.guides||[]).filter(g=>g.id!==id)}));
+  setSelectedGuide(guide?id:null);
+ };
  const put=(node:DesignNode)=>{update(d=>({...d,nodes:[...d.nodes,node]}));setSelected(node.id);};
  const addText=(value='Seu texto aqui')=>{const n:DesignNode={id:uid(),kind:'text',aspectLock:true,x:doc.width*.1,y:doc.height*.39,w:doc.width*.8,h:150,angle:0,opacity:1,text:value,font:'Arial',size:Math.round(doc.width*.065),bold:true,fill:'#ffffff',shadow:0};put(n);};
  const addShape=(kind:'rect'|'circle')=>{put({id:uid(),kind,x:doc.width*.25,y:doc.height*.36,w:doc.width*.5,h:Math.min(doc.width*.35,doc.height*.5),angle:0,opacity:1,fill:'#ff8525',radius:24,shadow:6});};
@@ -227,14 +246,14 @@ export function CreativeEditor(){
    const keep=detachAutomaticSmartMask(d).filter(n=>n.role!=='template'&&n.role!=='background'&&n.role!=='foreground');
    const f=Math.min(base.width/d.width,base.height/d.height);const ox=(base.width-d.width*f)/2,oy=(base.height-d.height*f)/2;
    const adapted=keep.map(n=>({...n,x:n.x*f+ox,y:n.y*f+oy,w:n.w*f,h:n.h*f,size:n.size?Math.max(8,n.size*f):undefined,shadow:n.shadow?Math.max(1,n.shadow*f):n.shadow}));
-   return {...base,nodes:[...base.nodes,...adapted]};
+   return {...base,guides:d.guides,nodes:[...base.nodes,...adapted]};
   });setSelected(null);setTemplateFamily('mug');setNotice('Modelo de estampa aplicado em 21 × 9,5 cm. Suas camadas foram preservadas.');};
  const applySocialPreset=(preset:SocialPresetId)=>{++templateRequestRef.current;documentSessionRef.current.replace();const base=makeSocialPreset(preset);update(d=>{
    // Trocar entre layouts sociais não elimina o mockup do Studio nem as fotos e textos do cliente.
    const keep=detachAutomaticSmartMask(d).filter(n=>n.role!=='template'&&n.role!=='background'&&n.role!=='foreground');
    const f=Math.min(base.width/d.width,base.height/d.height);const ox=(base.width-d.width*f)/2,oy=(base.height-d.height*f)/2;
    const adapted=keep.map(n=>({...n,x:n.x*f+ox,y:n.y*f+oy,w:n.w*f,h:n.h*f,size:n.size?Math.max(8,n.size*f):undefined,shadow:n.shadow?Math.max(1,n.shadow*f):n.shadow}));
-   return {...base,nodes:[...base.nodes,...adapted]};
+   return {...base,guides:d.guides,nodes:[...base.nodes,...adapted]};
   });setSelected(null);setTemplateFamily('social');setSocialFormat(base.height===1920?'story':'feed');setNotice(`Modelo de divulgação aplicado em ${base.width} × ${base.height} px. Seu mockup foi preservado.`);};
  const importLocalFonts=async(files:FileList|null)=>{
   if(!files?.length)return;setBusy(true);
@@ -374,14 +393,14 @@ export function CreativeEditor(){
   const unsaved=editorTabsRef.current.some(tab=>{
    const document=tab.id===activeTabRef.current?current:tab.history[tab.step];
    const saved=tab.id===activeTabRef.current?savedDocumentRef.current:tab.saved;
-   return document!==saved&&(document.nodes.length>0||Boolean(document.video)||Boolean(document.smartTemplate));
+   return document!==saved&&(document.nodes.length>0||Boolean(document.guides?.length)||Boolean(document.video)||Boolean(document.smartTemplate));
   });
   if(unsaved){event.preventDefault();event.returnValue='';}
  };window.addEventListener('beforeunload',beforeUnload);return()=>window.removeEventListener('beforeunload',beforeUnload);},[]);
  const confirmLeaveEditor=()=>{
   const current=stateRef.current.history[stateRef.current.step];
-  const otherPending=editorTabsRef.current.some(tab=>tab.id!==activeTabRef.current&&tab.history[tab.step]!==tab.saved&&tab.history[tab.step].nodes.length>0);
-  return !otherPending&&(current===savedDocumentRef.current||(!current.nodes.length&&!current.video&&!current.smartTemplate))||window.confirm('Existem alterações ainda não salvas em uma das abas. Exporte cada arte como .cgdesign antes de sair. Deseja sair mesmo assim?');
+  const otherPending=editorTabsRef.current.some(tab=>tab.id!==activeTabRef.current&&tab.history[tab.step]!==tab.saved&&(tab.history[tab.step].nodes.length>0||!!tab.history[tab.step].guides?.length));
+  return !otherPending&&(current===savedDocumentRef.current||(!current.nodes.length&&!current.guides?.length&&!current.video&&!current.smartTemplate))||window.confirm('Existem alterações ainda não salvas em uma das abas. Exporte cada arte como .cgdesign antes de sair. Deseja sair mesmo assim?');
  };
  // Catálogo administrativo: o arquivo binário é carregado apenas ao escolher a fonte.
  const [fontAssets,setFontAssets]=useState<Asset[]>([]);
@@ -466,7 +485,7 @@ export function CreativeEditor(){
   return (canSelectOnCanvas(n)||(sceneDragId===n.id&&n.visible!==false&&!n.locked))&&Math.abs(lx)<n.w/2+12&&Math.abs(ly)<n.h/2+12;
  });
  const down=(evt:React.PointerEvent<HTMLCanvasElement>)=>{
-  if(evt.button!==0)return;evt.preventDefault();evt.currentTarget.focus({preventScroll:true});nudgeRef.current=null;const p=cursorPoint(evt);
+  if(evt.button!==0)return;evt.preventDefault();evt.currentTarget.focus({preventScroll:true});nudgeRef.current=null;setSelectedGuide(null);const p=cursorPoint(evt);
   if(eyedropper){const ctx=canvasRef.current?.getContext('2d',{willReadFrequently:true});if(!ctx)return;const data=ctx.getImageData(Math.round(p.x),Math.round(p.y),1,1).data;if(data[3]<10){setNotice('Selecione uma área com cor para capturar.');return;}const hex='#'+Array.from(data.slice(0,3)).map(v=>v.toString(16).padStart(2,'0')).join('');applyColor(hex,eyedropper);setEyedropper(null);return;}
   if(eraserMode){
    if(!active||active.kind!=='image'||active.locked){setNotice('Selecione uma imagem desbloqueada para usar a borracha.');return;}
@@ -495,7 +514,7 @@ export function CreativeEditor(){
    let x=g.initial.x+dx,y=g.initial.y+dy;
    if(evt.shiftKey){if(Math.abs(dx)>=Math.abs(dy))y=g.initial.y;else x=g.initial.x;}
    if(snapping&&!evt.altKey){
-    const snapped=snapPosition({...g.initial,x,y},g.before,zoom);
+    const snapped=snapPosition({...g.initial,x,y},g.before,zoom,freeGuidesVisible);
     if(evt.shiftKey){if(Math.abs(dx)>=Math.abs(dy)){x=snapped.x;setSnapLines({x:snapped.guideX});}else{y=snapped.y;setSnapLines({y:snapped.guideY});}}
     else{x=snapped.x;y=snapped.y;setSnapLines({x:snapped.guideX,y:snapped.guideY});}
    }else setSnapLines({});
@@ -601,11 +620,18 @@ export function CreativeEditor(){
   const target=e.target instanceof Element?e.target:null;
   if(e.defaultPrevented||e.isComposing||target?.closest('input,textarea,select,[contenteditable]:not([contenteditable="false"]),[role="textbox"]'))return;
   if(e.key==='Escape'){
-   setEyedropper(null);setResetOpen(false);setHistoryOpen(false);setExportOpen(false);setBackgroundChoice(null);setShortcutsOpen(false);setSelected(null);nudgeRef.current=null;return;
+   setEyedropper(null);setResetOpen(false);setHistoryOpen(false);setExportOpen(false);setBackgroundChoice(null);setShortcutsOpen(false);setSelected(null);setSelectedGuide(null);nudgeRef.current=null;return;
   }
-  if(exportOpen||resetOpen||historyOpen||backgroundChoice||shortcutsOpen||showAgent||busy||gesture.current)return;
+  if(exportOpen||resetOpen||historyOpen||backgroundChoice||shortcutsOpen||showAgent||busy||gesture.current||guideDraggingRef.current)return;
   const command=e.ctrlKey||e.metaKey;
   const delta=!command?nudgeDelta(e.key,e.shiftKey,e.altKey):null;
+  const currentGuide=freeGuidesVisible?doc.guides?.find(g=>g.id===selectedGuide):undefined;
+  if(delta&&currentGuide){
+   e.preventDefault();if(currentGuide.locked)return;
+   const amount=currentGuide.axis==='x'?delta.x:delta.y;if(!amount)return;
+   update(d=>({...d,guides:d.guides?.map(g=>g.id===currentGuide.id?{...g,position:clamp(Math.round((g.position+amount)*1000)/1000,0,g.axis==='x'?d.width:d.height)}:g)}));return;
+  }
+  if((e.key==='Delete'||e.key==='Backspace')&&currentGuide){e.preventDefault();if(!currentGuide.locked){update(d=>({...d,guides:d.guides?.filter(g=>g.id!==currentGuide.id)}));setSelectedGuide(null);}return;}
   if(delta&&active&&!active.locked&&active.visible!==false){
    e.preventDefault();
    const state=stateRef.current,current=state.history[state.step];
@@ -631,7 +657,7 @@ export function CreativeEditor(){
  return()=>{window.removeEventListener('keydown',key);window.removeEventListener('keyup',finish);window.removeEventListener('blur',finish);};
  // callbacks intentionally track the latest state
  // eslint-disable-next-line react-hooks/exhaustive-deps
- },[doc,step,selected,history,exportOpen,resetOpen,historyOpen,backgroundChoice,shortcutsOpen,showAgent,busy]);
+ },[doc,step,selected,selectedGuide,freeGuidesVisible,history,exportOpen,resetOpen,historyOpen,backgroundChoice,shortcutsOpen,showAgent,busy]);
  const loadLayeredDocument=(next:DesignDocument,info:string,expectedSession:number)=>{
   if(!documentSessionRef.current.isCurrent(expectedSession))return false;
   const current=stateRef.current.history[stateRef.current.step];
@@ -828,10 +854,13 @@ export function CreativeEditor(){
    {panel==='personagens'&&<p className="cr-helper"><ShieldCheck size={16}/>Para organizar seus PNGs, publique-os no Admin como <b>Elementos</b> nas categorias Personagens, Alfabetos, Ilustrações, Avulsos ou PNGs. Utilize somente arquivos com direito de uso.</p>}
    {panel==='uploads'&&<div className="cr-upload"><ImagePlus size={28}/><h3>{t('Seus arquivos, seu navegador')}</h3><p className="cr-privacy-note"><ShieldCheck size={18}/> PRIVACIDADE: o upload NÃO vai para o servidor. Sua composição fica temporariamente no navegador até você exportar ou apagar; o navegador pode limpar o armazenamento sem aviso.</p><p>PNG, JPEG/JFIF, SVG, WebP, AVIF, BMP, GIF (primeiro quadro), PDF com extração aproximada de textos, PSD RGB/8 bits com camadas raster, template inteligente .cgtemplate e vídeo MP4 (até 30 MB). Todo arquivo permanece neste navegador.</p><button className="cr-primary" onClick={()=>fileRef.current?.click()}><Plus size={16}/>{t('Adicionar imagens')}</button><small>SVG preserva as partes vetoriais para trocar cores em Propriedades → Cores do SVG. PDF e PSD têm limitações: efeitos e fontes podem não ser reproduzidos. Antes de imprimir, confira cada camada.</small></div>}
   </details></aside>
-  <main className="cr-canvas-shell"><div className="cr-canvas-top"><div><span className="cr-dot"/> {isSocialLayoutSize(doc.width,doc.height)?'Editor de Posts e Stories':'Editor de Sublimação de Canecas'} <span className="cr-micro">{doc.width===2480&&doc.height===1122?'21 × 9,5 cm · 2480 × 1122 px · 300 DPI':`${doc.width} × ${doc.height} px · formato alternativo`}</span></div><div className="cr-canvas-actions">{doc.video&&<><span title="Segundos de início para o MP4">Início <input type="number" min={0} max={600} step={.5} style={{width:62}} value={doc.video.start} onChange={e=>update(d=>({...d,video:d.video?{...d.video,start:Math.max(0,Number(e.target.value))}:undefined}))}/></span><span title="Segundo final opcional; até 20 segundos de exportação">Fim <input type="number" min={0} max={600} step={.5} style={{width:62}} value={doc.video.end??0} onChange={e=>update(d=>({...d,video:d.video?{...d.video,end:Number(e.target.value)||undefined}:undefined}))}/></span><label title="Como enquadrar o vídeo no template" style={{display:'inline-flex',alignItems:'center',gap:6}}>Enquadramento <select aria-label="Enquadramento do vídeo" value={doc.video.fit||'cover'} onChange={e=>update(d=>({...d,video:d.video?{...d.video,fit:e.target.value as 'cover'|'contain'}:undefined}))}><option value="cover">Preencher (cortar bordas)</option><option value="contain">Mostrar inteiro</option></select></label><button onClick={()=>update(d=>({...d,video:undefined,background:'#ffffff'}))}>Remover vídeo</button></>}{isMugDocument(doc)&&<button type="button" aria-label="Mostrar centros das faces da caneca" aria-pressed={mugFaceGuides} onClick={()=>setMugFaceGuides(v=>!v)} title="Centros de referência das duas faces; confira na sua caneca"><Layers2 size={15}/> Faces</button>}<button type="button" className="cr-fit-canvas-action" onClick={()=>void reframeBackground()} title="Reenquadrar fundo sem distorcer, mantendo as outras camadas"><Maximize size={15}/> Enquadrar 21 × 9,5</button><button type="button" className="cr-advanced-format-toggle" aria-expanded={advancedFormats} onClick={()=>setAdvancedFormats(v=>!v)}>Outros formatos</button>{(advancedFormats||doc.width!==2480||doc.height!==1122)&&<select aria-label="Formato do documento" value={`${doc.width}x${doc.height}`} onChange={e=>{const f=formats.find(f=>`${f.w}x${f.h}`===e.target.value);if(f){update(d=>({...d,width:f.w,height:f.h}));setTemplateFamily(isSocialLayoutSize(f.w,f.h)?'social':'mug');setSocialFormat(f.h===1920?'story':'feed');}}}>{formats.map(f=><option key={f.label} value={`${f.w}x${f.h}`}>{f.label}</option>)}</select>}<button type="button" aria-label="Mostrar réguas" aria-pressed={rulers} onClick={()=>setRulers(v=>!v)} title="Réguas de impressão (não são exportadas)"><Ruler size={16}/> Régua</button><button type="button" aria-label="Encaixe inteligente ao arrastar" aria-pressed={snapping} onClick={()=>setSnapping(v=>!v)} title="Alinhar bordas e centros. Alt suspende o encaixe."><Magnet size={16}/></button><button onClick={()=>setGuides(v=>!v)} title="Mostrar/ocultar área segura (não sai na exportação)" className="cr-guides-pulse" aria-pressed={guides}><Eye size={16}/> Guias</button><button onClick={resize} title="Encaixar na tela"><Maximize size={16}/></button></div></div>
+  <main className="cr-canvas-shell"><div className="cr-canvas-top"><div><span className="cr-dot"/> {isSocialLayoutSize(doc.width,doc.height)?'Editor de Posts e Stories':'Editor de Sublimação de Canecas'} <span className="cr-micro">{doc.width===2480&&doc.height===1122?'21 × 9,5 cm · 2480 × 1122 px · 300 DPI':`${doc.width} × ${doc.height} px · formato alternativo`}</span></div><div className="cr-canvas-actions">{doc.video&&<><span title="Segundos de início para o MP4">Início <input type="number" min={0} max={600} step={.5} style={{width:62}} value={doc.video.start} onChange={e=>update(d=>({...d,video:d.video?{...d.video,start:Math.max(0,Number(e.target.value))}:undefined}))}/></span><span title="Segundo final opcional; até 20 segundos de exportação">Fim <input type="number" min={0} max={600} step={.5} style={{width:62}} value={doc.video.end??0} onChange={e=>update(d=>({...d,video:d.video?{...d.video,end:Number(e.target.value)||undefined}:undefined}))}/></span><label title="Como enquadrar o vídeo no template" style={{display:'inline-flex',alignItems:'center',gap:6}}>Enquadramento <select aria-label="Enquadramento do vídeo" value={doc.video.fit||'cover'} onChange={e=>update(d=>({...d,video:d.video?{...d.video,fit:e.target.value as 'cover'|'contain'}:undefined}))}><option value="cover">Preencher (cortar bordas)</option><option value="contain">Mostrar inteiro</option></select></label><button onClick={()=>update(d=>({...d,video:undefined,background:'#ffffff'}))}>Remover vídeo</button></>}{isMugDocument(doc)&&<button type="button" aria-label="Mostrar centros das faces da caneca" aria-pressed={mugFaceGuides} onClick={()=>setMugFaceGuides(v=>!v)} title="Centros de referência das duas faces; confira na sua caneca"><Layers2 size={15}/> Faces</button>}<button type="button" className="cr-fit-canvas-action" onClick={()=>void reframeBackground()} title="Reenquadrar fundo sem distorcer, mantendo as outras camadas"><Maximize size={15}/> Enquadrar 21 × 9,5</button><button type="button" className="cr-advanced-format-toggle" aria-expanded={advancedFormats} onClick={()=>setAdvancedFormats(v=>!v)}>Outros formatos</button>{(advancedFormats||doc.width!==2480||doc.height!==1122)&&<select aria-label="Formato do documento" value={`${doc.width}x${doc.height}`} onChange={e=>{const f=formats.find(f=>`${f.w}x${f.h}`===e.target.value);if(f){update(d=>({...d,width:f.w,height:f.h}));setTemplateFamily(isSocialLayoutSize(f.w,f.h)?'social':'mug');setSocialFormat(f.h===1920?'story':'feed');}}}>{formats.map(f=><option key={f.label} value={`${f.w}x${f.h}`}>{f.label}</option>)}</select>}<button type="button" aria-label="Mostrar réguas" aria-pressed={rulers} onClick={()=>setRulers(v=>!v)} title="Réguas de impressão (não são exportadas)"><Ruler size={16}/> Régua</button><button type="button" aria-label="Encaixe inteligente ao arrastar" aria-pressed={snapping} onClick={()=>setSnapping(v=>!v)} title="Alinhar bordas e centros. Alt suspende o encaixe."><Magnet size={16}/></button><button onClick={()=>setGuides(v=>!v)} title="Mostrar/ocultar área segura (não sai na exportação)" className="cr-guides-pulse" aria-pressed={guides}><Eye size={16}/> Área segura</button><button onClick={resize} title="Encaixar na tela"><Maximize size={16}/></button></div></div>
+   <div className="cr-precision-bar"><span><Ruler size={16}/><strong>Puxe guias das réguas</strong><small>↓ horizontal · → vertical</small></span><div><button type="button" aria-expanded={guidePanelOpen} onClick={()=>{setGuidePanelOpen(v=>!v);setRulers(true);}}><SlidersHorizontal size={15}/> Guias livres <b>{doc.guides?.length||0}</b></button><button type="button" onClick={()=>setPanel('library')}><Sparkles size={15}/> Biblioteca de artes</button><button type="button" onClick={()=>svgFileRef.current?.click()}><Palette size={15}/> Importar SVG editável</button></div></div>
+   {guidePanelOpen&&<GuideControls guides={doc.guides||[]} selected={selectedGuide} unit={rulerUnit} width={doc.width} height={doc.height} visible={freeGuidesVisible} onSelect={selectGuide} onChange={changeGuides} onVisible={setFreeGuidesVisible} onClose={()=>setGuidePanelOpen(false)}/>}
+   <SelectionToolbar node={active} onAlign={alignSelected} onDuplicate={duplicate} onDelete={remove} onLock={()=>{if(active)toggleLayer(active.id,'locked');}} onFront={()=>layer('front')} onPatch={attrs=>{if(active)patch(active.id,attrs);}}/>
    {doc.video&&<div className="cr-motion-timeline"><span>LINHA DO TEMPO</span><button type="button" onClick={()=>{if(!videoRef.current)return;if(videoRef.current.paused)void videoRef.current.play();else videoRef.current.pause();}} aria-label="Reproduzir ou pausar vídeo">▶ / II</button><input aria-label="Posição do vídeo em segundos" type="range" min={0} max={Math.min(20,Math.max(.5,(doc.video.end??20)-(doc.video.start||0)))} step={.1} value={Math.min(previewSecond,Math.min(20,Math.max(.5,(doc.video.end??20)-(doc.video.start||0))))} onChange={e=>{const second=Number(e.target.value);setPreviewSecond(second);if(videoRef.current){videoRef.current.pause();videoRef.current.currentTime=(doc.video?.start||0)+second;}}}/><output>{previewSecond.toFixed(1)}s</output><small>Selecione um objeto para animar posição, escala e opacidade.</small></div>}
    <div className="cr-canvas-zone" ref={zoneRef}><div className="cr-stage" style={{width:doc.width*zoom,height:doc.height*zoom}}>{doc.video&&<video ref={videoRef} key={doc.video.src} className="cr-video-preview" style={{objectFit:doc.video.fit==='contain'?'contain':'cover',background:'#ffffff'}} src={doc.video.src} autoPlay muted loop playsInline preload="metadata" onLoadedMetadata={e=>{const start=doc.video?.start||0;if(start>0&&start<e.currentTarget.duration)e.currentTarget.currentTime=start;}} onTimeUpdate={e=>{const el=e.currentTarget;const start=doc.video?.start||0;const end=Math.min(el.duration,doc.video?.end??el.duration,start+20);if(end>start&&el.currentTime>=end){el.currentTime=Math.min(start,Math.max(0,el.duration-.1));return;}setPreviewSecond(Math.max(0,el.currentTime-start));}}/>}
-    {rulers&&<CanvasRulers width={doc.width} height={doc.height} zoom={zoom} unit={rulerUnit}/>}
+    <CanvasRulers key={activeTabId} document={doc} zoom={zoom} unit={rulerUnit} showRulers={rulers} showGuides={freeGuidesVisible} selected={selectedGuide} canvas={canvasRef} onSelect={selectGuide} onEdit={()=>setGuidePanelOpen(true)} onCommit={commitGuide} onInteraction={onGuideInteraction}/>
     {snapLines.x!==undefined&&<div className="cr-snap-line cr-snap-x" style={{left:snapLines.x*zoom}} aria-hidden="true"/>}
     {snapLines.y!==undefined&&<div className="cr-snap-line cr-snap-y" style={{top:snapLines.y*zoom}} aria-hidden="true"/>}
     <canvas tabIndex={0} ref={canvasRef} style={{width:'100%',height:'100%',cursor:eraserMode?'crosshair':'grab'}} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} aria-label="Tela de criação: setas movem a seleção, Shift acelera, Alt ajusta com precisão"/>
@@ -875,6 +904,7 @@ export function CreativeEditor(){
    {active.kind==='image'&&<><div className="cr-easy-presets" role="group" aria-label="Efeitos rápidos da foto"><strong>Foto em um clique</strong><button type="button" onClick={()=>patch(active.id,{brightness:106,contrast:115,saturation:128,sepia:0,grayscale:0})}>Foto mais viva</button><button type="button" onClick={()=>patch(active.id,{brightness:100,contrast:96,saturation:87,sepia:36,grayscale:0})}>Vintage</button></div><details className="cr-property-group"><summary>Ajuste fino da foto</summary><Range label={t('Brilho')} value={active.brightness??100} min={20} max={200} unit="%" change={v=>patch(active.id,{brightness:v})}/><Range label={t('Contraste')} value={active.contrast??100} min={20} max={200} unit="%" change={v=>patch(active.id,{contrast:v})}/><Range label={t('Saturação')} value={active.saturation??100} min={0} max={200} unit="%" change={v=>patch(active.id,{saturation:v})}/><Range label={t('Desfoque')} value={active.blur||0} min={0} max={30} unit="px" change={v=>patch(active.id,{blur:v})}/><Range label={t('Cinza')} value={active.grayscale||0} min={0} max={100} unit="%" change={v=>patch(active.id,{grayscale:v})}/><Range label={t('Sépia')} value={active.sepia||0} min={0} max={100} unit="%" change={v=>patch(active.id,{sepia:v})}/><Range label={t('Matiz')} value={active.hue||0} min={-180} max={180} unit="°" change={v=>patch(active.id,{hue:v})}/><Range label={t('Perspectiva / Inclinação')} value={active.skew||0} min={-35} max={35} unit="°" change={v=>patch(active.id,{skew:v})}/></details></>}
   </fieldset></div>}
   </details></aside></div>
+  <input ref={svgFileRef} type="file" hidden accept=".svg,image/svg+xml" onChange={e=>{void upload(e.currentTarget.files).finally(()=>{if(svgFileRef.current)svgFileRef.current.value='';});}}/>
   <input ref={backgroundFileRef} type="file" hidden accept="image/png,image/jpeg,image/webp,image/avif,image/svg+xml" onChange={e=>void readBackground(e.currentTarget.files?.[0])}/>
   <input ref={fileRef} type="file" hidden multiple accept="image/png,image/jpeg,image/svg+xml,image/webp,image/avif,image/bmp,image/gif,application/pdf,video/mp4,.jpg,.jpeg,.jfif,.jfi,.jif,.png,.svg,.webp,.avif,.bmp,.gif,.pdf,.psd,.cgtemplate,.mp4" onChange={e=>void upload(e.currentTarget.files)}/>
   <input ref={maskRef} type="file" hidden accept=".png,.webp,.jpg,.jpeg,.svg" onChange={e=>void readMask(e.currentTarget.files?.[0])}/>

@@ -33,6 +33,14 @@ const named=(v:unknown)=>short(v,250);
 export function validateProjectDocument(input:unknown):asserts input is DesignDocument{
  if(!isRecord(input)||!numeric(input.width,100,8192)||!numeric(input.height,100,8192)||!short(input.background,64)||!Array.isArray(input.nodes)||input.nodes.length>1000)throw new Error('Projeto com dimensões ou estrutura incompatíveis.');
  if(input.background!=='transparent'&&!/^#[0-9a-fA-F]{3,8}$/.test(input.background as string))throw new Error('Cor de fundo inválida.');
+ if(input.guides!==undefined){
+  if(!Array.isArray(input.guides)||input.guides.length>100)throw new Error('Lista de guias inválida.');
+  const guideIds=new Set<string>();
+  for(const guide of input.guides){
+   if(!isRecord(guide)||!short(guide.id,100)||!guide.id||guideIds.has(guide.id as string)||!['x','y'].includes(String(guide.axis))||!numeric(guide.position,0,8192)||(guide.locked!==undefined&&typeof guide.locked!=='boolean'))throw new Error('Guia inválida no projeto.');
+   guideIds.add(guide.id as string);
+  }
+ }
  const ids=new Set<string>();
  for(const [index,n] of input.nodes.entries()){
   if(!isRecord(n)||!named(n.id)||!(n.id as string)||ids.has(n.id as string)||!kinds.has(n.kind as string))throw new Error(`Elemento ${index+1} inválido.`);
