@@ -2,6 +2,7 @@
  * A fonte Tabler @3.46.0 é carregada somente quando o usuário abre a biblioteca.
  * Os demais itens são descritos estaticamente. Nunca misturar personagens protegidos.
  */
+import backgroundCatalog from './background-catalog.json';
 import uploadedItems from './uploaded-library.json';
 import type {StockIcon} from './stock-icons';
 
@@ -9,7 +10,7 @@ export type LibraryTab='Modelos'|'Stickers'|'Elementos'|'Formas'|'Molduras e Fai
 export type LibraryCategory='Aniversário'|'Dia das Mães'|'Dia dos Pais'|'Namorados e Casal'|'Infantil e Bebê'|'Profissões'|'Gospel e Fé'|'Festa e Formatura'|'Pets'|'Humor'|'Empresa e Contato'|'Esporte e Lazer'|'Natureza e Flores';
 export type LibraryItem={
  id:string;nome:string;tags:string[];categoria:LibraryCategory;arquivo:string;
- miniatura?:string;
+ miniatura?:string;estilo?:string;paleta?:string;
  formato:'SVG'|'PNG'|'WEBP'|'TEXTO';tipoCor:'monocromatico-editavel'|'colorido-fechado'|'texto-editavel';
  licenca:'MIT'|'ISC'|'Apache-2.0'|'CC0-1.0'|'Autoral'|'Enviado pelo usuário';origem:string;aba:LibraryTab;
 };
@@ -100,9 +101,15 @@ export const PALETTES:[string,string,string,LibraryCategory][]=[
 ];
 export const PATTERN_TYPES:[string,string][]=[['degrade','Degradê'],['bolinhas','Poás'],['listras','Listras'],['estrelas','Estrelas'],['coracoes','Corações'],['confete','Confetes'],['ondas','Ondas']];
 export const BACKGROUND_ITEMS:LibraryItem[]=PALETTES.flatMap(([nome,a,b,categoria],index)=>PATTERN_TYPES.map(([pattern,label])=>({
- id:`bg-${index}-${pattern}`,nome:`${label} · ${nome}`,tags:[label,nome,categoryAlias(categoria),'fundo','padrao','textura','caneca'],categoria,arquivo:`background:${index}:${pattern}`,
+ id:`bg-${index}-${pattern}`,nome:`${label} · ${nome}`,tags:[label,nome,categoryAlias(categoria),'fundo','padrao','textura','caneca'],estilo:'Clássicos',paleta:nome,categoria,arquivo:`background:${index}:${pattern}`,
  formato:'SVG' as const,tipoCor:'monocromatico-editavel' as const,licenca:'Autoral' as const,origem:'Click & Gruda (original)',aba:'Fundos e Padrões' as const
 })));
+export const EXPANDED_BACKGROUND_ITEMS:LibraryItem[]=PALETTES.flatMap(([paleta,,,categoria],index)=>backgroundCatalog.map(pattern=>({
+ id:`pattern-${pattern.id}-${index}`,nome:`${pattern.nome} · ${paleta}`,tags:[...pattern.tags,pattern.estilo,paleta,'fundo','padrao','textura','estampa'],
+ categoria,arquivo:`pattern:${pattern.id}:${index}`,formato:'SVG',tipoCor:'colorido-fechado',licenca:pattern.source==='original'?'Autoral':'MIT',
+ origem:pattern.source==='original'?'Click & Gruda (original)':'Pattern Monster',aba:'Fundos e Padrões',estilo:pattern.estilo,paleta,
+})));
+export const BACKGROUND_STYLES=['Clássicos',...new Set(EXPANDED_BACKGROUND_ITEMS.map(item=>item.estilo!))];
 function categoryAlias(s:string){return s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()}
 
 const phrases:[LibraryCategory,string[]][]=[
@@ -179,7 +186,7 @@ export const KAWAII_ITEMS:LibraryItem[]=([["coffee", "Café", "Humor"], ["cloud"
  formato:'SVG',tipoCor:'monocromatico-editavel',licenca:'Autoral',origem:'Click & Gruda',aba:'Stickers',
 }));
 export const UPLOADED_ITEMS=uploadedItems as LibraryItem[];
-export const STATIC_MANIFEST:LibraryItem[]=[...UPLOADED_ITEMS,...KAWAII_ITEMS,...STICKERS,...COMPLEMENTARY_ICONS,...NATIVE_SHAPES,...BACKGROUND_ITEMS,...PHRASE_ITEMS];
+export const STATIC_MANIFEST:LibraryItem[]=[...EXPANDED_BACKGROUND_ITEMS,...UPLOADED_ITEMS,...KAWAII_ITEMS,...STICKERS,...COMPLEMENTARY_ICONS,...NATIVE_SHAPES,...BACKGROUND_ITEMS,...PHRASE_ITEMS];
 export function libraryManifest(catalog:StockIcon[]):LibraryItem[]{
  const dynamic=curatedFromTabler(catalog);
  return [...STATIC_MANIFEST,...dynamic];

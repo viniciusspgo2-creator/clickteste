@@ -6,6 +6,7 @@ import ts from 'typescript';
 
 function load(name){
  const context={exports:{},require:specifier=>{
+  if(specifier==='./background-catalog.json')return {default:JSON.parse(fs.readFileSync('src/lib/creative/background-catalog.json','utf8'))};
   if(specifier==='./uploaded-library.json')return {default:JSON.parse(fs.readFileSync('src/lib/creative/uploaded-library.json','utf8'))};
   if(specifier==='./precision')return load('precision');
   if(specifier==='./bundled-library.json')return JSON.parse(fs.readFileSync('src/lib/creative/bundled-library.json','utf8'));
@@ -25,7 +26,7 @@ test('Official root-object indexes parse correctly and local search labels survi
  const catalog=JSON.parse(fs.readFileSync('public/creative-library/tabler-catalog.json','utf8'));
  const parsed=stock.parseTablerIndex(catalog);
  assert.equal(parsed[0].label,catalog[0].label);
- assert.equal(manifest.libraryManifest(parsed).length,2081+manifest.UPLOADED_ITEMS.length);
+ assert.equal(manifest.libraryManifest(parsed).length,2081+manifest.UPLOADED_ITEMS.length+manifest.EXPANDED_BACKGROUND_ITEMS.length);
  assert.equal(stock.parseTablerIndex(null).length,0);
 });
 test('Keyboard moves in document pixels, with fine and accelerated steps',()=>{
@@ -71,10 +72,10 @@ test('Every bundled asset resolves locally and licenses ship alongside it',()=>{
  const catalog=JSON.parse(fs.readFileSync('public/creative-library/tabler-catalog.json','utf8'));
  assert.equal(catalog.length,1600);
  const all=manifest.libraryManifest(catalog),ids=new Set();
- assert.equal(all.length,2081+manifest.UPLOADED_ITEMS.length);
+ assert.equal(all.length,2081+manifest.UPLOADED_ITEMS.length+manifest.EXPANDED_BACKGROUND_ITEMS.length);
  for(const item of all){
   assert.ok(!ids.has(item.id));ids.add(item.id);
-  if(/^(native|background|kawaii|text):/.test(item.arquivo))continue;
+  if(/^(native|background|pattern|kawaii|text):/.test(item.arquivo))continue;
   assert.ok(bundled[item.id],`${item.id} missing from local bundle`);
   const file=fs.readFileSync(`public/creative-library/${bundled[item.id]}`);
   if(item.formato==='PNG')assert.equal(file.subarray(0,8).toString('hex'),'89504e470d0a1a0a');
