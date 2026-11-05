@@ -8,7 +8,7 @@
 - Objetos: 19 → 38, mantendo paleta e linguagem das categorias existentes. Os objetos brancos eram itens do banco genérico, não objetos originais; IDs retirados estão em `EDITOR-ICONES-REMOVIDOS-2026-11-05.csv`.
 - Elementos: 48 formas no total (46 entradas novas além de retângulo/elipse), agrupadas em Básicas, Estrelas e destaques, Setas e linhas, Balões e faixas e Decorativas. Preenchimento, gradiente, contorno, transparência, rotação e proporção usam as propriedades persistidas da camada. Raio para retângulos; pontas/lados para estrelas e polígonos.
 - Bézier: mantém o formato antigo e acrescenta caminhos de até 128 pontos, alças, pontos suaves/de canto, abrir/fechar, preenchimento, espessura 0,5–100 px, cap, join, tracejado e espaçamento. Clique cria âncoras, arraste cria alças, Enter confirma e Esc cancela.
-- Efeitos: 31 presets adicionais, com prévia, intensidade, cor e remoção não destrutiva. Sombras, glow, contornos, metálicos, relevo, extrusão, reflexo e tratamentos de imagem usam o mesmo renderizador no canvas e na exportação. Intermediários limitados em documentos alternativos muito grandes.
+- Efeitos: 31 presets adicionais, com miniaturas reais geradas sob demanda pelo mesmo renderizador da arte, intensidade, cor e remoção não destrutiva. Sombras, glow, contornos, metálicos, relevo, extrusão, reflexo e tratamentos de imagem usam o mesmo renderizador no canvas e na exportação. Intermediários limitados em documentos alternativos muito grandes.
 - Fontes: amostra com texto selecionado na própria família, busca, categorias, favoritas, recentes, fonte atual, virtualização e carregamento por visibilidade. Hover/foco é temporário; clique confirma e integra o histórico.
 - Fundos: os 5.235 padrões/degradês ficam na aba Fundos, junto com as bases anteriores e importação. A Biblioteca oferece um atalho. Busca e filtros por tema/estilo e paleta são mantidos.
 - Canvas: painéis laterais recolhíveis, estado local persistido, zoom ajustado pelo ResizeObserver e espaços reduzidos. Interface com fontes 400/500/600, ícones finos, rótulos em uma linha e avisos de sucesso em faixa fora da arte por aproximadamente 4 s. Erros continuam visíveis para leitura.
@@ -39,6 +39,7 @@ Mude `ENABLE_ICONS_TAB` para `true`, recompile e publique. O banco legado é imp
 
 - `creative-editor.tsx`: integração, ferramentas e painéis; mantém rotas e fluxo existentes.
 - `shape-library.tsx`, `vector-shapes.ts`, `vector-path.ts`, `curve-handles.tsx`: catálogo, geometria e edição de caminhos.
+- `effect-preview.tsx`: miniaturas reais de efeitos, geradas por visibilidade e armazenadas em cache.
 - `layer-effects.ts`, `design.ts`: presets e renderização/exportação compartilhada.
 - `font-library.tsx`: seletor virtualizado e experiência de escolha de fontes.
 - `stock-library.tsx`, `stock-objects.ts`, `legacy-icon-library.tsx`, `editor-flags.ts`: separação dos objetos laranja e banco legado opcional.
