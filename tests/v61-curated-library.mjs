@@ -13,7 +13,7 @@ const context={exports:{},require:()=>{throw Error('dependência inesperada no m
 const m=context.exports;
 
 test('Manifesto possui metadados completos, IDs únicos e só licenças aprovadas',()=>{
- const all=m.STATIC_MANIFEST;assert.equal(all.length,457);
+ const all=m.STATIC_MANIFEST;assert.equal(all.length,481);
  const ids=new Set();for(const x of all){for(const key of ['id','nome','tags','categoria','arquivo','formato','tipoCor','licenca','origem','aba'])assert.ok(x[key],`${x.id}: ${key}`);assert.ok(!ids.has(x.id),`duplicado ${x.id}`);ids.add(x.id);assert.ok(['MIT','ISC','Apache-2.0','Autoral','CC0-1.0'].includes(x.licenca));}
 });
 test('Busca em português entende acentos e sinônimos de ocasiões',()=>{
@@ -25,11 +25,11 @@ test('Separação das abas e categorias de ocasião',()=>{
  assert.equal(m.LIBRARY_CATEGORIES.length,13);
  assert.equal(m.BACKGROUND_ITEMS.length,105);assert.equal(m.PHRASE_ITEMS.length,91);
 });
-test('Tabler só aceita nomes de índice real e limita curadoria a 790',()=>{
+test('Tabler só aceita nomes de índice real e seleciona até 1600 entradas reais',()=>{
  const mocked=Array.from({length:1200},(_,i)=>({name:`heart-${i}`,label:`heart love ${i}`,category:'Love'}));
- const items=m.curatedFromTabler(mocked);assert.equal(items.length,735);
+ const items=m.curatedFromTabler(mocked);assert.equal(items.length,1200);
  assert.ok(items.every(i=>i.origem==='tabler/tabler-icons'&&i.formato==='SVG'));
- assert.ok(m.STATIC_MANIFEST.length+items.length<=1200);
+ assert.ok(m.STATIC_MANIFEST.length+items.length<=2081);
 });
 test('Sanitizador contém allowlist de tags/atributos e não usa innerHTML',()=>{
  const code=file('src/lib/creative/library-load.ts');

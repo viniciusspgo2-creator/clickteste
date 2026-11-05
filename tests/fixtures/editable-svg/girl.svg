@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="600" viewBox="0 0 400 600">
+ <title>Menina de demonstração — ilustração geométrica original</title>
+ <style>.roupa{fill:#e85d75}.pele{fill:#f3c7a5}.cabelo{fill:#e85d75}.contorno{stroke:#282031;stroke-width:4;stroke-linejoin:round}</style>
+ <g id="Cabelo" class="cabelo"><path d="M112 200V110C112 10 288 10 288 110v90Z"/></g>
+ <g id="Rosto" class="pele"><ellipse cx="200" cy="120" rx="62" ry="78"/><circle cx="179" cy="116" r="5" fill="#282031"/><circle cx="221" cy="116" r="5" fill="#282031"/><path d="M185 146q15 14 30 0" fill="none" stroke="#282031" stroke-width="4"/></g>
+ <g id="Camiseta" class="roupa contorno"><path d="m151 199-49 65 43 30 15-25v91h80v-91l15 25 43-30-49-65Z"/></g>
+ <g id="Calca" fill="#425b9a"><path d="M160 360h80l14 161h-43l-11-100-11 100h-43Z"/></g>
+ <g id="Sapatos" fill="#282031"><path d="M145 515h46v35h-69q-12-15 23-35M209 515h46q35 20 23 35h-69Z"/></g>
+</svg>

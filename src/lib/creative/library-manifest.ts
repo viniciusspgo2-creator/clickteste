@@ -50,19 +50,19 @@ for(const [category,names] of fluentGroups){
   const id=`fluent-${slug}`;
   if(fluents.has(id))continue;
   fluents.set(id,{id,nome:portugues[en]||en,tags:[en.toLowerCase(),portugues[en]||en,category,'figurinha','adesivo','sticker'],categoria:category,
-   arquivo:`assets/${en}/3D/${slug}_3d.png`,formato:'PNG',tipoCor:'colorido-fechado',licenca:'MIT',origem:'microsoft/fluentui-emoji',aba:'Stickers'});
+   arquivo:en==='Medal'?'assets/Sports medal/3D/sports_medal_3d.png':`assets/${en}/3D/${slug}_3d.png`,formato:'PNG',tipoCor:'colorido-fechado',licenca:'MIT',origem:'microsoft/fluentui-emoji',aba:'Stickers'});
  }
 }
 /** Somente os desenhos em svg/ da tag v2.048 (Apache-2.0), nunca fontes OFL. */
 const notoGroups:[LibraryCategory,string][]=[
- ['Gospel e Fé','1f64f:Mãos em oração|1f54a:Igreja|1f56f:Vela|262e:Símbolo da paz|1f9ff:Amuleto'],
+ ['Gospel e Fé','1f64f:Mãos em oração|1f54a:Pomba da paz|1f56f:Vela|262e:Símbolo da paz|1f9ff:Amuleto'],
  ['Aniversário','1f36d:Pirulito|1f36c:Doces|1f36b:Chocolate|1f36a:Biscoito|1f366:Sorvete|1f367:Raspadinha|1f368:Sobremesa|1f36e:Pudim'],
- ['Infantil e Bebê','1f9f8:Ursinho|1f9e9:Quebra-cabeça|1f3a0:Laço rosa|1f9f6:Novelo colorido|1f3b2:Jogo de dados|1f3a8:Paleta artística'],
+ ['Infantil e Bebê','1f9f8:Ursinho|1f9e9:Quebra-cabeça|1f3a0:Carrossel infantil|1f9f6:Novelo colorido|1f3b2:Jogo de dados|1f3a8:Paleta artística'],
  ['Natureza e Flores','1f340:Trevo|1f341:Folha de outono|1f342:Folhas caindo|1f343:Folha ao vento|1f331:Broto|1f33f:Ramo de planta|1f332:Pinheiro|1f333:Árvore|1f334:Palmeira|1f335:Cacto|1f336:Pimenta|1f347:Uva|1f34e:Maçã vermelha|1f353:Morango|1f34d:Abacaxi'],
  ['Esporte e Lazer','1f3b8:Violão|1f3b9:Teclado musical|1f3ba:Trompete|1f3bb:Violino|1f3c4:Surfe|1f3c6:Troféu dourado|1f3c5:Medalha esportiva|1f6b2:Bicicleta|1f3d5:Acampamento'],
- ['Profissões','1f52c:Microscópio|1f52d:Telescópio|1f4da:Livros empilhados|1f4d0:Régua triangular|1f4cf:Régua|1f58a:Caneta|1f58d:Giz de cera|1f4bd:Disquete|1f50d:Lupa'],
+ ['Profissões','1f52c:Microscópio|1f52d:Telescópio|1f4da:Livros empilhados|1f4d0:Régua triangular|1f4cf:Régua|1f58a:Caneta|1f58d:Giz de cera|1f4bd:Minidisco|1f50d:Lupa'],
  ['Pets','1f41e:Joaninha|1f41f:Peixe|1f420:Peixe tropical|1f422:Tartaruga|1f41a:Concha marinha|1f98a:Raposa|1f98b:Borboleta'],
- ['Empresa e Contato','1f4e7:Caixa de entrada|1f4e6:Encomenda|1f4cb:Prancheta|1f4cc:Alfinete|1f4ce:Clipe|1f4cd:Localizador|1f4e2:Caixa postal'],
+ ['Empresa e Contato','1f4e7:Envelope de email|1f4e6:Encomenda|1f4cb:Prancheta|1f4cc:Alfinete|1f4ce:Clipe|1f4cd:Localizador|1f4e2:Alto-falante'],
 ];
 export const NOTO_STICKERS:LibraryItem[]=notoGroups.flatMap(([categoria,list])=>list.split('|').map(part=>{
  const [code,nome]=part.split(':');return {id:`noto-${code}`,nome,tags:[nome,categoria,'sticker','emoji','desenho','ilustracao'],categoria,arquivo:`svg/emoji_u${code}.svg`,formato:'SVG',
@@ -162,16 +162,21 @@ export function curatedFromTabler(catalog:StockIcon[]):LibraryItem[]{
  const queues=LIBRARY_CATEGORIES.map(category=>list.filter(x=>x.categoria===category).sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR')));
  const balanced:LibraryItem[]=[];
  let remaining=true;
- while(balanced.length<735&&remaining){
+ while(balanced.length<1600&&remaining){
   remaining=false;
   for(const queue of queues){
    const entry=queue.shift();if(entry){balanced.push(entry);remaining=true;}
-   if(balanced.length>=735)break;
+   if(balanced.length>=1600)break;
   }
  }
  return balanced;
 }
-export const STATIC_MANIFEST:LibraryItem[]=[...STICKERS,...COMPLEMENTARY_ICONS,...NATIVE_SHAPES,...BACKGROUND_ITEMS,...PHRASE_ITEMS];
+/** 24 ilustrações vetoriais originais, geradas localmente e recoloríveis. */
+export const KAWAII_ITEMS:LibraryItem[]=([["coffee", "Café", "Humor"], ["cloud", "Nuvem", "Infantil e Bebê"], ["star", "Estrela", "Infantil e Bebê"], ["moon", "Lua", "Infantil e Bebê"], ["flower", "Flor", "Natureza e Flores"], ["cactus", "Cacto", "Natureza e Flores"], ["cat", "Gatinho", "Pets"], ["dog", "Cachorrinho", "Pets"], ["bear", "Ursinho", "Infantil e Bebê"], ["bunny", "Coelhinho", "Infantil e Bebê"], ["donut", "Donut", "Aniversário"], ["strawberry", "Morango", "Natureza e Flores"], ["avocado", "Abacate", "Humor"], ["mushroom", "Cogumelo", "Natureza e Flores"], ["bee", "Abelhinha", "Natureza e Flores"], ["butterfly", "Borboleta", "Natureza e Flores"], ["rocket", "Foguete", "Infantil e Bebê"], ["gift", "Presente", "Aniversário"], ["book", "Livrinho", "Profissões"], ["heart", "Coração", "Namorados e Casal"], ["rainbow", "Arco-íris", "Infantil e Bebê"], ["planet", "Planeta", "Infantil e Bebê"], ["balloon", "Balão", "Aniversário"], ["icecream", "Sorvete", "Aniversário"]] as [string,string,LibraryCategory][]).map(([id,nome,categoria])=>({
+ id:`kawaii-${id}`,nome:`${nome} kawaii`,categoria,tags:[nome,categoria,'fofo','kawaii','desenho','ilustracao','sticker','infantil','sublimacao'],arquivo:`kawaii:${id}`,
+ formato:'SVG',tipoCor:'monocromatico-editavel',licenca:'Autoral',origem:'Click & Gruda',aba:'Stickers',
+}));
+export const STATIC_MANIFEST:LibraryItem[]=[...KAWAII_ITEMS,...STICKERS,...COMPLEMENTARY_ICONS,...NATIVE_SHAPES,...BACKGROUND_ITEMS,...PHRASE_ITEMS];
 export function libraryManifest(catalog:StockIcon[]):LibraryItem[]{
  const dynamic=curatedFromTabler(catalog);
  return [...STATIC_MANIFEST,...dynamic];

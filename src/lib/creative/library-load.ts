@@ -1,9 +1,11 @@
 /** Descarga isolada de assets da biblioteca. Somente endereços aprovados e fixados.
  * SVG nunca é aplicado ou exibido sem sanitização por lista de permissão.
  */
-import {stockIcons,type StockIcon} from './stock-icons';
+import {stockIcons,parseTablerIndex,type StockIcon} from './stock-icons';
+import bundledAssets from './bundled-library.json';
 import {LIBRARY_RELEASE,type LibraryItem} from './library-manifest';
 import {nativeShapeSvg,nativeBackgroundSvg} from './library-native';
+import {kawaiiSvg} from './library-kawaii';
 
 const TABLER_URL='https://cdn.jsdelivr.net/npm/@tabler/icons@3.46.0/';
 const FLUENT_REV='1ffb34c752ecf5d402f04cfb4b392c77f57c54bc';
@@ -13,6 +15,7 @@ const LUCIDE_BASE='https://cdn.jsdelivr.net/gh/lucide-icons/lucide@1980e3d59b0fa
 const PHOSPHOR_BASE='https://cdn.jsdelivr.net/gh/phosphor-icons/core@2b75f3ad12b420c9504ef05df8d2564a28f8500e/assets/regular/';
 const SAFE_ICON=/^[a-z0-9][a-z0-9-]{0,80}$/;
 export function libraryAssetUrl(item:LibraryItem){
+ if(Object.hasOwn(bundledAssets,item.id))return `/creative-library/${(bundledAssets as Record<string,string>)[item.id]}`;
  if(item.origem==='tabler/tabler-icons'&&SAFE_ICON.test(item.arquivo))return `${TABLER_URL}icons/outline/${encodeURIComponent(item.arquivo)}.svg`;
  if(item.origem==='microsoft/fluentui-emoji'&&/^assets\/[\w -]+\/3D\/[a-z0-9_-]+_3d\.png$/.test(item.arquivo))return FLUENT_BASE+item.arquivo.split('/').map(encodeURIComponent).join('/');
  if(item.origem==='googlefonts/noto-emoji'&&/^svg\/emoji_u[0-9a-f_]+\.svg$/.test(item.arquivo))return NOTO_BASE+item.arquivo;
@@ -65,8 +68,14 @@ export function sanitizeLibrarySvg(source:string,color='#ff6a00'){
  append(parsed.documentElement,root);
  root.setAttribute('xmlns','http://www.w3.org/2000/svg');
  if(!root.hasAttribute('viewBox'))root.setAttribute('viewBox','0 0 24 24');
- if(!root.hasAttribute('width'))root.setAttribute('width','256');
- if(!root.hasAttribute('height'))root.setAttribute('height','256');
+ // Icon source files are often 24 × 24. Insert them at an editable print size,
+ // preserving their viewBox ratio instead of producing nearly invisible layers.
+ const viewBox=(root.getAttribute('viewBox')||'').trim().split(/[\s,]+/).map(Number);
+ const valid=viewBox.length===4&&viewBox.every(Number.isFinite)&&viewBox[2]>0&&viewBox[3]>0;
+ if(!valid)throw new Error('Dimensões do vetor inválidas.');
+ const scale=512/Math.max(viewBox[2],viewBox[3]);
+ root.setAttribute('width',String(Math.max(1,Math.round(viewBox[2]*scale))));
+ root.setAttribute('height',String(Math.max(1,Math.round(viewBox[3]*scale))));
  return new XMLSerializer().serializeToString(root);
 }
 function asDataUrl(svg:string){return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;}
@@ -78,6 +87,7 @@ async function fetchText(url:string){
  const text=await response.text();if(text.length>90000)throw new Error('SVG maior que o permitido.');return text;
 }
 export function previewLibraryAsset(item:LibraryItem,color='#ff6a00',width=2480,height=1122,strokeWidth=24):Promise<string>{
+ if(item.arquivo.startsWith('kawaii:'))return Promise.resolve(kawaiiSvg(item.arquivo,color));
  if(item.arquivo.startsWith('native:'))return Promise.resolve(nativeShapeSvg(item.arquivo,color,strokeWidth));
  if(item.arquivo.startsWith('background:'))return Promise.resolve(nativeBackgroundSvg(item.arquivo,width,height));
  if(item.formato==='TEXTO')return Promise.resolve('');
@@ -101,24 +111,17 @@ export async function loadLibraryImage(item:LibraryItem,color='#ff6a00',width=24
  const blob=await response.blob();if(blob.size>8*1024*1024)throw new Error('Sticker muito grande para o editor.');
  return await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>typeof reader.result==='string'?resolve(reader.result):reject(new Error('Falha ao ler o sticker.'));reader.onerror=()=>reject(new Error('Falha ao ler o sticker.'));reader.readAsDataURL(blob);});
 }
-const normalizeName=(name:string)=>/^[a-z0-9][a-z0-9-]{0,80}$/.test(name);
 /** índice oficial hospedado no mesmo pacote Tabler versionado; sem Iconify ou outras fontes. */
 export async function loadApprovedTablerCatalog():Promise<StockIcon[]>{
- try{
-  const response=await fetch(`${TABLER_URL}icons.json`,{cache:'force-cache'});
-  if(!response.ok)throw new Error('Índice indisponível');
-  const json:unknown=await response.json();
-  const raw=json as {icons?:unknown};
-  const list=Array.isArray(json)?json:Array.isArray(raw?.icons)?raw.icons:raw?.icons&&typeof raw.icons==='object'?Object.entries(raw.icons).map(([name,detail])=>({name,...detail as Record<string,unknown>})):[];
-  const found:StockIcon[]=list.flatMap(entry=>{
-   if(!entry||typeof entry!=='object')return [];
-   const item=entry as Record<string,unknown>,name=String(item.name||'');
-   if(!normalizeName(name))return [];
-   const category=typeof item.category==='string'?item.category:'Vetoriais';
-   const tags=Array.isArray(item.tags)?item.tags.filter(t=>typeof t==='string').join(' '):'';
-   return [{name,label:`${name.replace(/-/g,' ')} ${tags}`,category}];
-  });
-  return found.length>=1000?found:stockIcons;
- }catch{return stockIcons;}
+ for(const url of ['/creative-library/tabler-catalog.json',`${TABLER_URL}icons.json`]){
+  try{
+   const response=await fetch(url,{cache:'force-cache',signal:AbortSignal.timeout(8000)});
+   if(!response.ok)continue;
+   const found=parseTablerIndex(await response.json());
+   if(found.length>=1000)return found;
+  }catch{/* Keep local shapes and phrases usable when a catalog is unavailable. */}
+ }
+ return stockIcons;
 }
+
 export const librarySourceRevisions=LIBRARY_RELEASE;
