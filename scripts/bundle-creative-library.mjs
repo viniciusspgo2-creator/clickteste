@@ -15,7 +15,8 @@ if(packageInfo.name!=='@tabler/icons'||packageInfo.version!=='3.46.0')throw Erro
 const output='public/creative-library';
 await fs.mkdir(output,{recursive:true});
 const source=await fs.readFile('src/lib/creative/library-manifest.ts','utf8');
-const context={exports:{}};
+const uploadedItems=JSON.parse(await fs.readFile('src/lib/creative/uploaded-library.json','utf8'));
+const context={exports:{},require:specifier=>{if(specifier==='./uploaded-library.json')return {default:uploadedItems};throw Error(`Unexpected dependency: ${specifier}`);}};
 vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,context);
 const manifest=context.exports;
 const index=JSON.parse(await fs.readFile(path.join(packageRoot,'icons.json'),'utf8'));
@@ -23,7 +24,7 @@ const icons=Object.entries(index).filter(([,item])=>item.styles?.outline).map(([
 const chosen=manifest.curatedFromTabler(icons);
 const included=new Set(chosen.map(item=>item.arquivo));
 await fs.writeFile(path.join(output,'tabler-catalog.json'),JSON.stringify(icons.filter(icon=>included.has(icon.name)))+'\n');
-const files={};
+const files=Object.fromEntries(uploadedItems.map(item=>[item.id,item.arquivo]));
 for(const item of chosen){
  const file=`${item.id}.svg`;
  await fs.copyFile(path.join(packageRoot,'icons/outline',`${item.arquivo}.svg`),path.join(output,file));

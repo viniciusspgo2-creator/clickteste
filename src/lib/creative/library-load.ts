@@ -14,6 +14,7 @@ const NOTO_BASE='https://cdn.jsdelivr.net/gh/googlefonts/noto-emoji@v2.048/';
 const LUCIDE_BASE='https://cdn.jsdelivr.net/gh/lucide-icons/lucide@1980e3d59b0fa1a2aeb566d5902b25ee98204001/icons/';
 const PHOSPHOR_BASE='https://cdn.jsdelivr.net/gh/phosphor-icons/core@2b75f3ad12b420c9504ef05df8d2564a28f8500e/assets/regular/';
 const SAFE_ICON=/^[a-z0-9][a-z0-9-]{0,80}$/;
+const SAFE_UPLOAD=/^uploads\/[a-z0-9-]+\/[a-z0-9-]+\.webp$/;
 export function libraryAssetUrl(item:LibraryItem){
  if(Object.hasOwn(bundledAssets,item.id))return `/creative-library/${(bundledAssets as Record<string,string>)[item.id]}`;
  if(item.origem==='tabler/tabler-icons'&&SAFE_ICON.test(item.arquivo))return `${TABLER_URL}icons/outline/${encodeURIComponent(item.arquivo)}.svg`;
@@ -91,7 +92,8 @@ export function previewLibraryAsset(item:LibraryItem,color='#ff6a00',width=2480,
  if(item.arquivo.startsWith('native:'))return Promise.resolve(nativeShapeSvg(item.arquivo,color,strokeWidth));
  if(item.arquivo.startsWith('background:'))return Promise.resolve(nativeBackgroundSvg(item.arquivo,width,height));
  if(item.formato==='TEXTO')return Promise.resolve('');
- if(item.formato==='PNG')return Promise.resolve(libraryAssetUrl(item));
+ if(item.formato==='WEBP'&&item.miniatura&&SAFE_UPLOAD.test(item.miniatura))return Promise.resolve(`/creative-library/${item.miniatura}`);
+ if(item.formato==='PNG'||item.formato==='WEBP')return Promise.resolve(libraryAssetUrl(item));
  const key=`${item.id}|${validateColor(color)}`;
  let cached=svgCache.get(key);
  if(!cached){
@@ -107,7 +109,7 @@ export async function loadLibraryImage(item:LibraryItem,color='#ff6a00',width=24
  const response=await fetch(libraryAssetUrl(item),{cache:'force-cache'});
  if(!response.ok)throw new Error('Sticker não disponível. Escolha outro ou tente novamente.');
  const contentType=response.headers.get('content-type')||'';
- if(!contentType.includes('image/png')&&!contentType.includes('octet-stream'))throw new Error('Arquivo de sticker inválido.');
+ if(!contentType.includes('image/png')&&!contentType.includes('image/webp')&&!contentType.includes('octet-stream'))throw new Error('Arquivo de sticker inválido.');
  const blob=await response.blob();if(blob.size>8*1024*1024)throw new Error('Sticker muito grande para o editor.');
  return await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>typeof reader.result==='string'?resolve(reader.result):reject(new Error('Falha ao ler o sticker.'));reader.onerror=()=>reject(new Error('Falha ao ler o sticker.'));reader.readAsDataURL(blob);});
 }
