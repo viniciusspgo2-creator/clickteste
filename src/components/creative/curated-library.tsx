@@ -31,7 +31,7 @@ export function CuratedLibrary({color,onColorChange,width,height,onInsertImage,o
  const [tab,setTab]=useState<ViewTab>('Stickers');
  const [category,setCategory]=useState<LibraryCategory|'Todas'>('Todas');
  const [query,setQuery]=useState('');
- const [fileFilter,setFileFilter]=useState<'Todos'|'SVG'|'PNG'|'TEXTO'>('Todos');
+ const [fileFilter,setFileFilter]=useState<'Todos'|'SVG'|'PNG'|'WEBP'|'TEXTO'>('Todos');
  const [viewportHeight,setViewportHeight]=useState(460);
  const [strokeWidth,setStrokeWidth]=useState(24);
  const [catalog,setCatalog]=useState<StockIcon[]>([]);
@@ -93,8 +93,8 @@ export function CuratedLibrary({color,onColorChange,width,height,onInsertImage,o
   <label className="cr-curated-search"><Search size={17}/><span className="sr-only">Pesquisar itens da biblioteca</span><input value={query} onChange={e=>{setQuery(e.target.value);resetScroll()}} placeholder="Busque: mãe, coração, aniversário..."/></label>
   <div className="cr-curated-categories" aria-label="Filtrar por ocasião"><button type="button" aria-pressed={category==='Todas'} className={category==='Todas'?'active':''} onClick={()=>{setCategory('Todas');resetScroll()}}>Todas</button>{LIBRARY_CATEGORIES.map(cat=><button type="button" key={cat} aria-pressed={category===cat} className={category===cat?'active':''} onClick={()=>{setCategory(cat);resetScroll()}}>{cat}</button>)}</div>
   {(tab==='Stickers'||tab==='Elementos'||tab==='Formas'||tab==='Molduras e Faixas')&&<div className="cr-curated-controls"><label>Cor do vetor <input type="color" value={color} onChange={e=>onColorChange(e.target.value)} aria-label="Escolher cor dos vetores"/></label>{(tab==='Formas'||tab==='Molduras e Faixas')&&<label>Espessura <input type="range" min={4} max={64} value={strokeWidth} onChange={e=>setStrokeWidth(Number(e.target.value))} aria-label="Espessura do contorno"/><output>{strokeWidth}px</output></label>}</div>}
-  <div className="cr-curated-filters"><label htmlFor="cr-library-format">Tipo de ativo</label><select id="cr-library-format" value={fileFilter} onChange={e=>{setFileFilter(e.target.value as typeof fileFilter);resetScroll()}}><option value="Todos">Todos os tipos</option><option value="SVG">SVG · vetores</option><option value="PNG">PNG · stickers 3D</option><option value="TEXTO">Texto editável</option></select></div>
-  <div className="cr-curated-summary"><span>{loading?'Preparando catálogo…':`${filtered.length.toLocaleString('pt-BR')} itens nesta seleção`}</span><span>SVG · PNG · texto</span></div>
+  <div className="cr-curated-filters"><label htmlFor="cr-library-format">Tipo de ativo</label><select id="cr-library-format" value={fileFilter} onChange={e=>{setFileFilter(e.target.value as typeof fileFilter);resetScroll()}}><option value="Todos">Todos os tipos</option><option value="SVG">SVG · vetores</option><option value="PNG">PNG · stickers 3D</option><option value="WEBP">WebP · elementos enviados</option><option value="TEXTO">Texto editável</option></select></div>
+  <div className="cr-curated-summary"><span>{loading?'Preparando catálogo…':`${filtered.length.toLocaleString('pt-BR')} itens nesta seleção`}</span><span>SVG · PNG · WebP · texto</span></div>
   {fallback&&<div className="cr-curated-warning" role="status"><AlertCircle size={15}/><span>Catálogo ampliado indisponível. Mostrando itens locais.</span><button type="button" aria-label="Tentar carregar catálogo novamente" title="Tentar novamente" onClick={()=>setRetryCatalog(n=>n+1)}><RefreshCw size={15}/></button></div>}
   {tab==='Modelos'&&<button type="button" className="cr-curated-existing" onClick={onOpenModels}><FolderOpen size={21}/><span><strong>Abrir modelos do Studio</strong><small>Utilize os layouts editáveis já disponíveis no editor</small></span></button>}
   {message&&<div className="cr-curated-error" role="alert"><AlertCircle size={17}/><span>{message}</span><button type="button" onClick={()=>setMessage('')}>Fechar</button></div>}
@@ -105,13 +105,13 @@ export function CuratedLibrary({color,onColorChange,width,height,onInsertImage,o
     {visible.map((item,i)=>{const absoluteIndex=startRow*cols+i,row=Math.floor(absoluteIndex/cols),column=absoluteIndex%cols;
      return <div className="cr-curated-slot" key={item.id} style={{top:row*rowHeight,left:`${100*column/cols}%`,width:`${100/cols}%`}}>
       <div className="cr-curated-card"><button className="cr-curated-add" type="button" disabled={busy!==null} title={`Adicionar ${item.nome}`} onClick={()=>void choose(item)}>
-       <span className={`cr-curated-thumb ${item.formato==='PNG'?'cr-curated-light':''}`}><Thumb item={item} color={color} strokeWidth={strokeWidth}/>{busy===item.id&&<span className="cr-curated-loading"><LoaderCircle size={22} className="cr-curated-spin"/></span>}</span>
+       <span className={`cr-curated-thumb ${(item.formato==='PNG'||item.formato==='WEBP')?'cr-curated-light':''}`}><Thumb item={item} color={color} strokeWidth={strokeWidth}/>{busy===item.id&&<span className="cr-curated-loading"><LoaderCircle size={22} className="cr-curated-spin"/></span>}</span>
        <span className="cr-curated-name">{item.nome}</span>
       </button><button type="button" className={`cr-curated-favorite ${favoriteSet.has(item.id)?'active':''}`} aria-label={favoriteSet.has(item.id)?`Remover ${item.nome} dos favoritos`:`Salvar ${item.nome} nos favoritos`} aria-pressed={favoriteSet.has(item.id)} onClick={()=>toggleFavorite(item.id)} title="Favoritos">{favoriteSet.has(item.id)?<Check size={13}/>:<Star size={13}/>}</button></div>
      </div>;
     })}
    </div>}
   </div>
-  <footer className="cr-curated-footer"><ShieldCheck size={14}/><span>Ativos locais com licença registrada · favoritos neste navegador</span></footer>
+  <footer className="cr-curated-footer"><ShieldCheck size={14}/><span>Acervo local e elementos enviados · favoritos neste navegador</span></footer>
  </section>;
 }

@@ -2,14 +2,16 @@
  * A fonte Tabler @3.46.0 é carregada somente quando o usuário abre a biblioteca.
  * Os demais itens são descritos estaticamente. Nunca misturar personagens protegidos.
  */
+import uploadedItems from './uploaded-library.json';
 import type {StockIcon} from './stock-icons';
 
 export type LibraryTab='Modelos'|'Stickers'|'Elementos'|'Formas'|'Molduras e Faixas'|'Fundos e Padrões'|'Frases';
 export type LibraryCategory='Aniversário'|'Dia das Mães'|'Dia dos Pais'|'Namorados e Casal'|'Infantil e Bebê'|'Profissões'|'Gospel e Fé'|'Festa e Formatura'|'Pets'|'Humor'|'Empresa e Contato'|'Esporte e Lazer'|'Natureza e Flores';
 export type LibraryItem={
  id:string;nome:string;tags:string[];categoria:LibraryCategory;arquivo:string;
- formato:'SVG'|'PNG'|'TEXTO';tipoCor:'monocromatico-editavel'|'colorido-fechado'|'texto-editavel';
- licenca:'MIT'|'ISC'|'Apache-2.0'|'CC0-1.0'|'Autoral';origem:string;aba:LibraryTab;
+ miniatura?:string;
+ formato:'SVG'|'PNG'|'WEBP'|'TEXTO';tipoCor:'monocromatico-editavel'|'colorido-fechado'|'texto-editavel';
+ licenca:'MIT'|'ISC'|'Apache-2.0'|'CC0-1.0'|'Autoral'|'Enviado pelo usuário';origem:string;aba:LibraryTab;
 };
 export const LIBRARY_CATEGORIES:LibraryCategory[]=['Aniversário','Dia das Mães','Dia dos Pais','Namorados e Casal','Infantil e Bebê','Profissões','Gospel e Fé','Festa e Formatura','Pets','Humor','Empresa e Contato','Esporte e Lazer','Natureza e Flores'];
 export const LIBRARY_TABS:LibraryTab[]=['Modelos','Stickers','Elementos','Formas','Molduras e Faixas','Fundos e Padrões','Frases'];
@@ -176,7 +178,8 @@ export const KAWAII_ITEMS:LibraryItem[]=([["coffee", "Café", "Humor"], ["cloud"
  id:`kawaii-${id}`,nome:`${nome} kawaii`,categoria,tags:[nome,categoria,'fofo','kawaii','desenho','ilustracao','sticker','infantil','sublimacao'],arquivo:`kawaii:${id}`,
  formato:'SVG',tipoCor:'monocromatico-editavel',licenca:'Autoral',origem:'Click & Gruda',aba:'Stickers',
 }));
-export const STATIC_MANIFEST:LibraryItem[]=[...KAWAII_ITEMS,...STICKERS,...COMPLEMENTARY_ICONS,...NATIVE_SHAPES,...BACKGROUND_ITEMS,...PHRASE_ITEMS];
+export const UPLOADED_ITEMS=uploadedItems as LibraryItem[];
+export const STATIC_MANIFEST:LibraryItem[]=[...UPLOADED_ITEMS,...KAWAII_ITEMS,...STICKERS,...COMPLEMENTARY_ICONS,...NATIVE_SHAPES,...BACKGROUND_ITEMS,...PHRASE_ITEMS];
 export function libraryManifest(catalog:StockIcon[]):LibraryItem[]{
  const dynamic=curatedFromTabler(catalog);
  return [...STATIC_MANIFEST,...dynamic];
