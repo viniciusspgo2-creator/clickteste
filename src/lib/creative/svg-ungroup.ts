@@ -20,7 +20,7 @@ export async function ungroupSvg(src:string):Promise<SvgFragment[]>{
   const indices=parts.map(e=>Array.from(root.querySelectorAll('*')).indexOf(e));const renderedElements=Array.from(rendered.querySelectorAll('*'));
   const defs=Array.from(root.querySelectorAll('defs')).map(d=>d.cloneNode(true));const result:SvgFragment[]=[];
   for(let i=0;i<parts.length;i++){
-   const e=renderedElements[indices[i]] as SVGGraphicsElement;if(['hidden','collapse'].includes(getComputedStyle(e).visibility))continue;const bounds=e.getBoundingClientRect();if(!bounds.width&&!bounds.height)continue;
+   const e=renderedElements[indices[i]] as SVGGraphicsElement;if(e.closest('[visibility="hidden"],[visibility="collapse"]'))continue;const bounds=e.getBoundingClientRect();if(!bounds.width&&!bounds.height)continue;
    let pad=2;
    for(const shape of [e,...Array.from(e.querySelectorAll('*'))] as SVGGraphicsElement[]){const style=getComputedStyle(shape),m=shape.getScreenCTM?.();if(style.stroke!=='none'&&m)pad=Math.max(pad,parseFloat(style.strokeWidth)*Math.max(Math.hypot(m.a,m.b),Math.hypot(m.c,m.d))/2+2);}
    const x=Math.max(0,bounds.left-origin.left-pad),y=Math.max(0,bounds.top-origin.top-pad),right=Math.min(w,bounds.right-origin.left+pad),bottom=Math.min(h,bounds.bottom-origin.top+pad);if(right<=x||bottom<=y)continue;

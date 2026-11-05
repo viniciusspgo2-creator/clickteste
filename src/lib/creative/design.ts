@@ -1,3 +1,5 @@
+import {vectorShapePath} from './vector-shapes';
+import {drawEditablePath,lineStyle,type EditablePoint} from './vector-path';
 import {ensureDesignFonts,waitForFontLayout} from './typefaces';
 import {animateDesignNode,type MotionPoint} from './animation';
 import {PixelBoundedCache,effectKey,clearAssetTokens} from './effect-cache';
@@ -11,6 +13,7 @@ export type ColorGradient={kind:'linear'|'radial';from:string;to:string;angle:nu
 export type BezierPoints={sx:number;sy:number;c1x:number;c1y:number;c2x:number;c2y:number;ex:number;ey:number};
 export type EraserStroke={size:number;points:{x:number;y:number}[]};
 export type DesignNode={id:string;kind:NodeKind;x:number;y:number;w:number;h:number;angle:number;opacity:number;
+ shapeId?:string;shapePoints?:number;pathPoints?:EditablePoint[];pathClosed?:boolean;lineCap?:CanvasLineCap;lineJoin?:CanvasLineJoin;dashStyle?:'solid'|'dashed'|'dotted';dashSpacing?:number;
  role?:'template'|'background'|'mockup'|'content'|'foreground';layerName?:string;maskSrc?:string;maskMode?:'luminance'|'alpha';maskInvert?:boolean;maskSpace?:'element'|'canvas';locked?:boolean;visible?:boolean;aspectLock?:boolean;
  text?:string;src?:string;fill?:string;tint?:string;gradient?:ColorGradient;bezier?:BezierPoints;eraserStrokes?:EraserStroke[];font?:string;size?:number;bold?:boolean;italic?:boolean;align?:CanvasTextAlign;
  shadow?:number;shadowColor?:string;shadowX?:number;shadowY?:number;blur?:number;brightness?:number;contrast?:number;saturation?:number;
@@ -202,16 +205,19 @@ export async function drawDesign(canvas:HTMLCanvasElement,doc:DesignDocument,tim
     ctx.drawImage(layer,-n.w/2,-n.h/2,n.w,n.h);
    }else ctx.drawImage(img,sx,sy,sw,sh,-n.w/2,-n.h/2,n.w,n.h);
   }catch(error){if(options?.strict)throw new Error(`Falha ao renderizar a camada “${n.layerName||n.role||n.kind}”: ${error instanceof Error?error.message:'imagem inválida'}`);}}
-  if(n.kind==='rect'||n.kind==='circle'){
+  if(n.shapeId){
+   const path=new Path2D();path.addPath(new Path2D(vectorShapePath(n.shapeId,n.shapePoints)),new DOMMatrix([n.w/1000,0,0,n.h/1000,-n.w/2,-n.h/2]));
+   lineStyle(ctx,n);ctx.fillStyle=nodeFill(ctx,n);ctx.fill(path,'evenodd');if(n.strokeWidth&&n.stroke){ctx.lineWidth=n.strokeWidth;ctx.strokeStyle=n.stroke;ctx.stroke(path);}
+  }
+  else if(n.kind==='rect'||n.kind==='circle'){
    ctx.beginPath();if(n.kind==='circle')ctx.ellipse(0,0,Math.max(1,n.w/2),Math.max(1,n.h/2),0,0,Math.PI*2);
    else ctx.roundRect(-n.w/2,-n.h/2,n.w,n.h,Math.min(n.radius||0,n.w/2,n.h/2));
    ctx.fillStyle=nodeFill(ctx,n);ctx.fill();if(n.strokeWidth&&n.stroke){ctx.lineWidth=n.strokeWidth;ctx.strokeStyle=n.stroke;ctx.stroke();}
   }
   if(n.kind==='bezier'){
-   const b=n.bezier||{sx:0,sy:1,c1x:.3,c1y:0,c2x:.7,c2y:1,ex:1,ey:0};
-   const px=(v:number)=>(v-.5)*n.w,py=(v:number)=>(v-.5)*n.h;
-   ctx.beginPath();ctx.moveTo(px(b.sx),py(b.sy));ctx.bezierCurveTo(px(b.c1x),py(b.c1y),px(b.c2x),py(b.c2y),px(b.ex),py(b.ey));
-   ctx.lineWidth=Math.max(1,n.strokeWidth||12);ctx.strokeStyle=n.gradient?nodeFill(ctx,n):n.stroke||n.fill||'#ff8a30';ctx.lineCap='round';ctx.stroke();
+   drawEditablePath(ctx,n);lineStyle(ctx,n);
+   if(n.pathClosed){ctx.fillStyle=nodeFill(ctx,n);ctx.fill();}
+   ctx.lineWidth=Math.max(.5,n.strokeWidth??12);ctx.strokeStyle=n.gradient?nodeFill(ctx,n):n.stroke||n.fill||'#ff8a30';ctx.stroke();
   }
   if(n.kind==='text')drawText(ctx,n);
   ctx.restore();
