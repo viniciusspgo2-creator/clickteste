@@ -1,7 +1,8 @@
 /** Descarga isolada de assets da biblioteca. Somente endereços aprovados e fixados.
  * SVG nunca é aplicado ou exibido sem sanitização por lista de permissão.
  */
-import {stockIcons,parseTablerIndex,type StockIcon} from './stock-icons';
+import type {StockIcon} from './stock-icons';
+import {ENABLE_ICONS_TAB} from './editor-flags';
 import bundledAssets from './bundled-library.json';
 import {LIBRARY_RELEASE,type LibraryItem} from './library-manifest';
 import {nativeShapeSvg,nativeBackgroundSvg} from './library-native';
@@ -122,6 +123,8 @@ export async function loadLibraryImage(item:LibraryItem,color='#ff6a00',width=24
 }
 /** índice oficial hospedado no mesmo pacote Tabler versionado; sem Iconify ou outras fontes. */
 export async function loadApprovedTablerCatalog():Promise<StockIcon[]>{
+ if(!ENABLE_ICONS_TAB)return [];
+ const {stockIcons,parseTablerIndex}=await import('./stock-icons');
  for(const url of ['/creative-library/tabler-catalog.json',`${TABLER_URL}icons.json`]){
   try{
    const response=await fetch(url,{cache:'force-cache',signal:AbortSignal.timeout(8000)});

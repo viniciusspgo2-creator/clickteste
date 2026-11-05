@@ -3,6 +3,7 @@ import {useEffect,useMemo,useRef,useState} from 'react';
 import {AlertCircle,Bookmark,Check,Clock3,FolderOpen,Image as ImageIcon,LoaderCircle,Search,ShieldCheck,Sparkles,Star,Type,RefreshCw} from 'lucide-react';
 import {BACKGROUND_STYLES,PALETTES,LIBRARY_CATEGORIES,LIBRARY_TABS,STATIC_MANIFEST,libraryManifest,libraryMatch,type LibraryCategory,type LibraryItem,type LibraryTab} from '@/lib/creative/library-manifest';
 import {loadApprovedTablerCatalog,loadLibraryImage,previewLibraryAsset} from '@/lib/creative/library-load';
+import {ENABLE_ICONS_TAB} from '@/lib/creative/editor-flags';
 import type {StockIcon} from '@/lib/creative/stock-icons';
 
 type ViewTab=LibraryTab|'Favoritos'|'Recentes';
@@ -52,7 +53,7 @@ export function CuratedLibrary({color,onColorChange,width,height,onInsertImage,o
  useEffect(()=>{if(!storageReady)return;try{localStorage.setItem(FAVORITES_KEY,JSON.stringify(favorites));}catch{/* Navegador com armazenamento bloqueado */}},[favorites,storageReady]);
  useEffect(()=>{if(!storageReady)return;try{localStorage.setItem(RECENTS_KEY,JSON.stringify(recents));}catch{/* Navegador com armazenamento bloqueado */}},[recents,storageReady]);
  useEffect(()=>{let live=true;setLoading(true);setFallback(false);
-  void loadApprovedTablerCatalog().then(icons=>{if(!live)return;setCatalog(icons);setFallback(icons.length<1000);}).catch(()=>{if(live){setFallback(true);setMessage('Não foi possível carregar a seleção ampliada. Os itens básicos continuam disponíveis.');}}).finally(()=>{if(live)setLoading(false)});
+  void loadApprovedTablerCatalog().then(icons=>{if(!live)return;setCatalog(icons);setFallback(ENABLE_ICONS_TAB&&icons.length<1000);}).catch(()=>{if(live){setFallback(true);setMessage('Não foi possível carregar a seleção ampliada. Os itens básicos continuam disponíveis.');}}).finally(()=>{if(live)setLoading(false)});
   return()=>{live=false};
  },[retryCatalog]);
  useEffect(()=>{const node=listRef.current;if(!node)return;const measure=()=>{setClientWidth(node.clientWidth||252);setViewportHeight(node.clientHeight||460);};measure();

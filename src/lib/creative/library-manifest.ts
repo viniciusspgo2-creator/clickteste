@@ -2,6 +2,7 @@
  * A fonte Tabler @3.46.0 é carregada somente quando o usuário abre a biblioteca.
  * Os demais itens são descritos estaticamente. Nunca misturar personagens protegidos.
  */
+import {ENABLE_ICONS_TAB} from './editor-flags';
 import backgroundCatalog from './background-catalog.json';
 import uploadedItems from './uploaded-library.json';
 import type {StockIcon} from './stock-icons';
@@ -186,9 +187,9 @@ export const KAWAII_ITEMS:LibraryItem[]=([["coffee", "Café", "Humor"], ["cloud"
  formato:'SVG',tipoCor:'monocromatico-editavel',licenca:'Autoral',origem:'Click & Gruda',aba:'Stickers',
 }));
 export const UPLOADED_ITEMS=uploadedItems as LibraryItem[];
-export const STATIC_MANIFEST:LibraryItem[]=[...EXPANDED_BACKGROUND_ITEMS,...UPLOADED_ITEMS,...KAWAII_ITEMS,...STICKERS,...COMPLEMENTARY_ICONS,...NATIVE_SHAPES,...BACKGROUND_ITEMS,...PHRASE_ITEMS];
+export const STATIC_MANIFEST:LibraryItem[]=[...EXPANDED_BACKGROUND_ITEMS,...UPLOADED_ITEMS,...KAWAII_ITEMS,...STICKERS,...(ENABLE_ICONS_TAB?COMPLEMENTARY_ICONS:[]),...NATIVE_SHAPES,...BACKGROUND_ITEMS,...PHRASE_ITEMS];
 export function libraryManifest(catalog:StockIcon[]):LibraryItem[]{
- const dynamic=curatedFromTabler(catalog);
+ const dynamic=ENABLE_ICONS_TAB?curatedFromTabler(catalog):[];
  return [...STATIC_MANIFEST,...dynamic];
 }
 export function libraryMatch(item:LibraryItem,term:string){

@@ -37,6 +37,7 @@ import {SelectionToolbar} from './selection-toolbar';
 import {MAX_GUIDES,type DesignGuide} from '@/lib/creative/guides';
 import {ungroupSvg} from '@/lib/creative/svg-ungroup';
 import {svgSource} from '@/lib/creative/editable-svg';
+import {ENABLE_ICONS_TAB} from '@/lib/creative/editor-flags';
 import {SvgColorEditor} from './svg-color-editor';
 import {ObjectMeasurements} from './object-measurements';
 import {centerOnMugFace,isMugDocument,oppositeMugFace} from '@/lib/creative/mug-layout';
@@ -801,7 +802,7 @@ export function CreativeEditor(){
   </nav>
   </div>
   <div className="cr-shell"><nav className="cr-rail" aria-label="Ferramentas">
-   {([['templates','Layouts',Layers3],['backgrounds','Fundos',ImagePlus],['texts','Textos',Type],['uploads','Uploads',Upload],['library','Biblioteca',BookOpen],['elements','Elementos',Shapes],['icons','Ícones',Sticker],['objects','Objetos',ObjectsIcon],['personagens','Acervo PNG',Users],['layers','Camadas',Layers2],['effects','Efeitos',Sparkles]] as const).map(([id,label,Icon])=><button key={id} className={['texts','library','layers'].includes(id)?'cr-rail-group-start':undefined} aria-current={panel===id?'page':undefined} onClick={()=>setPanel(id)} title={t(label)}><Icon size={21}/><small>{t(label)}</small></button>)}
+   {([['templates','Layouts',Layers3],['backgrounds','Fundos',ImagePlus],['texts','Textos',Type],['uploads','Uploads',Upload],['library','Biblioteca',BookOpen],['elements','Elementos',Shapes],['icons','Ícones',Sticker],['objects','Objetos',ObjectsIcon],['personagens','Acervo PNG',Users],['layers','Camadas',Layers2],['effects','Efeitos',Sparkles]] as const).filter(([id])=>id!=='icons'||ENABLE_ICONS_TAB).map(([id,label,Icon])=><button key={id} className={['texts','library','layers'].includes(id)?'cr-rail-group-start':undefined} aria-current={panel===id?'page':undefined} onClick={()=>setPanel(id)} title={t(label)}><Icon size={21}/><small>{t(label)}</small></button>)}
   </nav><aside className="cr-left">  <div className="cr-editor-tabs" role="tablist" aria-label="Artes abertas">
    {editorTabsRef.current.map(tab=><div className="cr-editor-tab-wrap" key={tab.id}>
     <button role="tab" aria-selected={activeTabId===tab.id} className={`cr-editor-tab ${activeTabId===tab.id?'active':''}`} onClick={()=>switchEditorTab(tab.id)}><Layers2 size={15}/>{tab.title}<small>{tab.id===activeTabId?doc.nodes.length:tab.history[tab.step].nodes.length} camadas</small></button>

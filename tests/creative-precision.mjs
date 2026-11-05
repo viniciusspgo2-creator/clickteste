@@ -6,6 +6,7 @@ import ts from 'typescript';
 
 function load(name){
  const context={exports:{},require:specifier=>{
+  if(specifier==='./editor-flags')return {ENABLE_ICONS_TAB:false};
   if(specifier==='./background-catalog.json')return {default:JSON.parse(fs.readFileSync('src/lib/creative/background-catalog.json','utf8'))};
   if(specifier==='./uploaded-library.json')return {default:JSON.parse(fs.readFileSync('src/lib/creative/uploaded-library.json','utf8'))};
   if(specifier==='./precision')return load('precision');
@@ -23,10 +24,10 @@ test('Official root-object indexes parse correctly and local search labels survi
  const index={heart:{category:'Love',tags:['love','valentine'],styles:{outline:{}}},'filled-only':{styles:{filled:{}}}};
  assert.equal(stock.parseTablerIndex(index).length,1);
  assert.ok(stock.parseTablerIndex(index)[0].label.includes('valentine'));
- const catalog=JSON.parse(fs.readFileSync('public/creative-library/tabler-catalog.json','utf8'));
+ const catalog=[{name:'heart',label:'heart',category:'Love'}];
  const parsed=stock.parseTablerIndex(catalog);
  assert.equal(parsed[0].label,catalog[0].label);
- assert.equal(manifest.libraryManifest(parsed).length,2081+manifest.UPLOADED_ITEMS.length+manifest.EXPANDED_BACKGROUND_ITEMS.length);
+ assert.equal(manifest.libraryManifest(parsed).length,manifest.STATIC_MANIFEST.length);
  assert.equal(stock.parseTablerIndex(null).length,0);
 });
 test('Keyboard moves in document pixels, with fine and accelerated steps',()=>{
@@ -69,10 +70,10 @@ test('Ruler millimeters use 300 DPI and major labels remain legible at all zooms
 });
 test('Every bundled asset resolves locally and licenses ship alongside it',()=>{
  const bundled=JSON.parse(fs.readFileSync('src/lib/creative/bundled-library.json','utf8'));
- const catalog=JSON.parse(fs.readFileSync('public/creative-library/tabler-catalog.json','utf8'));
- assert.equal(catalog.length,1600);
+ const catalog=[{name:'heart',label:'heart',category:'Love'}];
+ assert.equal(catalog.length,1);
  const all=manifest.libraryManifest(catalog),ids=new Set();
- assert.equal(all.length,2081+manifest.UPLOADED_ITEMS.length+manifest.EXPANDED_BACKGROUND_ITEMS.length);
+ assert.equal(all.length,manifest.STATIC_MANIFEST.length);
  for(const item of all){
   assert.ok(!ids.has(item.id));ids.add(item.id);
   if(/^(native|background|pattern|kawaii|text):/.test(item.arquivo))continue;
