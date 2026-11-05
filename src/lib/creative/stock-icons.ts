@@ -1,3 +1,4 @@
+import bundledAssets from './bundled-library.json';
 /** Ícones fornecidos sob demanda por Tabler Icons (MIT). Fonte fixa:
  * https://github.com/tabler/tabler-icons - licença https://github.com/tabler/tabler-icons/blob/main/LICENSE
  * O arquivo SVG vem de um CDN; o editor normaliza para data URI local antes de compor.
@@ -12,7 +13,7 @@ const entries:Record<string,string[]>={
  'Setas & formas':['arrow-up','arrow-down','arrow-left','arrow-right','arrow-up-right','circle-check','circle-x','bolt','point','circle-dotted','hexagon','triangle'],
 };
 export const stockIcons:StockIcon[]=Object.entries(entries).flatMap(([category,items])=>items.map(name=>({name,label:name.replace(/-/g,' '),category})));
-export const tablerIconUrl=(name:string,style:'outline'|'filled'='outline')=>`https://cdn.jsdelivr.net/npm/@tabler/icons@3.46.0/icons/${style}/${encodeURIComponent(name)}.svg`;
+export const tablerIconUrl=(name:string,style:'outline'|'filled'='outline')=>style==='outline'&&Object.hasOwn(bundledAssets,`tabler-${name}`)?`/creative-library/${(bundledAssets as Record<string,string>)[`tabler-${name}`]}`:`https://cdn.jsdelivr.net/npm/@tabler/icons@3.46.0/icons/${style}/${encodeURIComponent(name)}.svg`;
 export async function iconDataUrl(name:string,color='#fa842c'){
  if(!validName(name))throw Error('Nome de ícone inválido.');
  let response=await fetch(tablerIconUrl(name),{cache:'force-cache'});
@@ -30,24 +31,29 @@ export async function iconDataUrl(name:string,color='#fa842c'){
  */
 let catalogPromise:Promise<StockIcon[]>|undefined;
 const validName=(name:string)=>/^[a-z0-9][a-z0-9-]{0,90}$/.test(name);
-const fromTablerIndex=(json:unknown):StockIcon[]=>{
+export const parseTablerIndex=(json:unknown):StockIcon[]=>{
+ if(!json||typeof json!=='object')return [];
  const raw=json as {icons?:unknown};
- const list=Array.isArray(json)?json:Array.isArray(raw?.icons)?raw.icons:raw?.icons&&typeof raw.icons==='object'?Object.entries(raw.icons).map(([name,detail])=>({name,...(detail as Record<string,unknown>)})):[];
+ const map=raw?.icons&&typeof raw.icons==='object'?raw.icons:json;
+ const list=Array.isArray(json)?json:Array.isArray(raw?.icons)?raw.icons:map&&typeof map==='object'?Object.entries(map).map(([name,detail])=>({name,...(detail&&typeof detail==='object'?detail as Record<string,unknown>:{})})):[];
  return list.flatMap(entry=>{
   if(!entry||typeof entry!=='object')return [];
   const meta=entry as Record<string,unknown>,name=String(meta.name||'');if(!validName(name))return [];
+  const styles=meta.styles as Record<string,unknown>|undefined;
+  if(styles&&!styles.outline)return [];
   const category=typeof meta.category==='string'?meta.category:'Vetoriais';
   const tags=Array.isArray(meta.tags)?meta.tags.filter(t=>typeof t==='string').join(' '):'';
-  return [{name,label:(tags?`${name.replace(/-/g,' ')} ${tags}`:name.replace(/-/g,' ')),category}];
+  const label=typeof meta.label==='string'?meta.label.slice(0,2000):tags?`${name.replace(/-/g,' ')} ${tags}`:name.replace(/-/g,' ');
+  return [{name,label,category}];
  });
 };
 export function loadTablerCatalog():Promise<StockIcon[]>{
  if(catalogPromise)return catalogPromise;
  catalogPromise=(async()=>{
-  try{
-   const response=await fetch('https://cdn.jsdelivr.net/npm/@tabler/icons@3.46.0/icons.json');
+  for(const url of ['/creative-library/tabler-catalog.json','https://cdn.jsdelivr.net/npm/@tabler/icons@3.46.0/icons.json'])try{
+   const response=await fetch(url,{signal:AbortSignal.timeout(8000)});
    if(!response.ok)throw new Error('Índice indisponível');
-   const catalog=fromTablerIndex(await response.json());
+   const catalog=parseTablerIndex(await response.json());
    if(catalog.length>=1000)return catalog;
   }catch{/* Tentar índice público alternativo. */}
   try{
