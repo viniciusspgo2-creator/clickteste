@@ -7,7 +7,7 @@ import {ENABLE_ICONS_TAB} from '@/lib/creative/editor-flags';
 import type {StockIcon} from '@/lib/creative/stock-icons';
 
 type ViewTab=LibraryTab|'Favoritos'|'Recentes';
-type Props={color:string;onColorChange:(color:string)=>void;width:number;height:number;onInsertImage:(dataUrl:string)=>Promise<void>;onApplyBackground:(dataUrl:string)=>Promise<void>;onInsertText:(text:string)=>void;onOpenModels:()=>void};
+type Props={backgroundsOnly?:boolean;onOpenBackgrounds?:()=>void;color:string;onColorChange:(color:string)=>void;width:number;height:number;onInsertImage:(dataUrl:string)=>Promise<void>;onApplyBackground:(dataUrl:string)=>Promise<void>;onInsertText:(text:string)=>void;onOpenModels:()=>void};
 const FAVORITES_KEY='cg:editor:library-favorites-v1';
 const RECENTS_KEY='cg:editor:library-recents-v1';
 const VIEWS:ViewTab[]=[...LIBRARY_TABS,'Favoritos','Recentes'];
@@ -28,8 +28,8 @@ function Thumb({item,color,strokeWidth}:{item:LibraryItem;color:string;strokeWid
  if(!src)return <LoaderCircle className="cr-curated-spin" size={21} aria-label="Carregando prévia"/>;
  return <img loading="lazy" alt="" src={src} onError={()=>setError(true)}/>;
 }
-export function CuratedLibrary({color,onColorChange,width,height,onInsertImage,onApplyBackground,onInsertText,onOpenModels}:Props){
- const [tab,setTab]=useState<ViewTab>('Stickers');
+export function CuratedLibrary({backgroundsOnly=false,onOpenBackgrounds,color,onColorChange,width,height,onInsertImage,onApplyBackground,onInsertText,onOpenModels}:Props){
+ const [tab,setTab]=useState<ViewTab>(backgroundsOnly?'Fundos e Padrões':'Stickers');
  const [category,setCategory]=useState<LibraryCategory|'Todas'>('Todas');
  const [query,setQuery]=useState('');
  const [style,setStyle]=useState('Todos');
@@ -92,7 +92,8 @@ export function CuratedLibrary({color,onColorChange,width,height,onInsertImage,o
  const visible=filtered.slice(startRow*cols,endRow*cols);
  return <section className="cr-curated" aria-label="Biblioteca curada de artes">
   <div className="cr-curated-intro"><Sparkles size={18}/><div><strong>Biblioteca criativa</strong><small>Peças selecionadas para personalizar canecas</small></div></div>
-  <div className="cr-curated-tabs" aria-label="Seções da biblioteca">{VIEWS.map(view=><button type="button" key={view} className={tab===view?'active':''} aria-pressed={tab===view} onClick={()=>setView(view)}>{view==='Favoritos'&&<Bookmark size={13}/>} {view==='Recentes'&&<Clock3 size={13}/>} {view}</button>)}</div>
+  <div className="cr-curated-tabs" aria-label="Seções da biblioteca">{VIEWS.filter(view=>backgroundsOnly?view==='Fundos e Padrões':view!=='Fundos e Padrões').map(view=><button type="button" key={view} className={tab===view?'active':''} aria-pressed={tab===view} onClick={()=>setView(view)}>{view==='Favoritos'&&<Bookmark size={13}/>} {view==='Recentes'&&<Clock3 size={13}/>} {view}</button>)}</div>
+  {!backgroundsOnly&&onOpenBackgrounds&&<button className="cr-outlined" type="button" onClick={onOpenBackgrounds}>Fundos e padrões → aba Fundos</button>}
   <label className="cr-curated-search"><Search size={17}/><span className="sr-only">Pesquisar itens da biblioteca</span><input value={query} onChange={e=>{setQuery(e.target.value);resetScroll()}} placeholder="Busque: mãe, coração, aniversário..."/></label>
   <div className="cr-curated-categories" aria-label="Filtrar por ocasião"><button type="button" aria-pressed={category==='Todas'} className={category==='Todas'?'active':''} onClick={()=>{setCategory('Todas');resetScroll()}}>Todas</button>{LIBRARY_CATEGORIES.map(cat=><button type="button" key={cat} aria-pressed={category===cat} className={category===cat?'active':''} onClick={()=>{setCategory(cat);resetScroll()}}>{cat}</button>)}</div>
   {(tab==='Stickers'||tab==='Elementos'||tab==='Formas'||tab==='Molduras e Faixas')&&<div className="cr-curated-controls"><label>Cor do vetor <input type="color" value={color} onChange={e=>onColorChange(e.target.value)} aria-label="Escolher cor dos vetores"/></label>{(tab==='Formas'||tab==='Molduras e Faixas')&&<label>Espessura <input type="range" min={4} max={64} value={strokeWidth} onChange={e=>setStrokeWidth(Number(e.target.value))} aria-label="Espessura do contorno"/><output>{strokeWidth}px</output></label>}</div>}
