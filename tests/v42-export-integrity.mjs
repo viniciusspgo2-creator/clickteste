@@ -10,6 +10,7 @@ function transpiled(name,stubs={}) {
   const compiled=ts.transpileModule(source,{fileName:file,compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,strict:true}});
   const mod={exports:{}};
   new Function('module','exports','require',compiled.outputText)(mod,mod.exports,name=>{
+    if(['./layer-effects','./vector-shapes','./vector-path'].includes(name))return transpiled(`src/lib/creative/${name.slice(2)}.ts`);
     if(Object.prototype.hasOwnProperty.call(stubs,name))return stubs[name];
     throw new Error('Unexpected test dependency: '+name);
   });

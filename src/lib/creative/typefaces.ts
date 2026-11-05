@@ -52,7 +52,7 @@ export function loadInstalledTypeface(name:string,timeoutMs=FONT_LOAD_TIMEOUT_MS
   let settled=false;
   const finish=(error?:Error)=>{
    if(settled)return;settled=true;clearTimeout(timer);
-   error?reject(error):resolve();
+   if(error)reject(error);else resolve();
   };
   const timer=setTimeout(()=>finish(new Error(`A fonte “${name}” demorou demais para carregar.`)),timeoutMs);
   try{
@@ -103,7 +103,7 @@ export async function waitForFontLayout(timeoutMs=FONT_LOAD_TIMEOUT_MS):Promise<
  if(!Number.isFinite(timeoutMs)||timeoutMs<1)throw new Error('Tempo limite de fonte inválido.');
  await new Promise<void>((resolve,reject)=>{
   let finished=false;
-  const finish=(error?:Error)=>{if(finished)return;finished=true;clearTimeout(timer);error?reject(error):resolve();};
+  const finish=(error?:Error)=>{if(finished)return;finished=true;clearTimeout(timer);if(error)reject(error);else resolve();};
   const timer=setTimeout(()=>finish(new Error('As fontes não terminaram de carregar. Verifique a conexão antes de exportar a arte.')),timeoutMs);
   Promise.resolve(document.fonts.ready).then(()=>finish(),()=>finish(new Error('Falha ao finalizar o carregamento das fontes.')));
  });

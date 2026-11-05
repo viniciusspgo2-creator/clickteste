@@ -13,7 +13,7 @@ function build(file){
  assert.equal((result.diagnostics||[]).filter(d=>d.category===ts.DiagnosticCategory.Error).length,0,`Syntax error: ${file}`);
  return result.outputText;
 }
-function moduleFor(file){const m={exports:{}};new Function('module','exports','require',build(file))(m,m.exports,name=>{throw Error('Unmocked import: '+name)});return m.exports}
+function moduleFor(file){const m={exports:{}};new Function('module','exports','require',build(file))(m,m.exports,name=>{if(['./layer-effects','./vector-shapes','./vector-path'].includes(name))return moduleFor(`src/lib/creative/${name.slice(2)}.ts`);throw Error('Unmocked import: '+name)});return m.exports}
 const node=(id,role,other={})=>({id,kind:'rect',role,x:0,y:0,w:100,h:100,angle:0,opacity:1,...other});
 test('cenas não bloqueiam seleção pelo Canvas; elementos do layout continuam editáveis',()=>{
  const {canSelectOnCanvas}=moduleFor('src/lib/creative/node-actions.ts');

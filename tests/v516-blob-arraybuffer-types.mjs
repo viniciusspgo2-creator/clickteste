@@ -10,9 +10,9 @@ const source=readFileSync(file,'utf8');
 function load(){
  const compiled=ts.transpileModule(source,{fileName:file,reportDiagnostics:true,compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,strict:true}});
  assert.deepEqual((compiled.diagnostics||[]).filter(d=>d.category===ts.DiagnosticCategory.Error),[]);
- const module={exports:{}};
- new Function('module','exports',compiled.outputText)(module,module.exports);
- return module.exports;
+ const fixtureModule={exports:{}};
+ new Function('module','exports',compiled.outputText)(fixtureModule,fixtureModule.exports);
+ return fixtureModule.exports;
 }
 const {addPngDpiToBytes,addPngDpiMetadata}=load();
 function crc32(bytes){let crc=0xffffffff;for(const b of bytes){crc^=b;for(let i=0;i<8;i++)crc=(crc>>>1)^(crc&1?0xedb88320:0);}return (crc^0xffffffff)>>>0;}

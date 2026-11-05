@@ -9,12 +9,12 @@ function load(path,stubs={}){
  const input=readFileSync(resolve(root,path),'utf8');
  const result=ts.transpileModule(input,{fileName:path,reportDiagnostics:true,compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,strict:true}});
  assert.equal((result.diagnostics||[]).filter(d=>d.category===ts.DiagnosticCategory.Error).length,0);
- const module={exports:{}};
- new Function('module','exports','require',result.outputText)(module,module.exports,name=>{
+ const fixtureModule={exports:{}};
+ new Function('module','exports','require',result.outputText)(fixtureModule,fixtureModule.exports,name=>{
   if(Object.hasOwn(stubs,name))return stubs[name];
   throw new Error(`Import não simulado: ${name}`);
  });
- return module.exports;
+ return fixtureModule.exports;
 }
 const reader=load('src/lib/creative/assistant-request.ts');
 function streamingRequest(stream,{signal,headers={}}={}){

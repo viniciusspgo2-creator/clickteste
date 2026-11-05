@@ -10,9 +10,9 @@ function importIsolated(relative){
  const abs=resolve(root,relative);
  const result=ts.transpileModule(readFileSync(abs,'utf8'),{fileName:abs,reportDiagnostics:true,compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,strict:true}});
  assert.deepEqual((result.diagnostics||[]).filter(d=>d.category===ts.DiagnosticCategory.Error),[]);
- const module={exports:{}};
- new Function('module','exports',result.outputText)(module,module.exports);
- return module.exports;
+ const fixtureModule={exports:{}};
+ new Function('module','exports',result.outputText)(fixtureModule,fixtureModule.exports);
+ return fixtureModule.exports;
 }
 const {detectImageSignature,assertExportBlobFormat,addPngDpiToBytes,addPngDpiMetadata}=importIsolated('src/lib/creative/image-export-integrity.ts');
 function crc32(bytes){let crc=0xffffffff;for(const b of bytes){crc^=b;for(let i=0;i<8;i++)crc=(crc>>>1)^(crc&1?0xedb88320:0);}return (crc^0xffffffff)>>>0;}
@@ -90,7 +90,7 @@ test('V5.14: rotina Blob preserva o tipo PNG e o chunk 300 DPI',async()=>{
 test('V5.14: exportDesign integrado não baixa WebP com bytes PNG de fallback',async()=>{
  const abs=resolve(root,'src/lib/creative/design.ts');
  const compilation=ts.transpileModule(readFileSync(abs,'utf8'),{fileName:abs,compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}});
- const module={exports:{}};
+ const fixtureModule={exports:{}};
  const stubs={
   './typefaces':{ensureDesignFonts:async()=>{},waitForFontLayout:async()=>{}},
   './animation':{animateDesignNode:n=>n},
@@ -99,7 +99,8 @@ test('V5.14: exportDesign integrado não baixa WebP com bytes PNG de fallback',a
   './async-image-load':{loadImageWithTimeout:async()=>{}},
   './image-export-integrity':importIsolated('src/lib/creative/image-export-integrity.ts'),
  };
- new Function('module','exports','require',compilation.outputText)(module,module.exports,id=>{
+ new Function('module','exports','require',compilation.outputText)(fixtureModule,fixtureModule.exports,id=>{
+  if(['./layer-effects','./vector-shapes','./vector-path'].includes(id))return importIsolated(`src/lib/creative/${id.slice(2)}.ts`);
   if(Object.hasOwn(stubs,id))return stubs[id];throw Error('unexpected dependency '+id);
  });
  const before=globalThis.document;
@@ -108,14 +109,14 @@ test('V5.14: exportDesign integrado não baixa WebP com bytes PNG de fallback',a
  globalThis.document={createElement:()=>({...browserCanvas})};
  try{
   const doc={width:2480,height:1122,background:'#ffffff',nodes:[]};
-  await assert.rejects(module.exports.exportDesign(doc,'webp',1),/PNG em vez de WebP/);
-  const png=await module.exports.exportDesign(doc,'png',1);
+  await assert.rejects(fixtureModule.exports.exportDesign(doc,'webp',1),/PNG em vez de WebP/);
+  const png=await fixtureModule.exports.exportDesign(doc,'png',1);
   assert.equal(parsePng(new Uint8Array(await png.arrayBuffer())).filter(c=>c.name==='pHYs').length,1);
  }finally{if(before===undefined)delete globalThis.document;else globalThis.document=before;}
 });
 test('V5.14: Editor valida formato ANTES de adicionar DPI ou disponibilizar arquivo',()=>{
  const source=readFileSync(resolve(root,'src/lib/creative/design.ts'),'utf8');
- const i=source.indexOf('await assertExportBlobFormat(blob,format)');
+ const i=source.indexOf('await assertExportBlobFormat(blob,');
  const j=source.indexOf('await addPngDpiMetadata(blob,300)');
  assert.ok(i>0&&j>i);
  assert.ok(!source.includes('async function withPngDpi('));

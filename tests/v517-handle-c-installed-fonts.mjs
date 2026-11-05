@@ -9,12 +9,12 @@ function load(path,stubs={}) {
  const source=readFileSync(resolve(root,path),'utf8');
  const transpiled=ts.transpileModule(source,{fileName:path,reportDiagnostics:true,compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,strict:true}});
  assert.equal((transpiled.diagnostics||[]).filter(d=>d.category===ts.DiagnosticCategory.Error).length,0,`${path} has syntax errors`);
- const module={exports:{}};
- new Function('module','exports','require',transpiled.outputText)(module,module.exports,id=>{
+ const fixtureModule={exports:{}};
+ new Function('module','exports','require',transpiled.outputText)(fixtureModule,fixtureModule.exports,id=>{
   if(Object.hasOwn(stubs,id))return stubs[id];
   throw Error(`Unexpected import: ${id}`);
  });
- return module.exports;
+ return fixtureModule.exports;
 }
 const {installedTypefaces}=load('src/lib/creative/installed-fonts.ts');
 const fontRuntime=load('src/lib/creative/typefaces.ts',{'./installed-fonts':{installedTypefaces}});
@@ -93,9 +93,9 @@ test('V5.17: font picker, editor select, design export and docs are wired to ins
  const picker=readFileSync(resolve(root,'src/components/creative/font-library.tsx'),'utf8');
  const editor=readFileSync(resolve(root,'src/components/creative/creative-editor.tsx'),'utf8');
  const design=readFileSync(resolve(root,'src/lib/creative/design.ts'),'utf8');
- assert.match(picker,/FONTES DA SUA COLEÇÃO/);
- assert.match(picker,/bundled\.slice\(0,installedLimit\)/);
- assert.match(picker,/loadCuratedTypeface\(font.name\)/);
+ assert.match(picker,/installedTypefaces/);
+ assert.match(picker,/cr-font-viewport/);
+ assert.match(picker,/loadCuratedTypeface\(face.name\)/);
  assert.match(editor,/installedTypefaces\.map\(t=>t.name\)/);
  assert.match(design,/ensureDesignFonts/);
  assert.ok(existsSync(resolve(root,'docs/FONTES-COLECAO-INSTALADA.csv')));

@@ -9,10 +9,10 @@ function load(path,stubs={}){
  const filename=resolve(root,path),source=readFileSync(filename,'utf8');
  const result=ts.transpileModule(source,{fileName:filename,reportDiagnostics:true,compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,strict:true}});
  assert.deepEqual((result.diagnostics||[]).filter(d=>d.category===ts.DiagnosticCategory.Error),[]);
- const module={exports:{}};new Function('require','module','exports',result.outputText)(key=>{
+ const fixtureModule={exports:{}};new Function('require','module','exports',result.outputText)(key=>{
   if(Object.hasOwn(stubs,key))return stubs[key];throw Error(`Unexpected dependency ${key}`);
- },module,module.exports);
- return module.exports;
+ },fixtureModule,fixtureModule.exports);
+ return fixtureModule.exports;
 }
 const video=()=>load('src/lib/creative/video-templates.ts',{'mp4-muxer':{},'./mp4-integrity':{inspectRenderedMp4:()=>({})},'./design':{}});
 const smart=()=>load('src/lib/creative/smart-templates.ts',{jszip:{},'./design':{uid:()=> 'mock-id'}});

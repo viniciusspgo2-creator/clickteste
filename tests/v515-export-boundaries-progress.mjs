@@ -9,12 +9,12 @@ function isolated(file,stubs={}){
  const abs=resolve(root,file);
  const build=ts.transpileModule(readFileSync(abs,'utf8'),{fileName:abs,reportDiagnostics:true,compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,strict:true}});
  assert.deepEqual((build.diagnostics||[]).filter(d=>d.category===ts.DiagnosticCategory.Error),[]);
- const module={exports:{}};
- new Function('module','exports','require',build.outputText)(module,module.exports,id=>{
+ const fixtureModule={exports:{}};
+ new Function('module','exports','require',build.outputText)(fixtureModule,fixtureModule.exports,id=>{
   if(Object.hasOwn(stubs,id))return stubs[id];
   throw new Error(`Import inesperado no teste: ${id}`);
  });
- return module.exports;
+ return fixtureModule.exports;
 }
 const images=isolated('src/lib/creative/image-export-integrity.ts');
 const video=isolated('src/lib/creative/video-templates.ts',{'mp4-muxer':{},'./design':{},'./mp4-integrity':{}});

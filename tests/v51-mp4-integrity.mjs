@@ -9,9 +9,9 @@ function transpiled(file,stubs={}){
  const absolute=resolve(root,file);
  const output=ts.transpileModule(readFileSync(absolute,'utf8'),{fileName:absolute,reportDiagnostics:true,compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,strict:true}});
  assert.deepEqual((output.diagnostics||[]).filter(d=>d.category===ts.DiagnosticCategory.Error),[]);
- const module={exports:{}};
- new Function('module','exports','require',output.outputText)(module,module.exports,id=>{if(Object.hasOwn(stubs,id))return stubs[id];throw Error(`Unmapped dependency ${id}`)});
- return module.exports;
+ const fixtureModule={exports:{}};
+ new Function('module','exports','require',output.outputText)(fixtureModule,fixtureModule.exports,id=>{if(Object.hasOwn(stubs,id))return stubs[id];throw Error(`Unmapped dependency ${id}`)});
+ return fixtureModule.exports;
 }
 const inspector=transpiled('src/lib/creative/mp4-integrity.ts').inspectRenderedMp4;
 const bytes=readFileSync(resolve(root,'tests/fixtures/smoke-h264.mp4'));

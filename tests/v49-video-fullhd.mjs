@@ -9,12 +9,12 @@ function load(file,stubs={}){
  const path=resolve(root,file);
  const output=ts.transpileModule(readFileSync(path,'utf8'),{fileName:path,reportDiagnostics:true,compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,strict:true}});
  assert.deepEqual((output.diagnostics||[]).filter(d=>d.category===ts.DiagnosticCategory.Error),[]);
- const module={exports:{}};
- new Function('module','exports','require',output.outputText)(module,module.exports,id=>{
+ const fixtureModule={exports:{}};
+ new Function('module','exports','require',output.outputText)(fixtureModule,fixtureModule.exports,id=>{
   if(Object.hasOwn(stubs,id))return stubs[id];
   throw new Error(`Dependência inesperada: ${id}`);
  });
- return module.exports;
+ return fixtureModule.exports;
 }
 const video=()=>load('src/lib/creative/video-templates.ts',{'mp4-muxer':{},'./mp4-integrity':{inspectRenderedMp4:()=>({})},'./design':{}});
 const doc={width:1920,height:1080,background:'#ffffff',nodes:[],video:{src:'data:video/mp4;base64,YQ==',start:0,end:2}};

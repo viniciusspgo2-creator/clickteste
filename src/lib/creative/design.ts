@@ -24,7 +24,7 @@ export type DesignNode={id:string;kind:NodeKind;x:number;y:number;w:number;h:num
  flipX?:boolean;flipY?:boolean;crop?:{left:number;top:number;right:number;bottom:number};keyframes?:MotionPoint[];
 };
 export type DesignDocument={width:number;height:number;background:string;nodes:DesignNode[];guides?:DesignGuide[];video?:{src:string;name:string;start:number;end?:number;fit?:'cover'|'contain'};smartTemplate?:{slot:{x:number;y:number;w:number;h:number};maskSrc?:string;maskMode?:'luminance'|'alpha';maskInvert?:boolean}};
-export type ExportFormat='png'|'jpeg'|'webp';
+export type ExportFormat='png'|'jpeg'|'webp'|'pdf';
 export const formats=[{label:'Caneca 21 × 9,5 cm · 300 DPI',w:2480,h:1122},{label:'Área visível 19 × 8,5 cm · 300 DPI',w:2244,h:1004},{label:'Divulgação Instagram 1080 × 1350',w:1080,h:1350},{label:'Post quadrado 1080 × 1080',w:1080,h:1080},{label:'Story / Reels 1080 × 1920',w:1080,h:1920},{label:'Horizontal HD',w:1920,h:1080}] as const;
 export const uid=()=>crypto.randomUUID();
 export const blankDocument=():DesignDocument=>({width:2480,height:1122,background:'#ffffff',nodes:[]});
@@ -125,10 +125,13 @@ export async function drawDesign(canvas:HTMLCanvasElement,doc:DesignDocument,tim
  await Promise.all(renderedNodes.filter(n=>n.kind==='image'&&n.src).map(n=>imageFor(n.src!).catch(()=>null)));
  for(const n of renderedNodes){
   if(n.effectKind){
+   // Bound intermediate pixel buffers on very large alternate documents.
+   const resolution=Math.min(1,Math.sqrt(8_000_000/(doc.width*doc.height)));
+   const scaled={...n,x:n.x*resolution,y:n.y*resolution,w:n.w*resolution,h:n.h*resolution,size:n.size===undefined?undefined:n.size*resolution,strokeWidth:n.strokeWidth===undefined?undefined:n.strokeWidth*resolution,radius:n.radius===undefined?undefined:n.radius*resolution,curve:n.curve===undefined?undefined:n.curve*resolution,wave:n.wave===undefined?undefined:n.wave*resolution,tracking:n.tracking===undefined?undefined:n.tracking*resolution};
    const layer=document.createElement('canvas');
-   await drawDesign(layer,{...doc,background:'transparent',nodes:[{...n,effectKind:undefined,opacity:1,shadow:0}]},undefined,options);
+   await drawDesign(layer,{...doc,width:Math.max(1,Math.round(doc.width*resolution)),height:Math.max(1,Math.round(doc.height*resolution)),background:'transparent',nodes:[{...scaled,effectKind:undefined,opacity:1,shadow:0}]},undefined,options);
    const effect=document.createElement('canvas');effect.width=layer.width;effect.height=layer.height;
-   paintLayerEffect(effect.getContext('2d')!,layer,n);ctx.save();ctx.globalAlpha=n.opacity;ctx.drawImage(effect,0,0);ctx.restore();layer.width=layer.height=effect.width=effect.height=1;continue;
+   paintLayerEffect(effect.getContext('2d')!,layer,scaled);ctx.save();ctx.globalAlpha=n.opacity;ctx.drawImage(effect,0,0,doc.width,doc.height);ctx.restore();layer.width=layer.height=effect.width=effect.height=1;continue;
   }
 
   ctx.save();ctx.globalAlpha=limit(n.opacity,0,1);
@@ -226,7 +229,7 @@ export async function drawDesign(canvas:HTMLCanvasElement,doc:DesignDocument,tim
   if(n.kind==='bezier'){
    drawEditablePath(ctx,n);lineStyle(ctx,n);
    if(n.pathClosed){ctx.fillStyle=nodeFill(ctx,n);ctx.fill();}
-   ctx.lineWidth=Math.max(.5,n.strokeWidth??12);ctx.strokeStyle=n.gradient?nodeFill(ctx,n):n.stroke||n.fill||'#ff8a30';ctx.stroke();
+   ctx.lineWidth=Math.max(.5,n.strokeWidth===0&&!n.pathPoints?12:n.strokeWidth??12);ctx.strokeStyle=n.gradient?nodeFill(ctx,n):n.stroke||n.fill||'#ff8a30';ctx.stroke();
   }
   if(n.kind==='text')drawText(ctx,n);
   ctx.restore();
@@ -250,10 +253,11 @@ export async function exportDesign(doc:DesignDocument,format:ExportFormat,scale:
  const ctx=out.getContext('2d');if(!ctx)throw new Error('Canvas indisponível');
  if(format==='jpeg'){ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);}
  drawOutputWithMirror(ctx,base,w,h,mirrorHorizontal);
- const blob=await new Promise<Blob>((resolve,reject)=>out.toBlob(b=>b?resolve(b):reject(new Error('Não foi possível gerar o arquivo.')),`image/${format}`,0.94));
+ const blob=await new Promise<Blob>((resolve,reject)=>out.toBlob(b=>b?resolve(b):reject(new Error('Não foi possível gerar o arquivo.')),`image/${format==='pdf'?'png':format}`,0.94));
  // Alguns navegadores devolvem PNG mesmo quando WebP/JPEG foi solicitado.
  // Verifique os bytes reais antes de gravar com a extensão escolhida.
- await assertExportBlobFormat(blob,format);
+ await assertExportBlobFormat(blob,format==='pdf'?'png':format);
+ if(format==='pdf'){const {PDFDocument}=await import('pdf-lib');const pdf=await PDFDocument.create();const image=await pdf.embedPng(await blob.arrayBuffer());const page=pdf.addPage([doc.width*72/300,doc.height*72/300]);page.drawImage(image,{x:0,y:0,width:page.getWidth(),height:page.getHeight()});pdf.setTitle('Studio Click · arte para impressão');pdf.setSubject('Composição raster em tamanho físico a 300 DPI na escala 100%');const bytes=await pdf.save();return new Blob([new Uint8Array(bytes).buffer],{type:'application/pdf'});}
  // Inclui pHYs com resolução física de 300 DPI nas estampas de caneca (escala 100%).
  return format==='png'&&scale===1&&((doc.width===2480&&doc.height===1122)||(doc.width===2244&&doc.height===1004))?await addPngDpiMetadata(blob,300):blob;
 }

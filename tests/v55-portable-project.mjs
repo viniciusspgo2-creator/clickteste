@@ -15,6 +15,7 @@ function load(file,stubs={}){
  assert.deepEqual((result.diagnostics||[]).filter(x=>x.category===ts.DiagnosticCategory.Error),[]);
  const mod={exports:{}};
  new Function('module','exports','require',result.outputText)(mod,mod.exports,dep=>{
+  if(['./layer-effects','./vector-shapes'].includes(dep))return load(`src/lib/creative/${dep.slice(2)}.ts`);
   if(Object.hasOwn(stubs,dep))return stubs[dep];
   throw Error(`Unexpected module dependency: ${dep}`);
  });

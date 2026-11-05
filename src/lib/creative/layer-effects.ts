@@ -23,9 +23,9 @@ export function paintLayerEffect(ctx:CanvasRenderingContext2D,layer:HTMLCanvasEl
  }
  if(kind==='glitch'){ctx.save();ctx.globalAlpha=t*.4;ctx.drawImage(tint('#00ddff'),-size/2,0);ctx.drawImage(tint('#ff3e85'),size/2,0);ctx.restore();ctx.drawImage(layer,0,0);return;}
  if(kind==='vignette'){ctx.drawImage(layer,0,0);const c=canvas(w,h),g=c.getContext('2d')!;g.drawImage(layer,0,0);g.globalCompositeOperation='source-atop';const rad=g.createRadialGradient(n.x+n.w/2,n.y+n.h/2,Math.min(n.w,n.h)*.15,n.x+n.w/2,n.y+n.h/2,Math.max(n.w,n.h)*.65);rad.addColorStop(0,'transparent');rad.addColorStop(1,`rgba(0,0,0,${t*.8})`);g.fillStyle=rad;g.fillRect(0,0,w,h);ctx.drawImage(c,0,0);return;}
- if(kind==='background-blur'){const backing=canvas(w,h),g=backing.getContext('2d')!;g.filter=`blur(${blur}px)`;g.drawImage(ctx.canvas,0,0);g.filter='none';g.globalCompositeOperation='destination-in';g.drawImage(layer,0,0);ctx.drawImage(backing,0,0);ctx.save();ctx.globalAlpha=.7;ctx.drawImage(layer,0,0);ctx.restore();return;}
+ if(kind==='background-blur'){filtered(`blur(${blur}px)`);return;}
  if(kind==='reflection'){const c=canvas(w,h),g=c.getContext('2d')!;g.translate(0,2*(n.y+n.h));g.scale(1,-1);g.globalAlpha=t*.5;g.drawImage(layer,0,0);g.setTransform(1,0,0,1,0,0);g.globalCompositeOperation='destination-in';const fade=g.createLinearGradient(0,n.y+n.h,0,n.y+n.h*1.65);fade.addColorStop(0,'#fff');fade.addColorStop(1,'transparent');g.fillStyle=fade;g.fillRect(0,0,w,h);ctx.drawImage(c,0,0);ctx.drawImage(layer,0,0);return;}
- if(kind.includes('outline')||kind==='sticker'){
+ if(['outline','double-outline','dashed-outline','sticker'].includes(kind)){
   const mask=tint(kind==='sticker'?'#fff':color),radius=kind==='double-outline'?size+5:size;for(let i=0;i<24;i++){if(kind==='dashed-outline'&&i%3===0)continue;const a=i/24*Math.PI*2;ctx.drawImage(mask,Math.cos(a)*radius,Math.sin(a)*radius);}if(kind==='double-outline'){const inner=tint('#ffffff');for(let i=0;i<16;i++){const a=i/16*Math.PI*2;ctx.drawImage(inner,Math.cos(a)*size*.5,Math.sin(a)*size*.5);}}ctx.drawImage(layer,0,0);return;
  }
  if(kind==='emboss'||kind==='extrusion'||kind==='long-shadow'||kind==='double-shadow'){

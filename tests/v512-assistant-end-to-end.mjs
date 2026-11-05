@@ -9,12 +9,12 @@ function load(path,stubs={}){
  const input=readFileSync(resolve(root,path),'utf8');
  const output=ts.transpileModule(input,{fileName:path,reportDiagnostics:true,compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,strict:true}});
  assert.deepEqual((output.diagnostics||[]).filter(d=>d.category===ts.DiagnosticCategory.Error),[]);
- const module={exports:{}};
- new Function('module','exports','require',output.outputText)(module,module.exports,id=>{
+ const fixtureModule={exports:{}};
+ new Function('module','exports','require',output.outputText)(fixtureModule,fixtureModule.exports,id=>{
   if(Object.hasOwn(stubs,id))return stubs[id];
   throw new Error(`Import não simulado: ${id}`);
  });
- return module.exports;
+ return fixtureModule.exports;
 }
 const provider=load('src/lib/creative/provider-response.ts');
 const json=(obj,headers={})=>new Response(JSON.stringify(obj),{headers:{'content-type':'application/json',...headers}});

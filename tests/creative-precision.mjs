@@ -9,6 +9,7 @@ function load(name){
   if(specifier==='./editor-flags')return {ENABLE_ICONS_TAB:false};
   if(specifier==='./background-catalog.json')return {default:JSON.parse(fs.readFileSync('src/lib/creative/background-catalog.json','utf8'))};
   if(specifier==='./uploaded-library.json')return {default:JSON.parse(fs.readFileSync('src/lib/creative/uploaded-library.json','utf8'))};
+  if(['./vector-shapes','./layer-effects'].includes(specifier))return load(specifier.slice(2));
   if(specifier==='./precision')return load('precision');
   if(specifier==='./bundled-library.json')return JSON.parse(fs.readFileSync('src/lib/creative/bundled-library.json','utf8'));
   throw Error(`Unexpected dependency: ${specifier}`);

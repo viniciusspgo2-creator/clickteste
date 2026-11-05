@@ -20,7 +20,7 @@ const loadImage=async(url:string):Promise<void>=>{await loadImageWithTimeout(url
 const loadVideo=(url:string):Promise<void>=>new Promise((resolve,reject)=>{
  const video=document.createElement('video');video.preload='metadata';video.muted=true;
  let finished=false;
- const finish=(error?:Error)=>{if(finished)return;finished=true;clearTimeout(timeout);video.removeAttribute('src');video.load();error?reject(error):resolve();};
+ const finish=(error?:Error)=>{if(finished)return;finished=true;clearTimeout(timeout);video.removeAttribute('src');video.load();if(error)reject(error);else resolve();};
  const timeout=setTimeout(()=>finish(new Error('Tempo limite de vídeo')),12000);
  video.onloadedmetadata=()=>finish(video.videoWidth>0&&video.videoHeight>0?undefined:new Error('Vídeo sem dimensões'));
  video.onerror=()=>finish(new Error('Vídeo indisponível ou não compatível'));
