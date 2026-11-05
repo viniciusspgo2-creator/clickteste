@@ -5,6 +5,7 @@ import {stockIcons,parseTablerIndex,type StockIcon} from './stock-icons';
 import bundledAssets from './bundled-library.json';
 import {LIBRARY_RELEASE,type LibraryItem} from './library-manifest';
 import {nativeShapeSvg,nativeBackgroundSvg} from './library-native';
+import {expandedBackgroundSvg} from './expanded-backgrounds';
 import {kawaiiSvg} from './library-kawaii';
 
 const TABLER_URL='https://cdn.jsdelivr.net/npm/@tabler/icons@3.46.0/';
@@ -29,7 +30,7 @@ function validateColor(color:string){return /^#[a-f0-9]{6}$/i.test(color)?color:
 const allowedTags=new Set(['svg','g','path','rect','circle','ellipse','polygon','polyline','line','defs','linearGradient','radialGradient','stop','clipPath']);
 const allowedAttrs=new Set(['xmlns','viewBox','width','height','x','y','x1','x2','y1','y2','cx','cy','r','rx','ry','d','points','fill','fill-rule','stroke','stroke-width','stroke-linecap','stroke-linejoin','stroke-opacity','fill-opacity','opacity','transform','id','offset','stop-color','stop-opacity','gradientUnits','gradientTransform','clip-path','preserveAspectRatio']);
 function safeAttrValue(name:string,value:string){
- if(value.length>20000||/javascript:|data:|https?:|file:|expression\s*\(|@import|<|>|[\\]/i.test(value))return false;
+ if(value.length>(name==='d'?80000:20000)||/javascript:|data:|https?:|file:|expression\s*\(|@import|<|>|[\\]/i.test(value))return false;
  if(/url\s*\(/i.test(value)&&!/^url\(#[a-zA-Z][\w-]{0,80}\)$/.test(value))return false;
  if(name==='id'&&!/^[A-Za-z][\w-]{0,80}$/.test(value))return false;
  if(name==='d'&&!/^[MmLlHhVvCcSsQqTtAaZz\s0-9+.,eE-]+$/.test(value))return false;
@@ -88,6 +89,7 @@ async function fetchText(url:string){
  const text=await response.text();if(text.length>90000)throw new Error('SVG maior que o permitido.');return text;
 }
 export function previewLibraryAsset(item:LibraryItem,color='#ff6a00',width=2480,height=1122,strokeWidth=24):Promise<string>{
+ if(item.arquivo.startsWith('pattern:'))return expandedBackgroundSvg(item.arquivo,width,height,svg=>sanitizeLibrarySvg(svg));
  if(item.arquivo.startsWith('kawaii:'))return Promise.resolve(kawaiiSvg(item.arquivo,color));
  if(item.arquivo.startsWith('native:'))return Promise.resolve(nativeShapeSvg(item.arquivo,color,strokeWidth));
  if(item.arquivo.startsWith('background:'))return Promise.resolve(nativeBackgroundSvg(item.arquivo,width,height));

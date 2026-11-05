@@ -1,7 +1,7 @@
 'use client';
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {AlertCircle,Bookmark,Check,Clock3,FolderOpen,Image as ImageIcon,LoaderCircle,Search,ShieldCheck,Sparkles,Star,Type,RefreshCw} from 'lucide-react';
-import {LIBRARY_CATEGORIES,LIBRARY_TABS,STATIC_MANIFEST,libraryManifest,libraryMatch,type LibraryCategory,type LibraryItem,type LibraryTab} from '@/lib/creative/library-manifest';
+import {BACKGROUND_STYLES,PALETTES,LIBRARY_CATEGORIES,LIBRARY_TABS,STATIC_MANIFEST,libraryManifest,libraryMatch,type LibraryCategory,type LibraryItem,type LibraryTab} from '@/lib/creative/library-manifest';
 import {loadApprovedTablerCatalog,loadLibraryImage,previewLibraryAsset} from '@/lib/creative/library-load';
 import type {StockIcon} from '@/lib/creative/stock-icons';
 
@@ -31,6 +31,8 @@ export function CuratedLibrary({color,onColorChange,width,height,onInsertImage,o
  const [tab,setTab]=useState<ViewTab>('Stickers');
  const [category,setCategory]=useState<LibraryCategory|'Todas'>('Todas');
  const [query,setQuery]=useState('');
+ const [style,setStyle]=useState('Todos');
+ const [palette,setPalette]=useState('Todas');
  const [fileFilter,setFileFilter]=useState<'Todos'|'SVG'|'PNG'|'WEBP'|'TEXTO'>('Todos');
  const [viewportHeight,setViewportHeight]=useState(460);
  const [strokeWidth,setStrokeWidth]=useState(24);
@@ -65,10 +67,10 @@ export function CuratedLibrary({color,onColorChange,width,height,onInsertImage,o
   else if(tab==='Recentes')items=recents.map(id=>itemById.get(id)).filter((i):i is LibraryItem=>Boolean(i));
   else items=manifest.filter(i=>i.aba===tab);
   if(tab==='Recentes')items=items.sort((a,b)=>(recentPositions.get(a.id)??Infinity)-(recentPositions.get(b.id)??Infinity));
-  return items.filter(item=>(category==='Todas'||item.categoria===category)&&(fileFilter==='Todos'||item.formato===fileFilter)&&libraryMatch(item,query));
- },[tab,favorites,recents,manifest,itemById,category,query,recentPositions,fileFilter]);
+  return items.filter(item=>(category==='Todas'||item.categoria===category)&&(fileFilter==='Todos'||item.formato===fileFilter)&&(tab!=='Fundos e Padrões'||((style==='Todos'||item.estilo===style)&&(palette==='Todas'||item.paleta===palette)))&&libraryMatch(item,query));
+ },[tab,favorites,recents,manifest,itemById,category,query,recentPositions,fileFilter,style,palette]);
  const resetScroll=()=>{setScrollTop(0);if(listRef.current)listRef.current.scrollTop=0;};
- const setView=(value:ViewTab)=>{setTab(value);setCategory('Todas');setFileFilter('Todos');setMessage('');resetScroll()};
+ const setView=(value:ViewTab)=>{setTab(value);setCategory('Todas');setFileFilter('Todos');setStyle('Todos');setPalette('Todas');setMessage('');resetScroll()};
  const choose=async(item:LibraryItem)=>{
   if(busy)return;setBusy(item.id);setMessage('');
   try{
@@ -93,6 +95,7 @@ export function CuratedLibrary({color,onColorChange,width,height,onInsertImage,o
   <label className="cr-curated-search"><Search size={17}/><span className="sr-only">Pesquisar itens da biblioteca</span><input value={query} onChange={e=>{setQuery(e.target.value);resetScroll()}} placeholder="Busque: mãe, coração, aniversário..."/></label>
   <div className="cr-curated-categories" aria-label="Filtrar por ocasião"><button type="button" aria-pressed={category==='Todas'} className={category==='Todas'?'active':''} onClick={()=>{setCategory('Todas');resetScroll()}}>Todas</button>{LIBRARY_CATEGORIES.map(cat=><button type="button" key={cat} aria-pressed={category===cat} className={category===cat?'active':''} onClick={()=>{setCategory(cat);resetScroll()}}>{cat}</button>)}</div>
   {(tab==='Stickers'||tab==='Elementos'||tab==='Formas'||tab==='Molduras e Faixas')&&<div className="cr-curated-controls"><label>Cor do vetor <input type="color" value={color} onChange={e=>onColorChange(e.target.value)} aria-label="Escolher cor dos vetores"/></label>{(tab==='Formas'||tab==='Molduras e Faixas')&&<label>Espessura <input type="range" min={4} max={64} value={strokeWidth} onChange={e=>setStrokeWidth(Number(e.target.value))} aria-label="Espessura do contorno"/><output>{strokeWidth}px</output></label>}</div>}
+  {tab==='Fundos e Padrões'&&<div className="cr-curated-background-filters"><label>Estilo do fundo<select aria-label="Estilo do fundo" value={style} onChange={e=>{setStyle(e.target.value);resetScroll()}}><option value="Todos">Todos os estilos</option>{BACKGROUND_STYLES.map(value=><option key={value}>{value}</option>)}</select></label><label>Paleta de cores<select aria-label="Paleta de cores" value={palette} onChange={e=>{setPalette(e.target.value);resetScroll()}}><option value="Todas">Todas as paletas</option>{PALETTES.map(([name])=><option key={name}>{name}</option>)}</select></label></div>}
   <div className="cr-curated-filters"><label htmlFor="cr-library-format">Tipo de ativo</label><select id="cr-library-format" value={fileFilter} onChange={e=>{setFileFilter(e.target.value as typeof fileFilter);resetScroll()}}><option value="Todos">Todos os tipos</option><option value="SVG">SVG · vetores</option><option value="PNG">PNG · stickers 3D</option><option value="WEBP">WebP · elementos enviados</option><option value="TEXTO">Texto editável</option></select></div>
   <div className="cr-curated-summary"><span>{loading?'Preparando catálogo…':`${filtered.length.toLocaleString('pt-BR')} itens nesta seleção`}</span><span>SVG · PNG · WebP · texto</span></div>
   {fallback&&<div className="cr-curated-warning" role="status"><AlertCircle size={15}/><span>Catálogo ampliado indisponível. Mostrando itens locais.</span><button type="button" aria-label="Tentar carregar catálogo novamente" title="Tentar novamente" onClick={()=>setRetryCatalog(n=>n+1)}><RefreshCw size={15}/></button></div>}
@@ -100,7 +103,7 @@ export function CuratedLibrary({color,onColorChange,width,height,onInsertImage,o
   {message&&<div className="cr-curated-error" role="alert"><AlertCircle size={17}/><span>{message}</span><button type="button" onClick={()=>setMessage('')}>Fechar</button></div>}
   <div ref={listRef} className="cr-curated-viewport" role="region" aria-label="Itens disponíveis" aria-busy={loading} onScroll={e=>setScrollTop(e.currentTarget.scrollTop)}>
    {loading&&<div className="cr-curated-skeleton-grid" aria-label="Carregando itens" role="status">{Array.from({length:10},(_,i)=><div className="cr-curated-skeleton" key={i}><span/><small/></div>)}</div>}
-   {!loading&&!filtered.length&&<div className="cr-curated-empty"><ImageIcon size={28}/><strong>{query?'Nenhum resultado para esta busca':tab==='Favoritos'?'Nenhum favorito ainda':tab==='Recentes'?'Nenhum item usado recentemente':'Nenhum elemento nesta categoria'}</strong><p>{query?'Experimente “mãe”, “flor” ou “presente”.':tab==='Favoritos'?'Toque na estrela de um item para guardar aqui.':tab==='Recentes'?'Ao aplicar um item na arte, ele aparecerá aqui.':'Escolha outra ocasião ou seção.'}</p><button onClick={()=>{setQuery('');setCategory('Todas');setFileFilter('Todos');resetScroll()}}>Limpar filtros</button></div>}
+   {!loading&&!filtered.length&&<div className="cr-curated-empty"><ImageIcon size={28}/><strong>{query?'Nenhum resultado para esta busca':tab==='Favoritos'?'Nenhum favorito ainda':tab==='Recentes'?'Nenhum item usado recentemente':'Nenhum elemento nesta categoria'}</strong><p>{query?'Experimente “mãe”, “flor” ou “presente”.':tab==='Favoritos'?'Toque na estrela de um item para guardar aqui.':tab==='Recentes'?'Ao aplicar um item na arte, ele aparecerá aqui.':'Escolha outra ocasião ou seção.'}</p><button onClick={()=>{setQuery('');setCategory('Todas');setFileFilter('Todos');setStyle('Todos');setPalette('Todas');resetScroll()}}>Limpar filtros</button></div>}
    {!loading&&Boolean(filtered.length)&&<div className="cr-curated-virtual-space" style={{height:rows*rowHeight}}>
     {visible.map((item,i)=>{const absoluteIndex=startRow*cols+i,row=Math.floor(absoluteIndex/cols),column=absoluteIndex%cols;
      return <div className="cr-curated-slot" key={item.id} style={{top:row*rowHeight,left:`${100*column/cols}%`,width:`${100/cols}%`}}>
