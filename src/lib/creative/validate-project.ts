@@ -1,6 +1,8 @@
 /** Validation for imported .cgdesign files (untrusted JSON, processed only locally).
  * A file that renders is not necessarily a safe or well-formed editor document.
  */
+import {effectKinds} from './layer-effects';
+import {vectorShapes} from './vector-shapes';
 import type {DesignDocument} from './design';
 const kinds=new Set(['text','image','rect','circle','bezier']);
 const roles=new Set(['template','background','mockup','content','foreground']);
@@ -48,6 +50,17 @@ export function validateProjectDocument(input:unknown):asserts input is DesignDo
   for(const key of ['x','y','angle'])if(!numeric(n[key],-65536,65536))throw new Error(`Geometria inválida no elemento ${index+1}.`);
   for(const key of ['w','h'])if(!numeric(n[key],0.01,16384))throw new Error(`Tamanho inválido no elemento ${index+1}.`);
   if(!numeric(n.opacity,0,1))throw new Error(`Transparência inválida no elemento ${index+1}.`);
+  if(n.effectKind!==undefined&&!effectKinds.includes(n.effectKind as typeof effectKinds[number]))throw Error('Efeito inválido.');
+  if(n.effectIntensity!==undefined&&!numeric(n.effectIntensity,0,100))throw Error('Intensidade inválida.');
+  if(n.effectColor!==undefined&&(typeof n.effectColor!=='string'||!/^#[a-f0-9]{6}$/i.test(n.effectColor)))throw Error('Cor do efeito inválida.');
+  if(n.shapeId!==undefined&&(!vectorShapes.some(s=>s.id===n.shapeId)||n.kind!=='rect'))throw Error('Forma inválida.');
+  if(n.shapePoints!==undefined&&!numeric(n.shapePoints,3,32))throw Error('Quantidade de pontas inválida.');
+  if(n.lineCap!==undefined&&!['round','butt','square'].includes(String(n.lineCap)))throw Error('Ponta de linha inválida.');
+  if(n.lineJoin!==undefined&&!['round','miter','bevel'].includes(String(n.lineJoin)))throw Error('Junção inválida.');
+  if(n.dashStyle!==undefined&&!['solid','dashed','dotted'].includes(String(n.dashStyle)))throw Error('Tracejado inválido.');
+  if(n.dashSpacing!==undefined&&!numeric(n.dashSpacing,.5,20))throw Error('Espaçamento inválido.');
+  if(n.pathClosed!==undefined&&typeof n.pathClosed!=='boolean')throw Error('Caminho inválido.');
+  if(n.pathPoints!==undefined){if(n.kind!=='bezier'||!Array.isArray(n.pathPoints)||n.pathPoints.length<2||n.pathPoints.length>128)throw Error('Pontos de caminho inválidos.');for(const p of n.pathPoints){if(!isRecord(p)||!numeric(p.x,-2,3)||!numeric(p.y,-2,3))throw Error('Ponto inválido.');for(const k of ['inX','inY','outX','outY'])if(p[k]!==undefined&&!numeric(p[k],-2,3))throw Error('Alça inválida.');if(p.smooth!==undefined&&typeof p.smooth!=='boolean')throw Error('Tipo de ponto inválido.');}}
   if(n.role!==undefined&&!roles.has(n.role as string))throw new Error('Tipo de camada inválido.');
   if(n.visible!==undefined&&typeof n.visible!=='boolean')throw new Error('Visibilidade de camada inválida.');
   if(n.locked!==undefined&&typeof n.locked!=='boolean')throw new Error('Bloqueio de camada inválido.');

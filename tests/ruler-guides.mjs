@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
-function load(name){const context={exports:{}};vm.runInNewContext(ts.transpileModule(fs.readFileSync(`src/lib/creative/${name}.ts`,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,context);return context.exports;}
+function load(name){const context={exports:{},require:s=>load(s.slice(2))};vm.runInNewContext(ts.transpileModule(fs.readFileSync(`src/lib/creative/${name}.ts`,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,context);return context.exports;}
 const guides=load('guides'),precision=load('precision'),validate=load('validate-project').validateProjectDocument;
 const node={id:'object',kind:'rect',x:163,y:83,w:200,h:60,angle:0,opacity:1};
 const doc={width:1000,height:500,background:'#fff',nodes:[node],guides:[{id:'v',axis:'x',position:367,locked:true},{id:'h',axis:'y',position:147}]};

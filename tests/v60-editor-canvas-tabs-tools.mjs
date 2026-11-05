@@ -28,7 +28,7 @@ test('Seleção tem recorte, borracha não destrutiva e Bézier com alças',()=>
  assert.match(editor,/kind:'erase'/);
  assert.match(editor,/kind:'bezier'/);
  assert.match(rendering,/destination-out/);
- assert.match(rendering,/ctx\.bezierCurveTo/);
+ assert.match(source('lib/creative/vector-path.ts'),/ctx\.bezierCurveTo/);
  assert.match(validation,/n\.eraserStrokes\.length>60/);
 });
 test('Degradês de texto e imagens usam o mesmo desenho para prévia e exportação',()=>{
@@ -38,13 +38,14 @@ test('Degradês de texto e imagens usam o mesmo desenho para prévia e exportaç
  assert.match(rendering,/await drawDesign\(base,doc,undefined,\{strict:true\}\)/);
  assert.match(validation,/n\.gradient!==undefined/);
 });
-test('Catálogo de milhares é carregado sob demanda, com lista limitada e fallback',()=>{
+test('Banco legado fica desativado; reativação é lazy e preserva o catálogo anterior',()=>{
  assert.match(catalog,/loadTablerCatalog/);
  assert.match(catalog,/api\.iconify\.design\/collection\?prefix=tabler/);
  assert.match(catalog,/return stockIcons;/);
- assert.match(library,/filtered\.slice\(0,visible\)/);
- assert.match(library,/setVisible\(n=>n\+72\)/);
- assert.match(library,/cr-svg-white/);
+ assert.match(source('lib/creative/editor-flags.ts'),/ENABLE_ICONS_TAB=false/);
+ assert.match(library,/import\('\.\/legacy-icon-library'\)/);
+ assert.match(source('components/creative/legacy-icon-library.tsx'),/setVisible\(n=>n\+72\)/);
+ assert.match(source('components/creative/legacy-icon-library.tsx'),/cr-svg-white/);
 });
 test('Guias pulsantes respeitam acessibilidade',()=>{
  const css=source('components/creative/creative.css');

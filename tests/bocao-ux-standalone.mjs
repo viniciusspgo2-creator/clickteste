@@ -16,8 +16,8 @@ function diagnostics(filename) {
 }
 const libFile='src/components/tools/mockup/lib/base-art.ts';
 const js=ts.transpileModule(src(libFile),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
-const module={exports:{}};new Function('module','exports',js)(module,module.exports);
-const {normalizeBocaoAngle,baseArtTransform,bocaoPointerAngleDeg,bocaoDragRotation}=module.exports;
+const fixtureModule={exports:{}};new Function('module','exports',js)(fixtureModule,fixtureModule.exports);
+const {normalizeBocaoAngle,baseArtTransform,bocaoPointerAngleDeg,bocaoDragRotation}=fixtureModule.exports;
 
 test('TSX/TS edits parse without syntax errors',()=>{
  for(const f of ['src/components/tools/mockup/ui/workspace.tsx','src/components/tools/mockup/ui/base-art-panel.tsx',libFile])assert.deepEqual(diagnostics(f),[],f);

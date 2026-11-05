@@ -17,7 +17,7 @@ await fs.mkdir(output,{recursive:true});
 const source=await fs.readFile('src/lib/creative/library-manifest.ts','utf8');
 const uploadedItems=JSON.parse(await fs.readFile('src/lib/creative/uploaded-library.json','utf8'));
 const backgroundCatalog=JSON.parse(await fs.readFile('src/lib/creative/background-catalog.json','utf8'));
-const context={exports:{},require:specifier=>{if(specifier==='./background-catalog.json')return {default:backgroundCatalog};if(specifier==='./uploaded-library.json')return {default:uploadedItems};throw Error(`Unexpected dependency: ${specifier}`);}};
+const context={exports:{},require:specifier=>{if(specifier==='./editor-flags')return {ENABLE_ICONS_TAB:false};if(specifier==='./background-catalog.json')return {default:backgroundCatalog};if(specifier==='./uploaded-library.json')return {default:uploadedItems};throw Error(`Unexpected dependency: ${specifier}`);}};
 vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,context);
 const manifest=context.exports;
 const index=JSON.parse(await fs.readFile(path.join(packageRoot,'icons.json'),'utf8'));

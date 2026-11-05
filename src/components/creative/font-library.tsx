@@ -1,91 +1,35 @@
 'use client';
 import {useEffect,useMemo,useRef,useState} from 'react';
-import {Search,CheckCircle2,AlertCircle} from 'lucide-react';
-import {loadCuratedTypeface,typefaces,installedTypefaces,type CuratedTypeface} from '@/lib/creative/typefaces';
+import {Search,Star,Clock3} from 'lucide-react';
+import {loadCuratedTypeface,typefaces,installedTypefaces} from '@/lib/creative/typefaces';
 import type {LocalTypeface} from '@/lib/creative/browser-fonts';
-import {usePlatformLanguage} from '@/components/platform/language-provider';
 export type AdminTypeface={id:string;name:string;tags?:string[];url:string;mimeType:string};
-function FontPreview({font,onChoose}:{font:CuratedTypeface;onChoose:(font:string)=>void}){
- const root=useRef<HTMLButtonElement>(null),[loaded,setLoaded]=useState(false);
- useEffect(()=>{
-  const element=root.current;if(!element)return;
-  const observer=new IntersectionObserver(entries=>{if(entries.some(x=>x.isIntersecting)){
-   void loadCuratedTypeface(font.name).then(()=>setLoaded(true)).catch(()=>{});observer.disconnect();
-  }},{rootMargin:'220px'});
-  observer.observe(element);return()=>observer.disconnect();
- },[font.name]);
- return <button ref={root} className="cr-font-card" onClick={()=>onChoose(font.name)} title={`${font.name}: fonte aberta do catálogo Google Fonts`}>
-  <span className="cr-font-name">{font.name}</span>
-  <span className="cr-font-sample" style={{fontFamily:loaded?`'${font.name}',sans-serif`:undefined}}>{font.sample}</span>
-  <small><CheckCircle2 size={13}/> Seleção recomendada para PT-BR</small>
- </button>;
+type Face={name:string;category:string;asset?:AdminTypeface;local?:boolean;note:string};
+const groups=['Todas','Elegantes','Manuscritas','Display/Impacto','Sem serifa','Serifadas','Divertidas','Favoritas','Recentes'];
+function stored(key:string):string[]{try{const a=JSON.parse(localStorage.getItem(key)||'[]');return Array.isArray(a)?a.filter(x=>typeof x==='string').slice(0,80):[];}catch{return []}}
+function category(name:string,group=''){
+ if(group==='Manuscrita'||/script|hand|cursive|signature|brush|callig|manuscrit/i.test(name))return 'Manuscritas';
+ if(/comic|bubble|kids|fun|cartoon/i.test(name))return 'Divertidas';
+ if(group==='Serif elegante')return 'Elegantes';
+ if(group==='Display'||/display|bold|black|impact|poster/i.test(name))return 'Display/Impacto';
+ if(/serif|times|garamond|georgia|baskerville/i.test(name))return 'Serifadas';return 'Sem serifa';
 }
-function status(tags?:string[]){
- if(tags?.includes('pt-br-completo'))return{label:'Acentos verificados',symbol:'✓',group:0};
- if(tags?.includes('sem-acentos'))return{label:'Sem acentos',symbol:'!',group:2};
- if(tags?.includes('pt-br-parcial'))return{label:'Acentos parciais',symbol:'!',group:1};
- return{label:'Acentos não verificados',symbol:'?',group:3};
+const customLoads=new Map<string,Promise<void>>();
+async function load(face:Face){if(face.local)return;if(!face.asset)return loadCuratedTypeface(face.name);let p=customLoads.get(face.asset.id);if(!p){const asset=face.asset;p=(async()=>{const font=new FontFace(asset.name,`url("${asset.url}")`);await font.load();document.fonts.add(font);})();customLoads.set(asset.id,p);p.catch(()=>customLoads.delete(asset.id));}return p;}
+function FontRow({face,sample,current,favorite,onFavorite,onChoose,onPreview}:{face:Face;sample:string;current?:string;favorite:boolean;onFavorite:()=>void;onChoose:()=>void;onPreview?:(name?:string)=>void}){
+ const el=useRef<HTMLDivElement>(null),token=useRef(0),[loaded,setLoaded]=useState(false),[failed,setFailed]=useState(false);
+ useEffect(()=>{let live=true;const node=el.current;if(!node)return;const observer=new IntersectionObserver(entries=>{if(!entries.some(e=>e.isIntersecting))return;observer.disconnect();void load(face).then(()=>{if(live)setLoaded(true)}).catch(()=>{if(live)setFailed(true)});},{rootMargin:'100px'});observer.observe(node);return()=>{live=false;token.current++;observer.disconnect();};},[face]);
+ const preview=()=>{const seq=++token.current;void load(face).then(()=>{if(seq===token.current)onPreview?.(face.name)}).catch(()=>{});};
+ const cancel=()=>{token.current++;onPreview?.();};
+ return <div ref={el} className="cr-font-choice" data-current={face.name===current}><button type="button" className="cr-font-card" onMouseEnter={preview} onMouseLeave={cancel} onFocus={preview} onBlur={cancel} onClick={()=>{cancel();onChoose();}} aria-pressed={face.name===current} title={face.name}><span className="cr-font-name" style={loaded?{fontFamily:`'${face.name.replace(/["']/g,'')}',sans-serif`}:undefined}>{face.name}</span><span className="cr-font-sample" style={loaded?{fontFamily:`'${face.name.replace(/["']/g,'')}',sans-serif`}:undefined}>{sample}</span><small>{failed?'Prévia indisponível · tente selecionar novamente':face.note}</small></button><button type="button" className="cr-font-favorite" aria-label={`${favorite?'Remover':'Salvar'} ${face.name} ${favorite?'das':'nas'} favoritas`} aria-pressed={favorite} onClick={onFavorite}><Star size={15} fill={favorite?'currentColor':'none'}/></button></div>;
 }
-function AdminFontPreview({font,onChoose}:{font:AdminTypeface;onChoose:(name:string,asset:AdminTypeface)=>void}){
- const root=useRef<HTMLButtonElement>(null),[loaded,setLoaded]=useState(false);
- useEffect(()=>{const button=root.current;if(!button)return;
-  let active=true;const observer=new IntersectionObserver(entries=>{if(!entries.some(e=>e.isIntersecting))return;
-   observer.disconnect();void (async()=>{try{const face=new FontFace(font.name,`url("${font.url}")`);await face.load();if(active){document.fonts.add(face);setLoaded(true);}}catch{/* indisponível: permanece com fallback */}})();
-  },{rootMargin:'120px'});observer.observe(button);return()=>{active=false;observer.disconnect()};
- },[font.id,font.name,font.url]);
- const s=status(font.tags);
- return <button ref={root} className="cr-font-card" onClick={()=>onChoose(font.name,font)}>
-  <span className="cr-font-name">{font.name}</span><span className="cr-font-sample" style={loaded?{fontFamily:`'${font.name.replace(/[\"']/g,'')}',sans-serif`}:undefined}>Caneca, coração, você, mamãe, bênção</span>
-  <small className={s.group===0?'cr-status-good':s.group===3?'cr-status-unknown':'cr-status-limited'}>{s.group===0?<CheckCircle2 size={13}/>:<AlertCircle size={13}/>} {s.label}</small>
- </button>;
-}
-function InstalledFontPreview({font,onChoose}:{font:(typeof installedTypefaces)[number];onChoose:(name:string)=>void}){
- const root=useRef<HTMLButtonElement>(null),[loaded,setLoaded]=useState(false);
- useEffect(()=>{
-  const el=root.current;if(!el)return;
-  let active=true;
-  const observer=new IntersectionObserver(entries=>{
-   if(!entries.some(e=>e.isIntersecting))return;
-   observer.disconnect();
-   void loadCuratedTypeface(font.name).then(()=>{if(active)setLoaded(true);}).catch(()=>{});
-  },{rootMargin:'80px'});
-  observer.observe(el);
-  return()=>{active=false;observer.disconnect();};
- },[font.name]);
- return <button ref={root} className="cr-font-card" onClick={()=>onChoose(font.name)} title={`${font.family} — ${font.style}`}>
-  <span className="cr-font-name">{font.name.replace(/^Coleção · /,'')}</span>
-  <span className="cr-font-sample" style={loaded?{fontFamily:`'${font.name.replace(/["']/g,'')}',sans-serif`}:undefined}>Caneca, coração, você, mamãe, bênção</span>
-  <small className={font.category==='complete'?'cr-status-good':'cr-status-limited'}>
-   {font.category==='complete'?<CheckCircle2 size={13}/>:<AlertCircle size={13}/>}
-   {font.category==='complete'?' Acentos PT-BR presentes':font.category==='partial'?' Acentos parciais':' Sem acentos PT-BR'}
-  </small>
- </button>;
-}
-export function FontLibrary({assets,onChoose,localFonts,onImport}:{assets:AdminTypeface[];onChoose:(name:string,asset?:AdminTypeface)=>void;localFonts:LocalTypeface[];onImport:(files:FileList|null)=>void}){
- const {t}=usePlatformLanguage();
- const [query,setQuery]=useState('');
- const [installedLimit,setInstalledLimit]=useState(60);
- const filtered=useMemo(()=>typefaces.filter(f=>(`${f.name} ${f.category}`).toLowerCase().includes(query.toLowerCase())),[query]);
- const bundled=useMemo(()=>installedTypefaces.filter(f=>(`${f.name} ${f.family} ${f.style}`).toLocaleLowerCase('pt-BR').includes(query.toLocaleLowerCase('pt-BR'))),[query]);
- const admins=useMemo(()=>assets.filter(f=>f.name.toLowerCase().includes(query.toLowerCase())).sort((a,b)=>status(a.tags).group-status(b.tags).group),[assets,query]);
- return <div className="cr-font-library">
-  <div className="cr-search"><Search size={16}/><input aria-label="Buscar fontes" placeholder="Buscar por fonte ou estilo..." value={query} onChange={e=>setQuery(e.target.value)}/></div>
-  <div className="cr-font-explainer"><CheckCircle2 size={16}/><span>Tipografia para canecas, com prévia em português. As Google Fonts carregam quando necessárias; acentos das fontes do Admin são auditados por arquivo quando possível.</span></div>
-  <section className="cr-private-fonts"><p className="cr-section-label">{t('SUAS FONTES · USO NESTE NAVEGADOR')}</p>
-   <p className="cr-helper">{t('Importe TTF, OTF, WOFF ou WOFF2, individualmente ou em ZIP. O arquivo não será enviado ao servidor. Reimporte após atualizar a página; mantenha seus originais. RAR deve ser extraído antes do uso.')}</p>
-   <label className="cr-local-font-upload">+ Carregar fontes particulares<input type="file" multiple accept=".ttf,.otf,.woff,.woff2,.zip" onChange={e=>{onImport(e.target.files);e.target.value='';}} /></label>
-   {localFonts.length>0&&<div className="cr-private-font-list">{[...localFonts].sort((a,b)=>status([a.status]).group-status([b.status]).group).map(f=><button className="cr-font-card" key={f.name} onClick={()=>onChoose(f.name)}><strong>{f.name.replace(/^Local · /,'')}</strong><span className="cr-font-sample" style={{fontFamily:`'${f.name.replace(/'/g,'')}',sans-serif`}}>Caneca, coração, você, mamãe, bênção</span><small>{status([f.status]).label}{f.missing?` · faltam: ${f.missing}`:''}</small></button>)}</div>}
-  </section>
-  <p className="cr-section-label">FONTES DA SUA COLEÇÃO · {bundled.length} DE {installedTypefaces.length}</p>
-  <p className="cr-helper">Fontes integradas a este Studio. Prévia e exportação carregam a fonte selecionada sob demanda. Verifique o direito de uso comercial e publicação web das famílias do seu acervo.</p>
-  {bundled.slice(0,installedLimit).map(font=><InstalledFontPreview key={font.name} font={font} onChoose={onChoose}/>)}
-  {bundled.length>installedLimit&&<button className="cr-font-card" type="button" onClick={()=>setInstalledLimit(n=>n+60)}>Mostrar mais fontes ({bundled.length-installedLimit} restantes)</button>}
-  <p className="cr-section-label">{t('GOOGLE FONTS · CURADORIA LIVRE')}</p>
-  {(['Sans premium','Serif elegante','Display','Manuscrita'] as const).map(group=><div key={group}>
-   {filtered.some(f=>f.category===group)&&<h3 className="cr-font-group">{group}</h3>}
-   {filtered.filter(f=>f.category===group).map(font=><FontPreview key={font.name} font={font} onChoose={name=>onChoose(name)}/>)}
-  </div>)}
-  <p className="cr-section-label">FONTES DO ADMIN · {admins.length} DISPONÍVEIS</p>
-  {admins.length===0?<p className="cr-helper">Publique suas fontes com licença autorizada no Admin. O catálogo identifica quais arquivos têm acentos, quais são parciais e quais não puderam ser verificados.</p>:admins.map(a=><AdminFontPreview key={a.id} font={a} onChoose={onChoose}/>)}
- </div>;
+export function FontLibrary({assets,onChoose,localFonts,onImport,sample='Minha caneca',current,onPreview}:{assets:AdminTypeface[];onChoose:(name:string,asset?:AdminTypeface)=>void;localFonts:LocalTypeface[];onImport:(files:FileList|null)=>void;sample?:string;current?:string;onPreview?:(name?:string)=>void}){
+ const [query,setQuery]=useState(''),[group,setGroup]=useState('Todas'),[favorites,setFavorites]=useState<string[]>([]),[recents,setRecents]=useState<string[]>([]),[scroll,setScroll]=useState(0),[error,setError]=useState('');const viewport=useRef<HTMLDivElement>(null);
+ useEffect(()=>{setFavorites(stored('cg:font-favorites'));setRecents(stored('cg:font-recents'));},[]);
+ const catalog=useMemo(()=>{const map=new Map<string,Face>();for(const f of typefaces)map.set(f.name,{name:f.name,category:category(f.name,f.category),note:'Google Fonts · curadoria'});for(const f of installedTypefaces)map.set(f.name,{name:f.name,category:category(f.family+' '+f.style),note:`Coleção · ${f.category==='complete'?'acentos PT-BR':'confira os acentos'}`});for(const f of assets)map.set(f.name,{name:f.name,asset:f,category:category(f.name),note:'Acervo administrativo'});for(const f of localFonts)map.set(f.name,{name:f.name,local:true,category:category(f.name),note:'Fonte particular · neste navegador'});return [...map.values()];},[assets,localFonts]);
+ const filtered=useMemo(()=>{let a=catalog.filter(f=>f.name.toLocaleLowerCase('pt-BR').includes(query.toLocaleLowerCase('pt-BR'))&&(group==='Todas'||group==='Favoritas'&&favorites.includes(f.name)||group==='Recentes'&&recents.includes(f.name)||f.category===group));if(group==='Recentes')a=a.sort((a,b)=>recents.indexOf(a.name)-recents.indexOf(b.name));return a;},[catalog,query,group,favorites,recents]);
+ const reset=()=>{setScroll(0);if(viewport.current)viewport.current.scrollTop=0;};const rowHeight=132,start=Math.max(0,Math.floor(scroll/rowHeight)-2),visible=filtered.slice(start,start+9);
+ const save=(key:string,value:string[])=>{try{localStorage.setItem(key,JSON.stringify(value));}catch{}};
+ const choose=async(face:Face)=>{onChoose(face.name,face.asset);try{await load(face);setError('');const next=[face.name,...recents.filter(n=>n!==face.name)].slice(0,40);setRecents(next);save('cg:font-recents',next);}catch{setError('Não foi possível carregar esta fonte. Confira sua conexão ou tente outra.');}};
+ return <div className="cr-font-library"><div className="cr-search"><Search size={16}/><input aria-label="Buscar fontes" value={query} onChange={e=>{setQuery(e.target.value);reset()}} placeholder="Buscar fonte por nome..."/></div><div className="cr-category-tabs">{groups.map(g=><button key={g} onClick={()=>{setGroup(g);reset()}} aria-pressed={group===g}>{g==='Recentes'&&<Clock3 size={12}/>} {g}</button>)}</div><p className="cr-helper">Passe o mouse ou use Tab para experimentar. Clique para confirmar. {filtered.length} fontes.</p><label className="cr-local-font-upload">+ Carregar fontes particulares<input type="file" multiple accept=".ttf,.otf,.woff,.woff2,.zip" onChange={e=>{onImport(e.target.files);e.target.value=''}}/></label>{error&&<p role="alert">{error}</p>}<div ref={viewport} className="cr-font-viewport" onScroll={e=>setScroll(e.currentTarget.scrollTop)} role="region" aria-label="Catálogo de fontes"><div style={{height:filtered.length*rowHeight,position:'relative'}}>{visible.map((face,i)=><div key={face.name} style={{position:'absolute',top:(start+i)*rowHeight,left:0,right:0,height:rowHeight}}><FontRow face={face} sample={sample.trim()||'Minha caneca'} current={current} favorite={favorites.includes(face.name)} onFavorite={()=>{const next=favorites.includes(face.name)?favorites.filter(n=>n!==face.name):[face.name,...favorites].slice(0,80);setFavorites(next);save('cg:font-favorites',next)}} onPreview={onPreview} onChoose={()=>void choose(face)}/></div>)}</div>{!filtered.length&&<p className="cr-helper">Nenhuma fonte nesta seleção.</p>}</div></div>;
 }

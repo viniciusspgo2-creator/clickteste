@@ -11,6 +11,7 @@ const load=(path,stubs={})=>{
  assert.equal((compiled.diagnostics||[]).filter(x=>x.category===ts.DiagnosticCategory.Error).length,0);
  const mod={exports:{}};
  new Function('module','exports','require',compiled.outputText)(mod,mod.exports,key=>{
+  if(['./layer-effects','./vector-shapes','./vector-path'].includes(key))return load(`src/lib/creative/${key.slice(2)}.ts`);
   if(key in stubs)return stubs[key];throw new Error('Unexpected import '+key);
  });return mod.exports;
 };

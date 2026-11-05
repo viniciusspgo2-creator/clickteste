@@ -13,12 +13,12 @@ function load(file, stubs = {}) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, strict:true },
   });
   assert.deepEqual((result.diagnostics || []).filter(d=>d.category === ts.DiagnosticCategory.Error), []);
-  const module = { exports: {} };
-  new Function('module','exports','require',result.outputText)(module,module.exports,dep=>{
+  const fixtureModule = { exports: {} };
+  new Function('module','exports','require',result.outputText)(fixtureModule,fixtureModule.exports,dep=>{
     if (Object.hasOwn(stubs,dep)) return stubs[dep];
     throw Error('unexpected import '+dep);
   });
-  return module.exports;
+  return fixtureModule.exports;
 }
 const { findVisibleAlphaBounds, trimTransparentMockup } = load('src/lib/creative/transparent-crop.ts');
 function pixels(w,h,x,y,cw,ch,alpha=255){

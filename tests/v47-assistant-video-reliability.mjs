@@ -8,9 +8,9 @@ const root=resolve(import.meta.dirname,'..');
 function load(file,stubs={}){
  const path=resolve(root,file);const output=ts.transpileModule(readFileSync(path,'utf8'),{fileName:path,reportDiagnostics:true,compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,strict:true}});
  assert.deepEqual(output.diagnostics?.filter(x=>x.category===ts.DiagnosticCategory.Error)??[],[]);
- const module={exports:{}};
- new Function('module','exports','require',output.outputText)(module,module.exports,id=>{if(id in stubs)return stubs[id];throw Error('dependência não permitida: '+id)});
- return module.exports;
+ const fixtureModule={exports:{}};
+ new Function('module','exports','require',output.outputText)(fixtureModule,fixtureModule.exports,id=>{if(id in stubs)return stubs[id];throw Error('dependência não permitida: '+id)});
+ return fixtureModule.exports;
 }
 const videoPath='src/lib/creative/video-templates.ts';
 const video=()=>load(videoPath,{'mp4-muxer':{},'./mp4-integrity':{inspectRenderedMp4:()=>({})},'./design':{}});

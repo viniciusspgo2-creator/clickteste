@@ -10,9 +10,9 @@ const read=f=>fs.readFileSync(path.join(root,f),'utf8');
 const moduleOf=(file)=>{
  const result=ts.transpileModule(read(file),{fileName:file,reportDiagnostics:true,compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}});
  assert.equal((result.diagnostics||[]).filter(d=>d.category===ts.DiagnosticCategory.Error).length,0);
- const module={exports:{}};
- new Function('module','exports','require',result.outputText)(module,module.exports,()=>({}));
- return module.exports;
+ const fixtureModule={exports:{}};
+ new Function('module','exports','require',result.outputText)(fixtureModule,fixtureModule.exports,()=>({}));
+ return fixtureModule.exports;
 };
 test('Novo espelhamento de exportação somente altera transformação do arquivo final',()=>{
  const {drawOutputWithMirror}=moduleOf('src/lib/creative/export-transform.ts');

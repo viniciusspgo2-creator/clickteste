@@ -13,9 +13,9 @@ function load(file){
   compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,strict:true},
  });
  assert.deepEqual((transpiled.diagnostics||[]).filter(d=>d.category===ts.DiagnosticCategory.Error),[]);
- const module={exports:{}};
- new Function('module','exports','require',transpiled.outputText)(module,module.exports,dependency=>{throw Error(`Unexpected dependency ${dependency}`)});
- return module.exports;
+ const fixtureModule={exports:{}};
+ new Function('module','exports','require',transpiled.outputText)(fixtureModule,fixtureModule.exports,dependency=>{throw Error(`Unexpected dependency ${dependency}`)});
+ return fixtureModule.exports;
 }
 const {canCommitAsyncTemplate,replaceFlatScene,detachAutomaticSmartMask}=load('src/lib/creative/template-transition.ts');
 test('V5.4: older template finishing after newer choice cannot overwrite artwork',()=>{

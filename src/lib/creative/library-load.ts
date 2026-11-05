@@ -1,10 +1,12 @@
 /** Descarga isolada de assets da biblioteca. Somente endereços aprovados e fixados.
  * SVG nunca é aplicado ou exibido sem sanitização por lista de permissão.
  */
-import {stockIcons,parseTablerIndex,type StockIcon} from './stock-icons';
+import type {StockIcon} from './stock-icons';
+import {ENABLE_ICONS_TAB} from './editor-flags';
 import bundledAssets from './bundled-library.json';
 import {LIBRARY_RELEASE,type LibraryItem} from './library-manifest';
 import {nativeShapeSvg,nativeBackgroundSvg} from './library-native';
+import {sanitizeEditableSvg,svgDataUrl} from './editable-svg';
 import {expandedBackgroundSvg} from './expanded-backgrounds';
 import {kawaiiSvg} from './library-kawaii';
 
@@ -94,7 +96,7 @@ export function previewLibraryAsset(item:LibraryItem,color='#ff6a00',width=2480,
  if(item.arquivo.startsWith('native:'))return Promise.resolve(nativeShapeSvg(item.arquivo,color,strokeWidth));
  if(item.arquivo.startsWith('background:'))return Promise.resolve(nativeBackgroundSvg(item.arquivo,width,height));
  if(item.formato==='TEXTO')return Promise.resolve('');
- if(item.formato==='WEBP'&&item.miniatura&&SAFE_UPLOAD.test(item.miniatura))return Promise.resolve(`/creative-library/${item.miniatura}`);
+ if(item.miniatura&&SAFE_UPLOAD.test(item.miniatura))return Promise.resolve(`/creative-library/${item.miniatura}`);
  if(item.formato==='PNG'||item.formato==='WEBP')return Promise.resolve(libraryAssetUrl(item));
  const key=`${item.id}|${validateColor(color)}`;
  let cached=svgCache.get(key);
@@ -107,6 +109,10 @@ export function previewLibraryAsset(item:LibraryItem,color='#ff6a00',width=2480,
 }
 export async function loadLibraryImage(item:LibraryItem,color='#ff6a00',width=2480,height=1122,strokeWidth=24){
  if(item.formato==='TEXTO')throw new Error('Utilize o botão de adicionar texto.');
+ if(item.formato==='SVG'&&item.licenca==='Enviado pelo usuário'){
+  const response=await fetch(libraryAssetUrl(item),{cache:'force-cache'});if(!response.ok)throw new Error('SVG indisponível.');
+  const source=await response.text();return svgDataUrl(sanitizeEditableSvg(source));
+ }
  if(item.formato==='SVG')return previewLibraryAsset(item,color,width,height,strokeWidth);
  const response=await fetch(libraryAssetUrl(item),{cache:'force-cache'});
  if(!response.ok)throw new Error('Sticker não disponível. Escolha outro ou tente novamente.');
@@ -117,6 +123,8 @@ export async function loadLibraryImage(item:LibraryItem,color='#ff6a00',width=24
 }
 /** índice oficial hospedado no mesmo pacote Tabler versionado; sem Iconify ou outras fontes. */
 export async function loadApprovedTablerCatalog():Promise<StockIcon[]>{
+ if(!ENABLE_ICONS_TAB)return [];
+ const {stockIcons,parseTablerIndex}=await import('./stock-icons');
  for(const url of ['/creative-library/tabler-catalog.json',`${TABLER_URL}icons.json`]){
   try{
    const response=await fetch(url,{cache:'force-cache',signal:AbortSignal.timeout(8000)});

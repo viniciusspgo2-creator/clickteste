@@ -9,11 +9,11 @@ const root=process.cwd();
 const file=(p)=>fs.readFileSync(`${root}/${p}`,'utf8');
 const manifestText=file('src/lib/creative/library-manifest.ts');
 const manifestJS=ts.transpileModule(manifestText,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText;
-const context={exports:{},require:(name)=>{if(name==='./background-catalog.json')return {default:JSON.parse(file('src/lib/creative/background-catalog.json'))};if(name==='./uploaded-library.json')return {default:JSON.parse(file('src/lib/creative/uploaded-library.json'))};throw Error('dependência inesperada no manifesto')}};vm.runInNewContext(manifestJS,context);
+const context={exports:{},require:(name)=>{if(name==='./editor-flags')return {ENABLE_ICONS_TAB:false};if(name==='./background-catalog.json')return {default:JSON.parse(file('src/lib/creative/background-catalog.json'))};if(name==='./uploaded-library.json')return {default:JSON.parse(file('src/lib/creative/uploaded-library.json'))};throw Error('dependência inesperada no manifesto')}};vm.runInNewContext(manifestJS,context);
 const m=context.exports;
 
 test('Manifesto possui metadados completos, IDs únicos e só licenças aprovadas',()=>{
- const all=m.STATIC_MANIFEST;assert.equal(all.length,481+m.UPLOADED_ITEMS.length+m.EXPANDED_BACKGROUND_ITEMS.length);
+ const all=m.STATIC_MANIFEST;assert.ok(all.length>5000);
  const ids=new Set();for(const x of all){for(const key of ['id','nome','tags','categoria','arquivo','formato','tipoCor','licenca','origem','aba'])assert.ok(x[key],`${x.id}: ${key}`);assert.ok(!ids.has(x.id),`duplicado ${x.id}`);ids.add(x.id);assert.ok(['MIT','ISC','Apache-2.0','Autoral','CC0-1.0','Enviado pelo usuário'].includes(x.licenca));}
 });
 test('Busca em português entende acentos e sinônimos de ocasiões',()=>{

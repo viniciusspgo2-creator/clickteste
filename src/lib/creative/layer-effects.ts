@@ -1,0 +1,35 @@
+import type {DesignNode} from './design';
+export const effectKinds=['soft-shadow','contact-shadow','long-shadow','double-shadow','colored-shadow','neon','soft-glow','outline-glow','outline','double-outline','dashed-outline','sticker','gradient','gold','silver','emboss','extrusion','glass','retro','glitch','reflection','monochrome','sepia','vintage','duotone','cinema','vivid','blur','background-blur','vignette','sharpen'] as const;
+export type LayerEffect=typeof effectKinds[number];
+export const effectPresets: {id:LayerEffect;name:string;group:string}[]=effectKinds.map((id,i)=>({id,name:['Sombra suave','Sombra de contato','Sombra longa','Sombra dupla','Sombra colorida','Neon','Brilho suave','Contorno luminoso','Contorno simples','Contorno duplo','Contorno tracejado','Adesivo','Gradiente','Metálico dourado','Metálico prata','Relevo','Extrusão leve','Vidro','Retrô','Glitch leve','Reflexo','Preto e branco','Sépia','Vintage quente','Duotone','Cinematográfico','Vívido','Desfoque','Desfoque do fundo','Vinheta','Nitidez'][i],group:i<5?'Sombras':i<8?'Brilhos':i<12?'Contornos':i<21?'Texto e formas':'Imagem'}));
+export function effectThumbnail(id:LayerEffect){const p=effectPresets.find(x=>x.id===id),gold=id==='gold',silver=id==='silver';return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="110" height="70" viewBox="0 0 110 70"><defs><linearGradient id="g"><stop stop-color="${gold?'#705011':silver?'#555966':'#ff7620'}"/><stop offset=".5" stop-color="${gold?'#ffeaa0':silver?'#ffffff':'#ffd5ac'}"/><stop offset="1" stop-color="${gold?'#af7520':silver?'#8a94aa':'#b53a10'}"/></linearGradient></defs><rect width="110" height="70" rx="8" fill="#181820"/><rect x="${id==='glitch'?26:22}" y="18" width="68" height="40" rx="10" fill="#ff7420" opacity=".2"/><rect x="18" y="13" width="68" height="40" rx="10" fill="url(#g)" stroke="${id==='sticker'?'#fff':id.includes('glow')||id==='neon'?'#79e7ff':'#ffc994'}" stroke-width="${id.includes('outline')||id==='sticker'?5:1}"/><text x="52" y="39" text-anchor="middle" font-size="20" font-family="sans-serif" fill="#211b20">Aa</text><desc>${p?.name||id}</desc></svg>`)}`;}
+function canvas(w:number,h:number){const c=document.createElement('canvas');c.width=w;c.height=h;return c;}
+export function paintLayerEffect(ctx:CanvasRenderingContext2D,layer:HTMLCanvasElement,n:DesignNode){
+ const kind=n.effectKind!,t=Math.max(0,Math.min(1,(n.effectIntensity??65)/100));if(!t){ctx.drawImage(layer,0,0);return;}
+ const w=layer.width,h=layer.height;
+ const tint=(color:string)=>{const c=canvas(w,h),g=c.getContext('2d')!;g.drawImage(layer,0,0);g.globalCompositeOperation='source-in';g.fillStyle=color;g.fillRect(0,0,w,h);return c;};
+ const filtered=(filter:string)=>{ctx.save();ctx.filter=filter;ctx.drawImage(layer,0,0);ctx.restore();};
+ const blur=1+t*8,color=n.effectColor||'#ff8a30',size=1+t*13;
+ if(['monochrome','sepia','vintage','cinema','vivid','retro','blur'].includes(kind)){
+  const f:Record<string,string>={monochrome:`grayscale(${t}) contrast(${1+t*.2})`,sepia:`sepia(${t})`,vintage:`sepia(${t*.5}) saturate(${1-t*.25}) contrast(${1-t*.08})`,cinema:`saturate(${1-t*.25}) contrast(${1+t*.3}) brightness(${1-t*.08})`,vivid:`saturate(${1+t}) contrast(${1+t*.15})`,retro:`sepia(${t*.55}) saturate(${1+t*.25}) hue-rotate(-8deg)`,blur:`blur(${blur}px)`};filtered(f[kind]);return;
+ }
+ if(kind==='duotone'||kind==='sharpen'){
+  const g=layer.getContext('2d')!,data=g.getImageData(0,0,w,h),p=data.data,original=new Uint8ClampedArray(p);
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=(y*w+x)*4;if(kind==='duotone'){const l=(p[i]*.2126+p[i+1]*.7152+p[i+2]*.0722)/255;const rgb=[25+l*230,18+l*133,45+l*25];for(let k=0;k<3;k++)p[i+k]=original[i+k]*(1-t)+rgb[k]*t;}else if(x>0&&y>0&&x<w-1&&y<h-1)for(let k=0;k<3;k++){const average=(original[i-4+k]+original[i+4+k]+original[i-w*4+k]+original[i+w*4+k])/4;p[i+k]=original[i+k]+(original[i+k]-average)*t;}}
+  g.putImageData(data,0,0);ctx.drawImage(layer,0,0);return;
+ }
+ if(['gradient','gold','silver','glass'].includes(kind)){
+  const c=canvas(w,h),g=c.getContext('2d')!,gradient=g.createLinearGradient(n.x,n.y,n.x+n.w,n.y+n.h);const colors=kind==='gold'?['#6d4010','#ffe8a1','#bd852a','#fff0b5','#775016']:kind==='silver'?['#394154','#f4f8ff','#8b99ac','#ffffff','#566174']:kind==='glass'?['#d2f0ff','#648cbb','#ffffff']:['#ff6e20','#ffca72','#bc2d32'];colors.forEach((v,i)=>gradient.addColorStop(i/(colors.length-1),v));g.drawImage(layer,0,0);g.globalCompositeOperation='source-in';g.fillStyle=gradient;g.fillRect(0,0,w,h);ctx.drawImage(layer,0,0);ctx.save();ctx.globalAlpha=t;ctx.drawImage(c,0,0);ctx.restore();return;
+ }
+ if(kind==='glitch'){ctx.save();ctx.globalAlpha=t*.4;ctx.drawImage(tint('#00ddff'),-size/2,0);ctx.drawImage(tint('#ff3e85'),size/2,0);ctx.restore();ctx.drawImage(layer,0,0);return;}
+ if(kind==='vignette'){ctx.drawImage(layer,0,0);const c=canvas(w,h),g=c.getContext('2d')!;g.drawImage(layer,0,0);g.globalCompositeOperation='source-atop';const rad=g.createRadialGradient(n.x+n.w/2,n.y+n.h/2,Math.min(n.w,n.h)*.15,n.x+n.w/2,n.y+n.h/2,Math.max(n.w,n.h)*.65);rad.addColorStop(0,'transparent');rad.addColorStop(1,`rgba(0,0,0,${t*.8})`);g.fillStyle=rad;g.fillRect(0,0,w,h);ctx.drawImage(c,0,0);return;}
+ if(kind==='background-blur'){filtered(`blur(${blur}px)`);return;}
+ if(kind==='reflection'){const c=canvas(w,h),g=c.getContext('2d')!;g.translate(0,2*(n.y+n.h));g.scale(1,-1);g.globalAlpha=t*.5;g.drawImage(layer,0,0);g.setTransform(1,0,0,1,0,0);g.globalCompositeOperation='destination-in';const fade=g.createLinearGradient(0,n.y+n.h,0,n.y+n.h*1.65);fade.addColorStop(0,'#fff');fade.addColorStop(1,'transparent');g.fillStyle=fade;g.fillRect(0,0,w,h);ctx.drawImage(c,0,0);ctx.drawImage(layer,0,0);return;}
+ if(['outline','double-outline','dashed-outline','sticker'].includes(kind)){
+  const mask=tint(kind==='sticker'?'#fff':color),radius=kind==='double-outline'?size+5:size;for(let i=0;i<24;i++){if(kind==='dashed-outline'&&i%3===0)continue;const a=i/24*Math.PI*2;ctx.drawImage(mask,Math.cos(a)*radius,Math.sin(a)*radius);}if(kind==='double-outline'){const inner=tint('#ffffff');for(let i=0;i<16;i++){const a=i/16*Math.PI*2;ctx.drawImage(inner,Math.cos(a)*size*.5,Math.sin(a)*size*.5);}}ctx.drawImage(layer,0,0);return;
+ }
+ if(kind==='emboss'||kind==='extrusion'||kind==='long-shadow'||kind==='double-shadow'){
+  const mask=tint(kind==='emboss'?'#fff':kind==='double-shadow'?color:'#241a24');ctx.save();ctx.globalAlpha=kind==='emboss'?t:t*.65;const count=kind==='emboss'?1:kind==='double-shadow'?2:12;for(let i=count;i>0;i--)ctx.drawImage(mask,(kind==='emboss'?-1:1)*i*size/5,i*size/5);ctx.restore();ctx.drawImage(layer,0,0);return;
+ }
+ ctx.save();ctx.shadowColor=kind.includes('glow')||kind==='neon'||kind==='colored-shadow'?color:'rgba(18,12,20,.65)';ctx.shadowBlur=kind==='contact-shadow'?2+t*5:kind==='neon'?size*2:4+t*22;ctx.shadowOffsetY=kind.includes('shadow')?size*.6:0;ctx.drawImage(layer,0,0);if(kind==='neon'||kind==='outline-glow')ctx.drawImage(layer,0,0);ctx.restore();
+}

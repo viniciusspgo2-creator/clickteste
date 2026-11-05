@@ -1,3 +1,6 @@
+import {paintLayerEffect,type LayerEffect} from './layer-effects';
+import {vectorShapePath} from './vector-shapes';
+import {drawEditablePath,lineStyle,type EditablePoint} from './vector-path';
 import {ensureDesignFonts,waitForFontLayout} from './typefaces';
 import {animateDesignNode,type MotionPoint} from './animation';
 import {PixelBoundedCache,effectKey,clearAssetTokens} from './effect-cache';
@@ -11,6 +14,8 @@ export type ColorGradient={kind:'linear'|'radial';from:string;to:string;angle:nu
 export type BezierPoints={sx:number;sy:number;c1x:number;c1y:number;c2x:number;c2y:number;ex:number;ey:number};
 export type EraserStroke={size:number;points:{x:number;y:number}[]};
 export type DesignNode={id:string;kind:NodeKind;x:number;y:number;w:number;h:number;angle:number;opacity:number;
+ effectKind?:LayerEffect;effectIntensity?:number;effectColor?:string;
+ shapeId?:string;shapePoints?:number;pathPoints?:EditablePoint[];pathClosed?:boolean;lineCap?:CanvasLineCap;lineJoin?:CanvasLineJoin;dashStyle?:'solid'|'dashed'|'dotted';dashSpacing?:number;
  role?:'template'|'background'|'mockup'|'content'|'foreground';layerName?:string;maskSrc?:string;maskMode?:'luminance'|'alpha';maskInvert?:boolean;maskSpace?:'element'|'canvas';locked?:boolean;visible?:boolean;aspectLock?:boolean;
  text?:string;src?:string;fill?:string;tint?:string;gradient?:ColorGradient;bezier?:BezierPoints;eraserStrokes?:EraserStroke[];font?:string;size?:number;bold?:boolean;italic?:boolean;align?:CanvasTextAlign;
  shadow?:number;shadowColor?:string;shadowX?:number;shadowY?:number;blur?:number;brightness?:number;contrast?:number;saturation?:number;
@@ -19,7 +24,7 @@ export type DesignNode={id:string;kind:NodeKind;x:number;y:number;w:number;h:num
  flipX?:boolean;flipY?:boolean;crop?:{left:number;top:number;right:number;bottom:number};keyframes?:MotionPoint[];
 };
 export type DesignDocument={width:number;height:number;background:string;nodes:DesignNode[];guides?:DesignGuide[];video?:{src:string;name:string;start:number;end?:number;fit?:'cover'|'contain'};smartTemplate?:{slot:{x:number;y:number;w:number;h:number};maskSrc?:string;maskMode?:'luminance'|'alpha';maskInvert?:boolean}};
-export type ExportFormat='png'|'jpeg'|'webp';
+export type ExportFormat='png'|'jpeg'|'webp'|'pdf';
 export const formats=[{label:'Caneca 21 × 9,5 cm · 300 DPI',w:2480,h:1122},{label:'Área visível 19 × 8,5 cm · 300 DPI',w:2244,h:1004},{label:'Divulgação Instagram 1080 × 1350',w:1080,h:1350},{label:'Post quadrado 1080 × 1080',w:1080,h:1080},{label:'Story / Reels 1080 × 1920',w:1080,h:1920},{label:'Horizontal HD',w:1920,h:1080}] as const;
 export const uid=()=>crypto.randomUUID();
 export const blankDocument=():DesignDocument=>({width:2480,height:1122,background:'#ffffff',nodes:[]});
@@ -119,6 +124,16 @@ export async function drawDesign(canvas:HTMLCanvasElement,doc:DesignDocument,tim
  if(doc.background!=='transparent'){ctx.fillStyle=doc.background;ctx.fillRect(0,0,doc.width,doc.height);}
  await Promise.all(renderedNodes.filter(n=>n.kind==='image'&&n.src).map(n=>imageFor(n.src!).catch(()=>null)));
  for(const n of renderedNodes){
+  if(n.effectKind){
+   // Bound intermediate pixel buffers on very large alternate documents.
+   const resolution=Math.min(1,Math.sqrt(8_000_000/(doc.width*doc.height)));
+   const scaled={...n,x:n.x*resolution,y:n.y*resolution,w:n.w*resolution,h:n.h*resolution,size:n.size===undefined?undefined:n.size*resolution,strokeWidth:n.strokeWidth===undefined?undefined:n.strokeWidth*resolution,radius:n.radius===undefined?undefined:n.radius*resolution,curve:n.curve===undefined?undefined:n.curve*resolution,wave:n.wave===undefined?undefined:n.wave*resolution,tracking:n.tracking===undefined?undefined:n.tracking*resolution};
+   const layer=document.createElement('canvas');
+   await drawDesign(layer,{...doc,width:Math.max(1,Math.round(doc.width*resolution)),height:Math.max(1,Math.round(doc.height*resolution)),background:'transparent',nodes:[{...scaled,effectKind:undefined,opacity:1,shadow:0}]},undefined,options);
+   const effect=document.createElement('canvas');effect.width=layer.width;effect.height=layer.height;
+   paintLayerEffect(effect.getContext('2d')!,layer,scaled);ctx.save();ctx.globalAlpha=n.opacity;ctx.drawImage(effect,0,0,doc.width,doc.height);ctx.restore();layer.width=layer.height=effect.width=effect.height=1;continue;
+  }
+
   ctx.save();ctx.globalAlpha=limit(n.opacity,0,1);
   ctx.translate(n.x+n.w/2,n.y+n.h/2);ctx.rotate(n.angle*Math.PI/180);
   // Espelhamento em torno do centro para textos, formas, SVG, fotos e demais elementos.
@@ -202,16 +217,19 @@ export async function drawDesign(canvas:HTMLCanvasElement,doc:DesignDocument,tim
     ctx.drawImage(layer,-n.w/2,-n.h/2,n.w,n.h);
    }else ctx.drawImage(img,sx,sy,sw,sh,-n.w/2,-n.h/2,n.w,n.h);
   }catch(error){if(options?.strict)throw new Error(`Falha ao renderizar a camada “${n.layerName||n.role||n.kind}”: ${error instanceof Error?error.message:'imagem inválida'}`);}}
-  if(n.kind==='rect'||n.kind==='circle'){
+  if(n.shapeId){
+   const path=new Path2D();path.addPath(new Path2D(vectorShapePath(n.shapeId,n.shapePoints)),new DOMMatrix([n.w/1000,0,0,n.h/1000,-n.w/2,-n.h/2]));
+   lineStyle(ctx,n);ctx.fillStyle=nodeFill(ctx,n);ctx.fill(path,'evenodd');if(n.strokeWidth&&n.stroke){ctx.lineWidth=n.strokeWidth;ctx.strokeStyle=n.stroke;ctx.stroke(path);}
+  }
+  else if(n.kind==='rect'||n.kind==='circle'){
    ctx.beginPath();if(n.kind==='circle')ctx.ellipse(0,0,Math.max(1,n.w/2),Math.max(1,n.h/2),0,0,Math.PI*2);
    else ctx.roundRect(-n.w/2,-n.h/2,n.w,n.h,Math.min(n.radius||0,n.w/2,n.h/2));
    ctx.fillStyle=nodeFill(ctx,n);ctx.fill();if(n.strokeWidth&&n.stroke){ctx.lineWidth=n.strokeWidth;ctx.strokeStyle=n.stroke;ctx.stroke();}
   }
   if(n.kind==='bezier'){
-   const b=n.bezier||{sx:0,sy:1,c1x:.3,c1y:0,c2x:.7,c2y:1,ex:1,ey:0};
-   const px=(v:number)=>(v-.5)*n.w,py=(v:number)=>(v-.5)*n.h;
-   ctx.beginPath();ctx.moveTo(px(b.sx),py(b.sy));ctx.bezierCurveTo(px(b.c1x),py(b.c1y),px(b.c2x),py(b.c2y),px(b.ex),py(b.ey));
-   ctx.lineWidth=Math.max(1,n.strokeWidth||12);ctx.strokeStyle=n.gradient?nodeFill(ctx,n):n.stroke||n.fill||'#ff8a30';ctx.lineCap='round';ctx.stroke();
+   drawEditablePath(ctx,n);lineStyle(ctx,n);
+   if(n.pathClosed){ctx.fillStyle=nodeFill(ctx,n);ctx.fill();}
+   ctx.lineWidth=Math.max(.5,n.strokeWidth===0&&!n.pathPoints?12:n.strokeWidth??12);ctx.strokeStyle=n.gradient?nodeFill(ctx,n):n.stroke||n.fill||'#ff8a30';ctx.stroke();
   }
   if(n.kind==='text')drawText(ctx,n);
   ctx.restore();
@@ -235,10 +253,11 @@ export async function exportDesign(doc:DesignDocument,format:ExportFormat,scale:
  const ctx=out.getContext('2d');if(!ctx)throw new Error('Canvas indisponível');
  if(format==='jpeg'){ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);}
  drawOutputWithMirror(ctx,base,w,h,mirrorHorizontal);
- const blob=await new Promise<Blob>((resolve,reject)=>out.toBlob(b=>b?resolve(b):reject(new Error('Não foi possível gerar o arquivo.')),`image/${format}`,0.94));
+ const blob=await new Promise<Blob>((resolve,reject)=>out.toBlob(b=>b?resolve(b):reject(new Error('Não foi possível gerar o arquivo.')),`image/${format==='pdf'?'png':format}`,0.94));
  // Alguns navegadores devolvem PNG mesmo quando WebP/JPEG foi solicitado.
  // Verifique os bytes reais antes de gravar com a extensão escolhida.
- await assertExportBlobFormat(blob,format);
+ await assertExportBlobFormat(blob,format==='pdf'?'png':format);
+ if(format==='pdf'){const {PDFDocument}=await import('pdf-lib');const pdf=await PDFDocument.create();const image=await pdf.embedPng(await blob.arrayBuffer());const page=pdf.addPage([doc.width*72/300,doc.height*72/300]);page.drawImage(image,{x:0,y:0,width:page.getWidth(),height:page.getHeight()});pdf.setTitle('Studio Click · arte para impressão');pdf.setSubject('Composição raster em tamanho físico a 300 DPI na escala 100%');const bytes=await pdf.save();return new Blob([new Uint8Array(bytes).buffer],{type:'application/pdf'});}
  // Inclui pHYs com resolução física de 300 DPI nas estampas de caneca (escala 100%).
  return format==='png'&&scale===1&&((doc.width===2480&&doc.height===1122)||(doc.width===2244&&doc.height===1004))?await addPngDpiMetadata(blob,300):blob;
 }
