@@ -35,6 +35,8 @@ import {CanvasRulers} from './canvas-rulers';
 import {GuideControls} from './guide-controls';
 import {SelectionToolbar} from './selection-toolbar';
 import {MAX_GUIDES,type DesignGuide} from '@/lib/creative/guides';
+import {ungroupSvg} from '@/lib/creative/svg-ungroup';
+import {svgSource} from '@/lib/creative/editable-svg';
 import {SvgColorEditor} from './svg-color-editor';
 import {ObjectMeasurements} from './object-measurements';
 import {centerOnMugFace,isMugDocument,oppositeMugFace} from '@/lib/creative/mug-layout';
@@ -212,6 +214,23 @@ export function CreativeEditor(){
     setNotice(image.naturalWidth<captured.width||image.naturalHeight<captured.height?'Fundo aplicado sem distorção. Atenção: a imagem original pode perder nitidez ao imprimir na caneca.':'Fundo enquadrado sem distorcer. Textos e elementos pessoais foram preservados.');
    }catch{if(request===templateRequestRef.current)setNotice('Não foi possível carregar o template.');}
  },[update]);
+ const ungroupActiveSvg=async()=>{
+  if(!active?.src||active.locked||busy)return;
+  const original=active,captured=doc;setBusy(true);
+  try{
+   if(original.opacity!==1||original.radius||original.crop||original.maskSrc||original.eraserStrokes?.length||original.tint||original.gradient||original.blur||original.skew||original.keyframes?.length)throw Error('Remova transparência global, recorte, máscara, borracha, recoloração global e efeitos antes de desagrupar.');
+   const fragments=await ungroupSvg(original.src!);
+   if(captured.nodes.length-1+fragments.length>1000)throw Error('O documento ultrapassaria o limite de 1.000 camadas.');
+   if(stateRef.current.history[stateRef.current.step]!==captured)throw Error('A arte mudou durante a separação. Tente novamente.');
+   const angle=original.angle*Math.PI/180,cos=Math.cos(angle),sin=Math.sin(angle);
+   const nodes=fragments.map(f=>{
+    const w=f.w/f.canvasWidth*original.w,h=f.h/f.canvasHeight*original.h;
+    const dx=((f.x+f.w/2)/f.canvasWidth-.5)*original.w*(original.flipX?-1:1),dy=((f.y+f.h/2)/f.canvasHeight-.5)*original.h*(original.flipY?-1:1);
+    return {...original,shadow:0,shadowX:0,shadowY:0,id:uid(),src:f.src,layerName:f.name,x:original.x+original.w/2+dx*cos-dy*sin-w/2,y:original.y+original.h/2+dx*sin+dy*cos-h/2,w,h,role:'content' as const};
+   });
+   update(d=>({...d,nodes:d.nodes.flatMap(n=>n.id===original.id?nodes:[n])}));setSelected(nodes[0].id);setPanel('layers');setNotice(`${nodes.length} objetos separados sem sombra global. Ctrl+Z restaura o SVG inteiro.`);
+  }catch(e){setNotice(e instanceof Error?e.message:'Não foi possível desagrupar o SVG.');}finally{setBusy(false);}
+ };
  const reframeBackground=async()=>{
   if(doc.width!==2480||doc.height!==1122){setNotice('Para encaixe 21 × 9,5 cm, selecione primeiro o formato Caneca nas opções avançadas.');setAdvancedFormats(true);return;}
   const original=(active?.kind==='image'&&(active.role==='background'||active.role==='template')?active:null)||[...doc.nodes].reverse().find(n=>n.kind==='image'&&(n.role==='background'||n.role==='template'));
@@ -877,6 +896,8 @@ export function CreativeEditor(){
    {active.role==='mockup'&&doc.smartTemplate?.slot&&<div className="cr-feature" role="group" aria-label="Encaixe inteligente da caneca"><div><strong>{t('Encaixe inteligente')}</strong><p>{t('Recupere a posição e a proporção da caneca neste cenário, mantendo a máscara de primeiro plano.')}</p><button type="button" className="cr-primary" disabled={!!active.locked} onClick={()=>{if(!doc.smartTemplate?.slot)return;const fitted=fitMockupIntoSlot(active,doc.smartTemplate.slot,doc.smartTemplate.maskSrc,1,doc.smartTemplate.maskMode,doc.smartTemplate.maskInvert);patch(active.id,fitted);setNotice(t('Caneca reenquadrada no template.'));}}><Maximize size={15}/>{t('Reencaixar caneca')}</button><div className="cr-fit-scale-options" role="group" aria-label="Escala da caneca no encaixe">{([0.9,1,1.1] as const).map(f=><button key={f} type="button" disabled={!!active.locked} title="Ajustar a caneca proporcionalmente" onClick={()=>{if(!doc.smartTemplate?.slot)return;const fitted=fitMockupIntoSlot(active,doc.smartTemplate.slot,doc.smartTemplate.maskSrc,f,doc.smartTemplate.maskMode,doc.smartTemplate.maskInvert);patch(active.id,fitted);setNotice(`Caneca enquadrada em ${Math.round(f*100)}%, sem achatar.`);}}>{Math.round(f*100)}%</button>)}</div></div></div>}
    {active.locked&&<div className="cr-layer-lock-notice"><Lock size={15}/> Camada protegida. Desbloqueie pelo cadeado acima ou na aba Camadas.</div>}
    <fieldset className="cr-properties-fields" disabled={!!active.locked}>
+   {active.kind==='image'&&active.src&&svgSource(active.src)&&<button type="button" className="cr-outlined" disabled={busy||active.locked} onClick={()=>void ungroupActiveSvg()}>Desagrupar SVG</button>}
+   {active.kind==='image'&&active.src&&svgSource(active.src)&&<p className="cr-helper">Separa um nível de objetos em camadas e mantém os grupos internos. A sombra global será removida. Ctrl+Z restaura o original.</p>}
    {active.kind==='image'&&active.src&&<SvgColorEditor key={active.id} src={active.src} globalColor={!!(active.tint||active.gradient)} onChange={src=>patch(active.id,{src,tint:undefined,gradient:undefined})}/>}
    {active.kind==='text'&&<details className="cr-property-group" open><summary>Texto e fonte</summary><label>{t('Conteúdo').toUpperCase()}<textarea rows={3} value={active.text||''} onChange={e=>patch(active.id,{text:e.target.value})}/></label><label>{t('Fonte').toUpperCase()}<select value={active.font||'Arial'} onChange={e=>{const a=fontAssets.find(x=>x.name===e.target.value);void chooseFont(e.target.value,a);}}>{[...new Set(['Arial','Georgia','Verdana','Trebuchet MS','Times New Roman',...typefaces.map(t=>t.name),...installedTypefaces.map(t=>t.name),...fontAssets.map(a=>a.name),...localFonts.map(a=>a.name)])].map(f=><option key={f}>{f}</option>)}</select></label><div className="cr-2col"><label>{t('Tamanho').toUpperCase()}<input type="number" min={8} max={600} value={active.size||72} onChange={e=>patch(active.id,{size:clamp(Number(e.target.value),8,600)})}/></label><label>{t('Alinhar').toUpperCase()}<select value={active.align||'center'} onChange={e=>patch(active.id,{align:e.target.value as CanvasTextAlign})}><option value="left">Esquerda</option><option value="center">Centro</option><option value="right">Direita</option></select></label></div><div className="cr-inline"><button className={active.bold?'active':''} onClick={()=>patch(active.id,{bold:!active.bold})}><b>B</b></button><button className={active.italic?'active':''} onClick={()=>patch(active.id,{italic:!active.italic})}><i>I</i></button></div></details>}
    <details className="cr-property-group cr-precision-group" open><summary><Ruler size={16}/> Posição e alinhamento</summary><ObjectMeasurements node={active} onChange={attrs=>patch(active.id,attrs)}/><div className="cr-alignment-grid" role="group" aria-label="Alinhar à página">{([['left','Alinhar à esquerda',AlignStartVertical],['center','Centralizar horizontalmente',AlignCenterVertical],['right','Alinhar à direita',AlignEndVertical],['top','Alinhar ao topo',AlignStartHorizontal],['middle','Centralizar verticalmente',AlignCenterHorizontal],['bottom','Alinhar à base',AlignEndHorizontal]] as const).map(([key,label,Icon])=><button type="button" key={key} title={label} aria-label={label} onClick={()=>alignSelected(key)}><Icon size={17}/></button>)}</div></details>
