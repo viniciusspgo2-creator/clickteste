@@ -1,6 +1,6 @@
 /** Acervo curado para o Editor 2D. Sem imports de runtime/server, Prisma ou APIs.
  * A fonte Tabler @3.46.0 é carregada somente quando o usuário abre a biblioteca.
- * Os demais itens são descritos estaticamente. Nunca misturar personagens protegidos.
+ * Os demais itens são descritos estaticamente, com origem e coleção identificadas.
  */
 import {ENABLE_ICONS_TAB} from './editor-flags';
 import backgroundCatalog from './background-catalog.json';
@@ -11,7 +11,7 @@ export type LibraryTab='Modelos'|'Stickers'|'Elementos'|'Formas'|'Molduras e Fai
 export type LibraryCategory='Aniversário'|'Dia das Mães'|'Dia dos Pais'|'Namorados e Casal'|'Infantil e Bebê'|'Profissões'|'Gospel e Fé'|'Festa e Formatura'|'Pets'|'Humor'|'Empresa e Contato'|'Esporte e Lazer'|'Natureza e Flores';
 export type LibraryItem={
  id:string;nome:string;tags:string[];categoria:LibraryCategory;arquivo:string;
- miniatura?:string;estilo?:string;paleta?:string;
+ miniatura?:string;estilo?:string;paleta?:string;colecao?:string;
  formato:'SVG'|'PNG'|'WEBP'|'TEXTO';tipoCor:'monocromatico-editavel'|'colorido-fechado'|'texto-editavel';
  licenca:'MIT'|'ISC'|'Apache-2.0'|'CC0-1.0'|'Autoral'|'Enviado pelo usuário';origem:string;aba:LibraryTab;
 };
@@ -187,12 +187,12 @@ export const KAWAII_ITEMS:LibraryItem[]=([["coffee", "Café", "Humor"], ["cloud"
  formato:'SVG',tipoCor:'monocromatico-editavel',licenca:'Autoral',origem:'Click & Gruda',aba:'Stickers',
 }));
 export const UPLOADED_ITEMS=uploadedItems as LibraryItem[];
-export const STATIC_MANIFEST:LibraryItem[]=[...EXPANDED_BACKGROUND_ITEMS,...UPLOADED_ITEMS,...KAWAII_ITEMS,...STICKERS,...(ENABLE_ICONS_TAB?COMPLEMENTARY_ICONS:[]),...NATIVE_SHAPES,...BACKGROUND_ITEMS,...PHRASE_ITEMS];
+export const STATIC_MANIFEST:LibraryItem[]=[...EXPANDED_BACKGROUND_ITEMS,...UPLOADED_ITEMS,...KAWAII_ITEMS,...STICKERS,...(ENABLE_ICONS_TAB?COMPLEMENTARY_ICONS:[]),...NATIVE_SHAPES,...BACKGROUND_ITEMS,...PHRASE_ITEMS].map(item=>({...item,colecao:item.colecao||(item.origem==='microsoft/fluentui-emoji'?'Emojis 3D':item.origem==='googlefonts/noto-emoji'?'Emojis ilustrados':item.id.startsWith('kawaii-')?'Ilustrações kawaii':item.aba==='Fundos e Padrões'?item.estilo||'Fundos clássicos':item.aba==='Formas'?'Formas básicas':item.aba==='Frases'?'Frases prontas':'Elementos essenciais')}));
 export function libraryManifest(catalog:StockIcon[]):LibraryItem[]{
  const dynamic=ENABLE_ICONS_TAB?curatedFromTabler(catalog):[];
  return [...STATIC_MANIFEST,...dynamic];
 }
 export function libraryMatch(item:LibraryItem,term:string){
  const s=normalizeLibrarySearch(term);if(!s)return true;
- return normalizeLibrarySearch([item.nome,item.categoria,...item.tags].join(' ')).includes(s);
+ return normalizeLibrarySearch([item.nome,item.categoria,item.colecao||'',...item.tags].join(' ')).includes(s);
 }
