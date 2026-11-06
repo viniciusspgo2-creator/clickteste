@@ -1,6 +1,6 @@
 # Editor: canvas estável, entrada e biblioteca — 05/11/2026
 
-Ao selecionar um objeto, a barra contextual alterava a altura disponível. O ajuste automático usava as dimensões afetadas pelas barras de rolagem e podia recalcular o zoom repetidamente. A barra agora ocupa uma altura constante, mensagens aparecem no rodapé existente e o ajuste considera padding, bordas e espaço da régua. O zoom inicial ocupa a área disponível; selecionar, remover seleção e fechar mensagens preservam o enquadramento. Zoom manual permanece manual até clicar na porcentagem para ajustar à tela. A barra da conta e o editor compartilham a altura da janela em desktop.
+Ao selecionar um objeto, a barra contextual alterava a altura disponível. O ajuste automático usava as dimensões afetadas pelas barras de rolagem e podia recalcular o zoom repetidamente. As ações de seleção agora compartilham a linha das réguas, com altura constante e mais espaço vertical para a arte; mensagens aparecem no rodapé existente e o ajuste considera padding, bordas e espaço da régua. O zoom inicial ocupa a área disponível; selecionar, remover seleção e fechar mensagens preservam o enquadramento. Zoom manual permanece manual até clicar na porcentagem para ajustar à tela. A barra da conta e o editor compartilham a altura da janela em desktop.
 
 ## Entrada
 
