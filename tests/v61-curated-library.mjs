@@ -22,7 +22,7 @@ test('Busca em português entende acentos e sinônimos de ocasiões',()=>{
 });
 test('Separação das abas e categorias de ocasião',()=>{
  assert.ok(m.LIBRARY_TABS.includes('Stickers'));assert.ok(m.LIBRARY_TABS.includes('Frases'));
- assert.equal(m.LIBRARY_CATEGORIES.length,13);
+ assert.equal(m.LIBRARY_CATEGORIES.length,17);
  assert.equal(m.BACKGROUND_ITEMS.length,105);assert.equal(m.PHRASE_ITEMS.length,91);
 });
 test('Tabler só aceita nomes de índice real e seleciona até 1600 entradas reais',()=>{
@@ -44,6 +44,6 @@ test('UI virtualizada sem bibliotecas, com favoritos e recentes locais',()=>{
 });
 test('Apenas Editor 2D recebe nova aba sem alterar APIs ou Prisma',()=>{
  const code=file('src/components/creative/creative-editor.tsx');
- assert.ok(code.includes('CuratedLibrary'));assert.ok(code.includes("panel==='library'"));assert.ok(code.includes('onInsertImage={src=>addImage(src)}'));
+ assert.ok(code.includes('CuratedLibrary'));assert.ok(code.includes("panel==='library'"));assert.ok(code.includes("onInsertImage={src=>addImage(src,true,'content',undefined,0)}"));
  assert.ok(code.includes("onApplyBackground={src=>applyTemplate(src,'background')}"));
 });
