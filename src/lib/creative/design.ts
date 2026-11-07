@@ -120,6 +120,7 @@ export async function drawDesign(canvas:HTMLCanvasElement,doc:DesignDocument,tim
  if(options?.strict)await fontLoad;else await fontLoad.catch(()=>{});
  if(canvas.width!==doc.width)canvas.width=doc.width;if(canvas.height!==doc.height)canvas.height=doc.height;
  const ctx=canvas.getContext('2d');if(!ctx)throw new Error('Canvas indisponível');
+ ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
  ctx.clearRect(0,0,doc.width,doc.height);
  if(doc.background!=='transparent'){ctx.fillStyle=doc.background;ctx.fillRect(0,0,doc.width,doc.height);}
  await Promise.all(renderedNodes.filter(n=>n.kind==='image'&&n.src).map(n=>imageFor(n.src!).catch(()=>null)));
@@ -172,6 +173,7 @@ export async function drawDesign(canvas:HTMLCanvasElement,doc:DesignDocument,tim
     if(!layer){
      layer=document.createElement('canvas');layer.width=tw;layer.height=th;
      const lc=layer.getContext('2d',{willReadFrequently:!!n.maskSrc});if(!lc)throw new Error('Canvas de efeito indisponível');
+     lc.imageSmoothingEnabled=true;lc.imageSmoothingQuality='high';
      lc.drawImage(img,sx,sy,sw,sh,0,0,tw,th);
      if(tint||gradient){
       lc.globalCompositeOperation='source-in';

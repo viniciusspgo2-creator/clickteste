@@ -161,3 +161,5 @@
  .cg-reference-v11 .cr-precision-bar>.cr-precision-actions{width:100%;overflow-x:auto;padding-bottom:2px}
  .cg-reference-v11 .cr-precision-actions>button{flex:none}
 }
+
+.cr-curated-print-quality{display:block;padding:0 7px 4px;font-size:9px;line-height:12px;color:#bcb9c4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
