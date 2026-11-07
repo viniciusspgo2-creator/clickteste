@@ -1,72 +1,56 @@
-import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import {
-  browserToken,
-  checkPremiumSession,
-  hashToken,
-  newToken,
-} from "@/lib/premium-session";
-import { requireAdmin } from "@/lib/admin-auth";
-
-export const runtime = "nodejs";
-export async function GET(req: Request) {
-  try {
-    return NextResponse.json(await checkPremiumSession(req), {
-      headers: { "Cache-Control": "no-store" },
-    });
-  } catch {
-    return NextResponse.json({ ok: false, reason: "network" }, { status: 503 });
+import {NextResponse} from 'next/server';
+import {db} from '@/lib/db';
+import {accessCredential,browserToken,hashToken,newToken,resolvePremiumSession,type StudioIdentity} from '@/lib/premium-session';
+import {persistentSessionsEnabled,monitoringEnabled,sameOriginMutation,sessionDeadline} from '@/lib/studio-access-options';
+import {clearStudioCookie,writeStudioCookie} from '@/lib/studio-session-cookie';
+export const runtime='nodejs';
+const headers={'Cache-Control':'no-store'};
+function codeConditions(i:StudioIdentity,now:Date){return {id:i.codeId,browserHash:i.browserHash,accessMode:'individual',sessionHash:i.sessionHash,sessionExpiresAt:{gt:now},active:true,OR:[{expiresAt:null},{expiresAt:{gt:now}}]};}
+function slotConditions(i:StudioIdentity,now:Date){return {codeId:i.codeId,deviceId:i.browserHash,sessionHash:i.sessionHash,sessionExpiresAt:{gt:now},code:{accessMode:'universal',active:true,OR:[{expiresAt:null},{expiresAt:{gt:now}}]}};}
+async function session(req:Request,claim:boolean){
+ try{
+  const {access,identity}=await resolvePremiumSession(req);
+  const capabilities={rememberBrowser:persistentSessionsEnabled(),monitoring:monitoringEnabled()};
+  if(!access.ok||!identity)return NextResponse.json({...access,capabilities},{headers});
+  const now=new Date(),credential=accessCredential(req)!;
+  if(persistentSessionsEnabled()){
+   let until=identity.sessionExpiresAt;
+   if(claim&&identity.remember&&until.getTime()-now.getTime()<15*86400000){
+    until=sessionDeadline(now,identity.expiresAt,true);
+    const data={sessionExpiresAt:until};
+    const updated=identity.accessMode==='individual'
+     ?await db.accessCode.updateMany({where:codeConditions(identity,now),data})
+     :await db.accessCodeUse.updateMany({where:slotConditions(identity,now),data});
+    if(!updated.count)return NextResponse.json({ok:false,reason:'session',capabilities},{headers});
+   }
+   const response=NextResponse.json({...access,cookieSession:true,capabilities},{headers});
+   if(claim)writeStudioCookie(response,req,credential.token,identity.remember,until);
+   return response;
   }
+  // Preserve legacy bearer rotation when the new session feature is disabled.
+  if(!claim)return NextResponse.json({...access,capabilities},{headers});
+  const sessionToken=newToken(),data={sessionHash:hashToken(sessionToken)};
+  const updated=identity.accessMode==='individual'
+   ?await db.accessCode.updateMany({where:codeConditions(identity,now),data})
+   :await db.accessCodeUse.updateMany({where:slotConditions(identity,now),data});
+  return NextResponse.json(updated.count?{...access,sessionToken,capabilities}:{ok:false,reason:'session',capabilities},{headers});
+ }catch{return NextResponse.json({ok:false,reason:'network'},{status:503,headers});}
 }
-// Claim on page load as well: duplicated tabs inherit sessionStorage. Rotating
-// the token prevents those tabs from silently sharing one active session.
-export async function POST(req: Request) {
-  try {
-    const access = await checkPremiumSession(req);
-    if (!access.ok || requireAdmin(req))
-      return NextResponse.json(access, {
-        headers: { "Cache-Control": "no-store" },
-      });
-    const browser = browserToken(req)!;
-    const oldToken = req.headers.get("authorization")!.replace(/^Bearer /, "");
-    const sessionToken = newToken();
-    const now = new Date();
-    const updated = access.accessMode === "universal"
-      ? await db.accessCodeUse.updateMany({
-          where: {
-            deviceId: hashToken(browser), sessionHash: hashToken(oldToken),
-            sessionExpiresAt: { gt: now },
-            code: { accessMode: "universal", active: true, OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
-          },
-          data: { sessionHash: hashToken(sessionToken) },
-        })
-      : await db.accessCode.updateMany({
-          where: {
-            browserHash: hashToken(browser), sessionHash: hashToken(oldToken),
-            active: true, sessionExpiresAt: { gt: now },
-            OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
-          },
-          data: { sessionHash: hashToken(sessionToken) },
-        });
-    return NextResponse.json(
-      updated.count
-        ? { ...access, sessionToken }
-        : { ok: false, reason: "session" },
-      { headers: { "Cache-Control": "no-store" } },
-    );
-  } catch {
-    return NextResponse.json({ ok: false, reason: "network" }, { status: 503 });
+export async function GET(req:Request){return session(req,false);}
+export async function POST(req:Request){if(!sameOriginMutation(req))return NextResponse.json({ok:false,reason:'invalid'},{status:403,headers});return session(req,true);}
+export async function DELETE(req:Request){
+ if(!sameOriginMutation(req))return NextResponse.json({ok:false,reason:'invalid'},{status:403,headers});
+ try{
+  const browser=browserToken(req),credential=accessCredential(req);
+  if(browser&&credential){
+   const browserHash=hashToken(browser),sessionHash=hashToken(credential.token);
+   await db.$transaction([
+    db.accessCode.updateMany({where:{browserHash,sessionHash},data:{sessionHash:null,sessionExpiresAt:null}}),
+    db.accessCodeUse.updateMany({where:{deviceId:browserHash,sessionHash},data:{sessionHash:null,sessionExpiresAt:null}}),
+   ]);
+   // Presence is optional; logging out must still work if its table is unavailable.
+   if(monitoringEnabled())await db.studioPresence.updateMany({where:{browserHash},data:{endedAt:new Date()}}).catch(()=>{});
   }
-}
-export async function DELETE(req: Request) {
-  const browser = browserToken(req);
-  const token = req.headers.get("authorization")?.replace(/^Bearer /, "") ?? "";
-  if (browser && /^[a-f0-9]{64}$/.test(token)) {
-    const [browserHash, sessionHash] = [hashToken(browser), hashToken(token)];
-    await db.$transaction([
-      db.accessCode.updateMany({ where: { browserHash, sessionHash }, data: { sessionHash: null, sessionExpiresAt: null } }),
-      db.accessCodeUse.updateMany({ where: { deviceId: browserHash, sessionHash }, data: { sessionHash: null, sessionExpiresAt: null } }),
-    ]);
-  }
-  return NextResponse.json({ ok: true });
+  const response=NextResponse.json({ok:true},{headers});clearStudioCookie(response,req);return response;
+ }catch{return NextResponse.json({ok:false,reason:'network'},{status:503,headers});}
 }

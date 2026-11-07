@@ -8,14 +8,15 @@ import uploadedItems from './uploaded-library.json';
 import type {StockIcon} from './stock-icons';
 
 export type LibraryTab='Modelos'|'Stickers'|'Elementos'|'Formas'|'Molduras e Faixas'|'Fundos e Padrões'|'Frases';
-export type LibraryCategory='Aniversário'|'Dia das Mães'|'Dia dos Pais'|'Namorados e Casal'|'Infantil e Bebê'|'Profissões'|'Gospel e Fé'|'Festa e Formatura'|'Pets'|'Humor'|'Empresa e Contato'|'Esporte e Lazer'|'Natureza e Flores';
+export type LibraryCategory='Aniversário'|'Dia das Mães'|'Dia dos Pais'|'Namorados e Casal'|'Infantil e Bebê'|'Profissões'|'Gospel e Fé'|'Festa e Formatura'|'Pets'|'Humor'|'Empresa e Contato'|'Esporte e Lazer'|'Natureza e Flores'|'Natal'|'Halloween'|'Bem-estar e Astrologia'|'Escola e Estudos';
 export type LibraryItem={
  id:string;nome:string;tags:string[];categoria:LibraryCategory;arquivo:string;
  miniatura?:string;estilo?:string;paleta?:string;colecao?:string;
+ impressao?:{vetorial:boolean;largura:number;altura:number;semPerdas:boolean};
  formato:'SVG'|'PNG'|'WEBP'|'TEXTO';tipoCor:'monocromatico-editavel'|'colorido-fechado'|'texto-editavel';
  licenca:'MIT'|'ISC'|'Apache-2.0'|'CC0-1.0'|'Autoral'|'Enviado pelo usuário';origem:string;aba:LibraryTab;
 };
-export const LIBRARY_CATEGORIES:LibraryCategory[]=['Aniversário','Dia das Mães','Dia dos Pais','Namorados e Casal','Infantil e Bebê','Profissões','Gospel e Fé','Festa e Formatura','Pets','Humor','Empresa e Contato','Esporte e Lazer','Natureza e Flores'];
+export const LIBRARY_CATEGORIES:LibraryCategory[]=['Aniversário','Dia das Mães','Dia dos Pais','Namorados e Casal','Infantil e Bebê','Profissões','Gospel e Fé','Festa e Formatura','Pets','Humor','Empresa e Contato','Esporte e Lazer','Natureza e Flores','Natal','Halloween','Bem-estar e Astrologia','Escola e Estudos'];
 export const LIBRARY_TABS:LibraryTab[]=['Modelos','Stickers','Elementos','Formas','Molduras e Faixas','Fundos e Padrões','Frases'];
 export const LIBRARY_RELEASE={
  tabler:'@tabler/icons@3.46.0',

@@ -118,7 +118,7 @@ export async function loadLibraryImage(item:LibraryItem,color='#ff6a00',width=24
  if(!response.ok)throw new Error('Sticker não disponível. Escolha outro ou tente novamente.');
  const contentType=response.headers.get('content-type')||'';
  if(!contentType.includes('image/png')&&!contentType.includes('image/webp')&&!contentType.includes('octet-stream'))throw new Error('Arquivo de sticker inválido.');
- const blob=await response.blob();if(blob.size>8*1024*1024)throw new Error('Sticker muito grande para o editor.');
+ const blob=await response.blob();if(blob.size>24*1024*1024)throw new Error('Imagem acima do limite de 24 MB do editor.');
  return await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>typeof reader.result==='string'?resolve(reader.result):reject(new Error('Falha ao ler o sticker.'));reader.onerror=()=>reject(new Error('Falha ao ler o sticker.'));reader.readAsDataURL(blob);});
 }
 /** índice oficial hospedado no mesmo pacote Tabler versionado; sem Iconify ou outras fontes. */
