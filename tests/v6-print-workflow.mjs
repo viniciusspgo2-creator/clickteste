@@ -12,11 +12,6 @@ test('regressão TS2345: origem de recorte estreitada antes da chamada assíncro
  assert.match(editor,/imageFor\(source\)/);
  assert.doesNotMatch(editor,/imageFor\(node\.src\)/);
 });
-test('fluxo guiado mantém os quatro passos e as opções avançadas',()=>{
- assert.match(editor,/cr-guided-flow/);
- for(const label of ['Modelo ou fundo','Foto e texto','Ajustar','Conferir e exportar','Outros formatos'])assert.ok(editor.includes(label),label);
- assert.match(editor,/advancedFormats\|\|doc\.width!==2480/);
-});
 test('enquadramento: diálogo sem distorcer e botão de restauração',()=>{
  assert.match(editor,/matchingAspect/);
  for(const label of ['Preencher 21 × 9,5','Caber inteiro','Manter original','Enquadrar 21 × 9,5','Importar meu fundo'])assert.ok(editor.includes(label),label);

@@ -1,6 +1,6 @@
 'use client';
 import {useEffect,useMemo,useRef,useState} from 'react';
-import {AlertCircle,Bookmark,Check,Clock3,FolderOpen,Image as ImageIcon,LoaderCircle,Search,ShieldCheck,Sparkles,Star,Type,RefreshCw} from 'lucide-react';
+import {AlertCircle,Bookmark,Check,Clock3,FolderOpen,Image as ImageIcon,LoaderCircle,Search,ShieldCheck,Sparkles,Star,Type,RefreshCw,ArrowLeft,ImagePlus} from 'lucide-react';
 import {BACKGROUND_STYLES,PALETTES,LIBRARY_CATEGORIES,LIBRARY_TABS,STATIC_MANIFEST,libraryManifest,libraryMatch,type LibraryCategory,type LibraryItem,type LibraryTab} from '@/lib/creative/library-manifest';
 import {loadApprovedTablerCatalog,loadLibraryImage,previewLibraryAsset} from '@/lib/creative/library-load';
 import {ENABLE_ICONS_TAB} from '@/lib/creative/editor-flags';
@@ -11,7 +11,7 @@ type Props={backgroundsOnly?:boolean;onOpenBackgrounds?:()=>void;color:string;on
 const FAVORITES_KEY='cg:editor:library-favorites-v1';
 const RECENTS_KEY='cg:editor:library-recents-v1';
 const VIEWS:ViewTab[]=[...LIBRARY_TABS,'Favoritos','Recentes'];
-const rowHeight=178;
+const rowHeight=198;
 function safeStoredIds(key:string):string[]{
  try{const data=JSON.parse(localStorage.getItem(key)||'[]');return Array.isArray(data)?data.filter((v):v is string=>typeof v==='string').slice(0,90):[];}catch{return []}
 }
@@ -99,17 +99,20 @@ export function CuratedLibrary({backgroundsOnly=false,onOpenBackgrounds,color,on
  const visible=filtered.slice(startRow*cols,endRow*cols);
  return <section className="cr-curated" aria-label="Biblioteca curada de artes">
   <div className="cr-curated-intro"><Sparkles size={18}/><div><strong>Biblioteca criativa</strong><small>Peças selecionadas para personalizar canecas</small></div></div>
-  <div className="cr-curated-tabs" aria-label="Seções da biblioteca">{VIEWS.filter(view=>backgroundsOnly?view==='Fundos e Padrões':view!=='Fundos e Padrões').map(view=><button type="button" key={view} className={tab===view?'active':''} aria-pressed={tab===view} onClick={()=>setView(view)}>{view==='Favoritos'&&<Bookmark size={13}/>} {view==='Recentes'&&<Clock3 size={13}/>} {view}</button>)}</div>
-  {!backgroundsOnly&&onOpenBackgrounds&&<button className="cr-outlined" type="button" onClick={onOpenBackgrounds}>Fundos e padrões → aba Fundos</button>}
-  <label className="cr-curated-search"><Search size={17}/><span className="sr-only">Pesquisar itens da biblioteca</span><input value={query} onChange={e=>{setQuery(e.target.value);resetScroll()}} placeholder="Busque: mãe, coração, aniversário..."/></label>
-  {!backgroundsOnly&&collections.length>0&&<label className="cr-curated-collection">Coleção<select aria-label="Coleção da biblioteca" value={collection} onChange={e=>{setCollection(e.target.value);resetScroll();}}><option value="Todas">Todas as coleções</option>{collections.map(([name,count])=><option key={name} value={name}>{name} ({count})</option>)}</select></label>}
+  {!backgroundsOnly&&<div className="cr-library-navigation" aria-label="Seções da biblioteca">
+   <label><span className="sr-only">Tipo de conteúdo</span><select aria-label="Tipo de conteúdo" value={tab} onChange={e=>setView(e.target.value as ViewTab)}>{VIEWS.filter(view=>backgroundsOnly?view==='Fundos e Padrões':view!=='Fundos e Padrões').map(view=><option key={view} value={view}>{view==='Stickers'?'Ilustrações e adesivos':view==='Modelos'?'Modelos editáveis':view}</option>)}</select></label>
+   {!backgroundsOnly&&<><button type="button" aria-label="Favoritos da biblioteca" title="Favoritos" aria-pressed={tab==='Favoritos'} onClick={()=>setView('Favoritos')}><Bookmark size={16}/></button><button type="button" aria-label="Recentes da biblioteca" title="Usados recentemente" aria-pressed={tab==='Recentes'} onClick={()=>setView('Recentes')}><Clock3 size={16}/></button></>}
+  </div>}
+  {collection!=='Todas'&&<div className="cr-library-collection-path"><button type="button" onClick={()=>{setCollection('Todas');resetScroll();}} aria-label="Voltar para todas as coleções"><ArrowLeft size={13}/> Coleções</button><span aria-hidden="true">/</span><strong title={collection}>{collection}</strong></div>}
+  <label className="cr-curated-search"><Search size={17}/><span className="sr-only">Pesquisar itens da biblioteca</span><input value={query} onChange={e=>{setQuery(e.target.value);resetScroll()}} placeholder="Buscar nesta seção..."/></label>
+  {!backgroundsOnly&&collections.length>0&&(collection!=='Todas'||Boolean(query.trim()))&&<label className="cr-curated-collection">Coleção<select aria-label="Coleção da biblioteca" value={collection} onChange={e=>{setCollection(e.target.value);resetScroll();}}><option value="Todas">Todas as coleções</option>{collections.map(([name,count])=><option key={name} value={name}>{name} ({count})</option>)}</select></label>}
   {tab==='Fundos e Padrões'&&<div className="cr-curated-background-filters"><label>Estilo do fundo<select aria-label="Estilo do fundo" value={style} onChange={e=>{setStyle(e.target.value);resetScroll()}}><option value="Todos">Todos os estilos</option>{BACKGROUND_STYLES.map(value=><option key={value}>{value}</option>)}</select></label><label>Paleta de cores<select aria-label="Paleta de cores" value={palette} onChange={e=>{setPalette(e.target.value);resetScroll()}}><option value="Todas">Todas as paletas</option>{PALETTES.map(([name])=><option key={name}>{name}</option>)}</select></label></div>}
-  <details className="cr-curated-advanced"><summary>Filtrar por ocasião e formato</summary>
+  <details className="cr-curated-advanced"><summary>Filtros · ocasião, formato e cor</summary>
   <div className="cr-curated-categories" aria-label="Filtrar por ocasião"><button type="button" aria-pressed={category==='Todas'} className={category==='Todas'?'active':''} onClick={()=>{setCategory('Todas');resetScroll()}}>Todas</button>{LIBRARY_CATEGORIES.map(cat=><button type="button" key={cat} aria-pressed={category===cat} className={category===cat?'active':''} onClick={()=>{setCategory(cat);resetScroll()}}>{cat}</button>)}</div>
   {(tab==='Stickers'||tab==='Elementos'||tab==='Formas'||tab==='Molduras e Faixas')&&<div className="cr-curated-controls"><label>Cor do vetor <input type="color" value={color} onChange={e=>onColorChange(e.target.value)} aria-label="Escolher cor dos vetores"/></label>{(tab==='Formas'||tab==='Molduras e Faixas')&&<label>Espessura <input type="range" min={4} max={64} value={strokeWidth} onChange={e=>setStrokeWidth(Number(e.target.value))} aria-label="Espessura do contorno"/><output>{strokeWidth}px</output></label>}</div>}
   <div className="cr-curated-filters"><label htmlFor="cr-library-format">Tipo de ativo</label><select id="cr-library-format" value={fileFilter} onChange={e=>{setFileFilter(e.target.value as typeof fileFilter);resetScroll()}}><option value="Todos">Todos os tipos</option><option value="SVG">SVG · vetores</option><option value="PNG">PNG · imagens transparentes</option><option value="WEBP">WebP · elementos enviados</option><option value="TEXTO">Texto editável</option></select></div>
   </details>
-  <div className="cr-curated-summary"><span>{loading?'Preparando catálogo…':showCollections?`${collections.length} coleções · ${filtered.length.toLocaleString('pt-BR')} itens`:`${filtered.length.toLocaleString('pt-BR')} itens nesta seleção`}</span><span>SVG · PNG · WebP · texto</span></div>
+  <div className="cr-curated-summary" aria-live="polite"><span>{loading?'Preparando catálogo…':showCollections?`${collections.length} coleções · ${filtered.length.toLocaleString('pt-BR')} itens`:`${filtered.length.toLocaleString('pt-BR')} itens nesta seleção`}</span><span>SVG · PNG · WebP · texto</span></div>
   {fallback&&<div className="cr-curated-warning" role="status"><AlertCircle size={15}/><span>Catálogo ampliado indisponível. Mostrando itens locais.</span><button type="button" aria-label="Tentar carregar catálogo novamente" title="Tentar novamente" onClick={()=>setRetryCatalog(n=>n+1)}><RefreshCw size={15}/></button></div>}
   {tab==='Modelos'&&<button type="button" className="cr-curated-existing" onClick={onOpenModels}><FolderOpen size={21}/><span><strong>Abrir modelos do Studio</strong><small>Utilize os layouts editáveis já disponíveis no editor</small></span></button>}
   {message&&<div className="cr-curated-error" role="alert"><AlertCircle size={17}/><span>{message}</span><button type="button" onClick={()=>setMessage('')}>Fechar</button></div>}
@@ -128,6 +131,7 @@ export function CuratedLibrary({backgroundsOnly=false,onOpenBackgrounds,color,on
     })}
    </div>}
   </div>
+  {!backgroundsOnly&&onOpenBackgrounds&&<button className="cr-library-background-link" type="button" onClick={onOpenBackgrounds}><ImagePlus size={14}/> Fundos e padrões → aba Fundos</button>}
   <footer className="cr-curated-footer"><ShieldCheck size={14}/><span>Acervo local e elementos enviados · favoritos neste navegador</span></footer>
  </section>;
 }
