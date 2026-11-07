@@ -11,7 +11,7 @@ type Props={backgroundsOnly?:boolean;onOpenBackgrounds?:()=>void;color:string;on
 const FAVORITES_KEY='cg:editor:library-favorites-v1';
 const RECENTS_KEY='cg:editor:library-recents-v1';
 const VIEWS:ViewTab[]=[...LIBRARY_TABS,'Favoritos','Recentes'];
-const rowHeight=158;
+const rowHeight=178;
 function safeStoredIds(key:string):string[]{
  try{const data=JSON.parse(localStorage.getItem(key)||'[]');return Array.isArray(data)?data.filter((v):v is string=>typeof v==='string').slice(0,90):[];}catch{return []}
 }

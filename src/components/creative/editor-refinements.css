@@ -162,4 +162,5 @@
  .cg-reference-v11 .cr-precision-actions>button{flex:none}
 }
 
-.cr-curated-print-quality{display:block;padding:0 7px 4px;font-size:9px;line-height:12px;color:#bcb9c4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cg-creative .cr-curated-slot{height:178px}
+.cr-curated-print-quality{display:block;padding:0 28px 0 0;flex-shrink:0;font-size:9px;line-height:12px;color:#bcb9c4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
