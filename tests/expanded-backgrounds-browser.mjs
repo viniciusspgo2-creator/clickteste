@@ -23,12 +23,12 @@ try{
   return {count:sources.length,failures,rejected};
  });
  assert.equal(result.count,342);assert.deepEqual(result.failures,[]);assert.equal(result.rejected,3);console.log('PASS: all 342 designs load and render offline; invalid IDs rejected');
- await page.getByRole('button',{name:'Biblioteca de artes',exact:true}).click();await page.getByRole('button',{name:'Fundos e Padrões',exact:true}).click();
+ await page.locator('.cr-rail').getByRole('button',{name:'Fundos',exact:true}).click();
  await page.getByLabel('Estilo do fundo',{exact:true}).selectOption('Florais e botânicos');await page.getByLabel('Paleta de cores',{exact:true}).selectOption('Lavanda');
  const button=page.locator('.cr-curated-add').first();await button.waitFor();await page.waitForFunction(()=>[...document.querySelectorAll('.cr-curated-thumb img')].some(i=>i.complete&&i.naturalWidth>0));
  assert.ok(await page.locator('.cr-curated-slot').count()<30,'visible cards remain bounded');
  await button.click();await page.waitForFunction(()=>document.querySelector('.cr-toast')?.textContent?.includes('Fundo')||[...document.querySelectorAll('[role=status]')].some(e=>e.textContent.includes('Fundo')),{timeout:1000}).catch(()=>{});
- const pending=page.waitForEvent('download');await page.getByTitle('Criar backup portátil com os arquivos do projeto',{exact:true}).click();const download=await pending,project=JSON.parse(await fs.readFile(await download.path(),'utf8'));
+ const pending=page.waitForEvent('download');await page.getByRole('button',{name:'Projeto',exact:true}).click();await page.getByTitle('Criar backup portátil com os arquivos do projeto',{exact:true}).click();const download=await pending,project=JSON.parse(await fs.readFile(await download.path(),'utf8'));
  const node=project.document.nodes.find(n=>n.role==='background');assert.ok(node);assert.equal(node.w,2480);assert.equal(node.h,1122);assert.ok(decodeURIComponent(node.src).includes('pattern.monster'));
  await page.screenshot({path:path.join(harness.output,'expanded-backgrounds.png'),fullPage:true});
  await page.setViewportSize({width:390,height:844});await page.waitForTimeout(250);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);

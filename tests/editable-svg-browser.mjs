@@ -52,7 +52,7 @@ try{
  const options=await parts.locator('option').allTextContents(),shirtLabel=options.find(s=>s.endsWith('Camiseta'));
  assert.ok(shirtLabel);await page.locator('.cr-svg-click-preview [id$="Camiseta"] path').click();assert.equal(await parts.locator('option:checked').textContent(),shirtLabel);
  await page.getByLabel('Nova cor da parte do SVG',{exact:true}).fill('#27a36c');
- const project=async()=>{const pending=page.waitForEvent('download');await page.getByTitle('Criar backup portátil com os arquivos do projeto',{exact:true}).click();const download=await pending;return JSON.parse(await fs.readFile(await download.path(),'utf8')).document;};
+ const project=async()=>{const pending=page.waitForEvent('download');await page.getByRole('button',{name:'Projeto',exact:true}).click();await page.getByTitle('Criar backup portátil com os arquivos do projeto',{exact:true}).click();const download=await pending;return JSON.parse(await fs.readFile(await download.path(),'utf8')).document;};
  let doc=await project();assert.equal(doc.nodes.length,1);
  let paint=await page.evaluate(src=>window.svgTest.inspectSvg(src).paints,doc.nodes[0].src);
  assert.equal(paint.find(p=>p.label==='Camiseta').color,'#27a36c');assert.equal(paint.find(p=>p.label==='Cabelo').color,'#e85d75');pass('interface real edita apenas a região escolhida e salva as cores no .cgdesign');

@@ -7,7 +7,7 @@ try{
  const measure=()=>page.evaluate(()=>{const s=document.querySelector('.cr-stage'),z=document.querySelector('.cr-canvas-zone'),r=s.getBoundingClientRect(),b=z.getBoundingClientRect();return {width:r.width,height:r.height,x:r.x,y:r.y,zone:{w:b.width,h:b.height,clientW:z.clientWidth,clientH:z.clientHeight,scrollW:z.scrollWidth,scrollH:z.scrollHeight},padding:getComputedStyle(z).padding};});
  await page.waitForTimeout(600);const before=await measure();console.log('initial',before);
  await page.getByRole('button',{name:'Elementos',exact:true}).click();await page.getByTitle('Estrela 8 pontas',{exact:true}).click();await page.waitForTimeout(300);const selected=await measure();console.log('selected',selected);
- await page.getByRole('button',{name:'Salvar no navegador',exact:true}).click();await page.locator('.cr-notice').waitFor();
+ await page.getByRole('button',{name:'Projeto',exact:true}).click();await page.getByRole('menuitem',{name:/Salvar no navegador/}).click();await page.locator('.cr-notice').waitFor();
  const history=await page.evaluate(async()=>{const values=[];for(let i=0;i<80;i++){const r=document.querySelector('.cr-stage').getBoundingClientRect();values.push([r.width,r.height,r.x,r.y]);await new Promise(r=>setTimeout(r,65));}return values;});
  console.log('distinct positions',new Set(history.map(JSON.stringify)).size);
  assert.ok(Math.abs(selected.x-before.x)<1&&Math.abs(selected.y-before.y)<1,'Selection must not move the artboard');

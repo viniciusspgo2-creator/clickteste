@@ -34,7 +34,7 @@ try{
  await page.keyboard.press('Control+z');
  // Undo deselects by design; verify through the actual portable project exporter.
  const project=async()=>{
-  const pending=page.waitForEvent('download');await page.getByTitle('Criar backup portátil com os arquivos do projeto',{exact:true}).click({timeout:5000});
+  const pending=page.waitForEvent('download');await page.getByRole('button',{name:'Projeto',exact:true}).click();await page.getByTitle('Criar backup portátil com os arquivos do projeto',{exact:true}).click({timeout:5000});
   const download=await pending;return JSON.parse(await fs.readFile(await download.path(),'utf8')).document;
  };
  assert.equal((await project()).nodes[0].x,beforeRepeat);pass('uma tecla mantida vira uma única etapa de desfazer');
@@ -49,22 +49,22 @@ try{
  await page.mouse.move(sx,sy);await page.mouse.down();await page.mouse.move(sx+4,sy,{steps:3});
  assert.equal(await page.locator('.cr-snap-x').count(),1);await page.mouse.up();
  assert.equal((await project()).nodes[0].x,aligned.x);assert.equal(await page.locator('.cr-snap-x').count(),0);pass('arraste encaixa no centro e remove a linha auxiliar ao soltar');
- await page.getByRole('button',{name:'Bloquear camada',exact:true}).click();
+ await page.getByRole('button',{name:'Travar ou destravar elemento',exact:true}).click();
  const locked=await project();await canvas.focus();await page.keyboard.press('ArrowRight');assert.equal((await project()).nodes[0].x,locked.nodes[0].x);pass('camadas bloqueadas não se movem pelo teclado');
- await page.getByRole('button',{name:'Desbloquear camada',exact:true}).click();
+ await page.getByRole('button',{name:'Travar ou destravar elemento',exact:true}).click();
  const exported=async()=>{
   await page.getByRole('button',{name:'Exportar',exact:true}).click();
   const pending=page.waitForEvent('download');await page.getByRole('button',{name:'Exportar composição',exact:true}).click();
   const download=await pending;return fs.readFile(await download.path());
  };
- const withRulers=await exported();await page.getByRole('button',{name:'Mostrar réguas',exact:true}).click();await page.getByRole('button',{name:'Mostrar centros das faces da caneca',exact:true}).click();const withoutRulers=await exported();
+ const withRulers=await exported();await page.getByRole('button',{name:'Visualização e guias',exact:true}).click();await page.getByRole('button',{name:'Mostrar réguas',exact:true}).click();await page.keyboard.press('Escape');await page.getByRole('button',{name:'Visualização e guias',exact:true}).click();await page.getByRole('button',{name:'Mostrar centros das faces da caneca',exact:true}).click();await page.keyboard.press('Escape');const withoutRulers=await exported();
  assert.equal(createHash('sha256').update(withRulers).digest('hex'),createHash('sha256').update(withoutRulers).digest('hex'));pass('réguas e guias não alteram o PNG exportado');
- await page.getByRole('button',{name:'Biblioteca',exact:true}).click();
- await page.getByPlaceholder('Busque: mãe, coração, aniversário...').fill('kawaii');
+ await page.locator('.cr-rail').getByRole('button',{name:'Biblioteca',exact:true}).click();
+ await page.getByRole('textbox',{name:'Pesquisar itens da biblioteca',exact:true}).fill('kawaii');
  await page.getByTitle('Adicionar Café kawaii',{exact:true}).click();
  let composition=await project();assert.equal(composition.nodes.length,2);assert.ok(composition.nodes[1].src.startsWith('data:image/svg+xml'));pass('ilustração kawaii local é inserida sem serviço externo');
- await page.getByRole('button',{name:'Elementos',exact:true}).last().click();
- await page.getByPlaceholder('Busque: mãe, coração, aniversário...').fill('coração');
+ await page.getByLabel('Tipo de conteúdo',{exact:true}).selectOption('Elementos');
+ await page.getByRole('textbox',{name:'Pesquisar itens da biblioteca',exact:true}).fill('coração');
  await page.locator('.cr-curated-add').first().click();composition=await project();assert.equal(composition.nodes.length,3);assert.ok(composition.nodes[2].w>=200&&composition.nodes[2].h>=200);pass('busca em português insere vetor Tabler local com todos os CDNs bloqueados');
  assert.ok(await page.locator('.cr-curated-card').count()<60);pass('biblioteca mantém apenas os cards visíveis no DOM');
  await canvas.focus();await page.keyboard.press('Control+c');await page.getByRole('button',{name:'Nova aba',exact:true}).click();await page.keyboard.press('Control+v');
