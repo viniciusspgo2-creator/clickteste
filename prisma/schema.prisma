@@ -37,6 +37,8 @@ model AccessCode {
   expiresAt        DateTime?
   createdAt        DateTime        @default(now())
   uses             AccessCodeUse[]
+  presence         StudioPresence[]
+  libraryLink      StudioLibraryLink?
 
   @@index([sessionHash])
 }
@@ -59,6 +61,49 @@ model AccessCodeUse {
 /**
  * ---------------- Contador de visitas ----------------
  */
+
+/** Optional monitoring: no passwords, codes, IPs or session tokens. */
+model StudioPresence {
+  id             String     @id @default(cuid())
+  codeId         String
+  code           AccessCode @relation(fields: [codeId], references: [id], onDelete: Cascade)
+  browserHash    String
+  lastSeenAt     DateTime   @default(now())
+  lastActiveAt   DateTime?
+  page           String     @default("studio")
+  browserLabel   String     @default("")
+  blockedAt      DateTime?
+  endedAt        DateTime?
+
+  @@unique([codeId, browserHash])
+  @@index([lastSeenAt])
+}
+
+/** New library identities only. Existing codes are never imported by name/email. */
+model StudioLibraryLink {
+  id             String     @id @default(cuid())
+  externalUserId String     @unique
+  codeId         String     @unique
+  code           AccessCode @relation(fields: [codeId], references: [id], onDelete: Restrict)
+  registeredAt   DateTime
+  trialEndsAt    DateTime
+  state          String
+  version        Int
+  adminBlocked   Boolean    @default(false)
+  updatedAt      DateTime   @updatedAt
+}
+
+/** Immutable receipt: duplicate and out-of-order deliveries cannot grant twice. */
+model StudioIntegrationEvent {
+  id             String   @id @default(cuid())
+  eventId        String   @unique
+  externalUserId String
+  version        Int
+  bodyHash       String
+  receivedAt     DateTime @default(now())
+
+  @@unique([externalUserId, version])
+}
 
 model Visit {
   id        String   @id @default(cuid())

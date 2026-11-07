@@ -6,11 +6,16 @@ import {
   browserToken,
   hashToken,
   newToken,
+  accessPlan,
 } from "@/lib/premium-session";
+
+import {monitoringEnabled,persistentSessionsEnabled,sameOriginMutation,sessionDeadline} from '@/lib/studio-access-options';
+import {clearStudioCookie,writeStudioCookie} from '@/lib/studio-session-cookie';
 
 export const runtime = "nodejs";
 export async function POST(req: Request) {
-  let body: { code?: unknown };
+  if(!sameOriginMutation(req))return NextResponse.json({ok:false,reason:'invalid'},{status:403});
+  let body: { code?: unknown; remember?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -29,6 +34,7 @@ export async function POST(req: Request) {
   const browserHash = hashToken(browser);
   const sessionToken = newToken();
   const now = new Date();
+  const remember=persistentSessionsEnabled()&&body.remember===true;
   try {
     // Acquire a row lock before assigning a browser slot; prevents concurrent
     // requests from exceeding the shared-code limit across server instances.
@@ -41,6 +47,11 @@ export async function POST(req: Request) {
       if (!row || !row.active) return { ok: false as const, reason: "invalid" };
       if (row.expiresAt && row.expiresAt <= now)
         return { ok: false as const, reason: "expired" };
+      if(monitoringEnabled()){
+        const presence=await tx.studioPresence.findUnique({where:{codeId_browserHash:{codeId:row.id,browserHash}},select:{blockedAt:true}});
+        if(presence?.blockedAt)return {ok:false as const,reason:'blocked'};
+      }
+      const sessionExpiresAt=sessionDeadline(now,row.expiresAt,remember);
       if (row.accessMode === "universal") {
         const current = await tx.accessCodeUse.findUnique({
           where: { codeId_deviceId: { codeId: row.id, deviceId: browserHash } },
@@ -50,7 +61,7 @@ export async function POST(req: Request) {
           if (used >= Math.max(1, Math.min(row.maxUses, 100)))
             return { ok: false as const, reason: "full" };
         }
-        const sessionExpiresAt = new Date(now.getTime() + 12 * 3600_000);
+
         await tx.accessCodeUse.upsert({
           where: { codeId_deviceId: { codeId: row.id, deviceId: browserHash } },
           create: { codeId: row.id, deviceId: browserHash, sessionHash: hashToken(sessionToken), sessionExpiresAt },
@@ -66,7 +77,7 @@ export async function POST(req: Request) {
               { OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
             ],
           },
-          data: { browserHash, sessionHash: hashToken(sessionToken), sessionExpiresAt: new Date(now.getTime() + 12 * 3600_000) },
+          data: { browserHash, sessionHash: hashToken(sessionToken), sessionExpiresAt },
         });
         if (!updated.count) return { ok: false as const, reason: "browser" };
         await tx.accessCodeUse.upsert({
@@ -77,12 +88,15 @@ export async function POST(req: Request) {
       }
       return {
         ok: true as const, sessionToken, clientName: row.clientName,
-        plan: row.clientType === "library" ? "Biblioteca Click Gruda" : "Studio Temporário",
+        plan: accessPlan(row.clientType),expiresAt:row.expiresAt?.toISOString()??null,sessionExpiresAt,
       };
     });
-    const response = NextResponse.json(result, {
+    const {sessionExpiresAt,sessionToken:legacyToken,...publicResult}=result.ok?result:{...result,sessionExpiresAt:undefined,sessionToken:undefined};
+    const response = NextResponse.json({...publicResult,...(!persistentSessionsEnabled()&&legacyToken?{sessionToken:legacyToken}:{}),cookieSession:persistentSessionsEnabled()&&result.ok}, {
       headers: { "Cache-Control": "no-store" },
     });
+    if(result.ok&&persistentSessionsEnabled()&&sessionExpiresAt)writeStudioCookie(response,req,sessionToken,remember,sessionExpiresAt);
+    if(result.ok&&!persistentSessionsEnabled())clearStudioCookie(response,req);
     if (result.ok)
       response.cookies.set(BROWSER_COOKIE, browser, {
         httpOnly: true,

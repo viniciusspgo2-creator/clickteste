@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/admin-auth";
 import { parseCodeCreation } from "@/lib/admin-code-input";
+import {monitoringEnabled,libraryIntegrationEnabled} from '@/lib/studio-access-options';
 export const runtime = "nodejs";
 const bad = (error: string, status = 400) =>
   NextResponse.json({ ok: false, error }, { status });
@@ -33,7 +34,7 @@ function expiry(
 export async function GET(req: Request) {
   if (!requireAdmin(req)) return unauthorized();
   const rows = await db.accessCode.findMany({
-    include: { uses: { orderBy: { usedAt: "desc" } } },
+    include: { uses: { orderBy: { usedAt: "desc" } },...((monitoringEnabled()||libraryIntegrationEnabled())?{libraryLink:{select:{id:true}}}:{}) },
     orderBy: { createdAt: "desc" },
     take: 500,
   });
@@ -42,6 +43,7 @@ export async function GET(req: Request) {
       ok: true,
       codes: rows.map((r) => ({
         code: r.code,
+        managedByLibrary: !!r.libraryLink,
         note: r.note,
         clientName: r.clientName,
         clientType: r.clientType,
@@ -90,8 +92,12 @@ export async function PATCH(req: Request) {
     const code = trim(body.code, 32).toUpperCase();
     const row = await db.accessCode.findUnique({ where: { code } });
     if (!row) return bad("Código não encontrado.", 404);
+    if(monitoringEnabled()||libraryIntegrationEnabled()){
+      const managed=await db.studioLibraryLink.findUnique({where:{codeId:row.id},select:{id:true}});
+      if(managed&&(body.expiresAt!==undefined||body.clientType!==undefined))return bad("A validade e o plano deste acesso são gerenciados pela Biblioteca.");
+    }
     const clientType = body.clientType ?? row.clientType;
-    if (!["library", "standalone"].includes(clientType))
+    if (!["library", "standalone", "library_trial"].includes(clientType))
       return bad("Tipo de cliente inválido.");
     const clientName =
       body.clientName === undefined ? row.clientName : trim(body.clientName);
@@ -129,6 +135,7 @@ export async function PATCH(req: Request) {
       // Serializes this change against concurrent universal-code activations.
       await tx.$queryRaw`SELECT id FROM "AccessCode" WHERE id = ${row.id} FOR UPDATE`;
       await tx.accessCode.update({ where: { code }, data });
+      if((monitoringEnabled()||libraryIntegrationEnabled())&&typeof body.active==='boolean')await tx.studioLibraryLink.updateMany({where:{codeId:row.id},data:{adminBlocked:!body.active}});
       if (body.resetBrowser === true) {
         await tx.accessCodeUse.deleteMany({ where: { codeId: row.id } });
       } else if (row.accessMode === "universal") {
@@ -165,7 +172,8 @@ export async function DELETE(req: Request) {
   try {
     await db.accessCode.delete({ where: { code } });
     return NextResponse.json({ ok: true });
-  } catch {
-    return bad("Código não encontrado.", 404);
+  } catch (error) {
+    if(error&&typeof error==='object'&&'code' in error&&error.code==='P2003')return bad("Códigos ligados à Biblioteca devem ser revogados para preservar o vínculo.",409);
+    return bad("Código não encontrado.",404);
   }
 }
