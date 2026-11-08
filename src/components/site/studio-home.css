@@ -396,28 +396,6 @@
 @media(prefers-reduced-motion:reduce){.cg-experience-panel,.cg-experience-mug,.cg-experience-background,.cg-library-preview-image img{transition:none!important}.cg-experience-content{animation:none!important}}
 
 
-/* Audio da apresentação: reproduz apenas após clique. */
-.cg-audio-intro{display:flex;align-items:center;gap:13px;max-width:465px;min-height:78px;margin-top:23px;padding:12px 15px;border:1px solid rgba(255,142,61,.25);border-radius:16px;background:linear-gradient(110deg,rgba(37,24,14,.86),rgba(17,17,17,.93));box-shadow:0 10px 30px rgba(0,0,0,.13)}
-.cg-audio-play{display:grid;place-items:center;flex-shrink:0;width:43px;height:43px;border:0;border-radius:13px;background:#ff7b18;color:#1c0d04;cursor:pointer;transition:background .2s,transform .2s}
-.cg-audio-play:hover{background:#ffab5b;transform:translateY(-1px)}
-.cg-audio-play svg{margin-left:2px}.cg-audio-play[aria-pressed="true"] svg{margin-left:0}
-.cg-audio-info{flex:1;min-width:0}
-.cg-audio-heading{display:flex;align-items:center;gap:7px;color:#fcece0;font-size:12px;line-height:1.5}
-.cg-audio-heading svg{color:#ff9a4c;flex-shrink:0}.cg-audio-heading strong{font-weight:750}
-.cg-audio-progress-row{display:flex;align-items:center;gap:11px;margin-top:6px}
-.cg-audio-progress-row input[type="range"]{appearance:none;-webkit-appearance:none;flex:1;min-width:35px;height:5px;margin:0;border-radius:99px;background:linear-gradient(90deg,#ff7b18 0 var(--cg-audio-progress),#41362e var(--cg-audio-progress) 100%);cursor:pointer}
-.cg-audio-progress-row input[type="range"]::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;width:12px;height:12px;border:2px solid #ff7b18;border-radius:50%;background:#ffe1c8;cursor:pointer}
-.cg-audio-progress-row input[type="range"]::-moz-range-thumb{width:9px;height:9px;border:2px solid #ff7b18;border-radius:50%;background:#ffe1c8;cursor:pointer}
-.cg-audio-progress-row input[type="range"]:focus-visible{outline:2px solid #ff9a4c;outline-offset:5px}
-.cg-audio-clock{white-space:nowrap;font-variant-numeric:tabular-nums;color:#c8ada0;font-size:10px}
-.cg-audio-hint{display:block;margin-top:3px;color:#bda697;font-size:10px;line-height:1.35}
-.cg-audio-error{margin-top:6px;color:#ffb0a0;font-size:11px}
-.cg-audio-restart{display:grid;place-items:center;flex-shrink:0;color:#ccb7a8;border-radius:8px;width:25px;height:28px;cursor:pointer}.cg-audio-restart:hover{color:#fff;background:#ffffff12}
-.cg-audio-loading{font-size:9px;color:#e2b88d}
-@media(max-width:900px){.cg-audio-intro{margin-inline:auto}}
-@media(max-width:620px){.cg-audio-intro{width:100%;max-width:100%;gap:10px;padding:11px 12px;margin-top:19px;min-height:73px;text-align:left}.cg-audio-heading{font-size:11px}.cg-audio-clock{font-size:9px}.cg-audio-play{width:40px;height:40px}.cg-audio-progress-row{gap:8px}}
-@media(prefers-reduced-motion:reduce){.cg-audio-play{transition:none!important}}
-
 /* Refinamento: mascote e estampa no palco digital da hero. */
 .cg-stage-mascot{background:#15100c}
 .cg-stage-studio-photo{position:absolute;inset:0;z-index:0;background:linear-gradient(90deg,#17100acc,#2012063d 45%,#110a09bb),url('/cg-art-gallery/studio-referencia.webp') center 46%/cover no-repeat;opacity:.72;filter:saturate(.9)}

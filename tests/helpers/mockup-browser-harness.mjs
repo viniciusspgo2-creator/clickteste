@@ -41,7 +41,15 @@ export async function startStudioHarness({ noticesOnly = false } = {}) {
   await build({ stdin: { contents: entry, resolveDir: root, loader: "tsx" }, absWorkingDir: root,
     tsconfig: path.join(root, "tsconfig.json"), nodePaths: [path.join(root, "node_modules")], bundle: true,
     outfile: path.join(output, "bundle.js"), platform: "browser", format: "esm",
-    define: { "process.env.NODE_ENV": '"development"' }, logLevel: "warning" });
+    define: { "process.env.NODE_ENV": '"development"' }, logLevel: "warning",
+    plugins: [{name:"isolated-next-boundaries",setup(builder){
+      builder.onResolve({filter:/^next\/(dynamic|navigation|link)$/},args=>({path:args.path,namespace:"isolated-next"}));
+      builder.onLoad({filter:/.*/,namespace:"isolated-next"},args=>({resolveDir:root,contents:args.path==='next/dynamic'
+        ? "import React from 'react';export default function dynamic(load,options={}){const Lazy=React.lazy(()=>load().then(module=>({default:module.default||module})));return function Dynamic(props){return React.createElement(React.Suspense,{fallback:options.loading?React.createElement(options.loading):null},React.createElement(Lazy,props));};}"
+        : args.path==='next/link'
+          ? "import React from 'react';export default function Link({href,...props}){return React.createElement('a',{href,...props});}"
+          : "export function useRouter(){return {push(url){window.__studioNavigation=url;window.history.pushState(null,'',url);},replace(url){window.history.replaceState(null,'',url);},refresh(){}};}export function usePathname(){return window.location.pathname;}export function useSearchParams(){return new URLSearchParams(window.location.search);}"}));
+    }}] });
   const postcss = require("postcss"), tailwind = require("@tailwindcss/postcss");
   const from = path.join(root, "src/app/globals.css");
   const css = await postcss([tailwind({ base: root })]).process(await fs.readFile(from, "utf8"), { from });

@@ -31,14 +31,14 @@ export const HANDLE_STYLES = [
   {
     id: "heart-asymmetric",
     label: "Coração assimétrico",
-    description: "Recorte superior · azul",
+    description: "Curva contínua · recorte superior",
     path: "M22 15C32 14 32 30 37 27C71 12 76 41 54 52L22 64",
     color: "#18a6ca",
   },
   {
     id: "heart",
     label: "Coração",
-    description: "Dois arcos · rosa",
+    description: "Dois arcos · cerâmica",
     path: "M22 24C19 5 35 5 44 22C65 9 80 25 65 43L38 61C27 55 21 36 22 24",
     color: "#f67587",
   },
@@ -57,3 +57,6 @@ export function normalizeHandleStyle(value: unknown): HandleStyle {
     ? (value as HandleStyle)
     : "classic";
 }
+
+/** Retired from new selections; its ID still opens existing projects faithfully. */
+export const SELECTABLE_HANDLE_STYLES = HANDLE_STYLES.filter(style => style.id !== "livesub");

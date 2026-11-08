@@ -86,7 +86,7 @@ test('V5.17: C handle is thicker, shaped continuously, with flush inside-wall ro
  const geom=readFileSync(resolve(root,'src/components/tools/mockup/scene/mug-geometry.ts'),'utf8');
  assert.match(geom,/style === 'livesub' \? 0\.42/);
  assert.match(geom,/style === 'livesub' \? referenceHandleSection\(t\)/);
- assert.match(readFileSync(resolve(root,'src/components/tools/mockup/state/store.ts'),'utf8'),/handleStyle: "livesub"/);
+ assert.match(readFileSync(resolve(root,'src/components/tools/mockup/state/store.ts'),'utf8'),/handleStyle: "classic"/);
 });
 
 test('V5.17: font picker, editor select, design export and docs are wired to installed collection',()=>{

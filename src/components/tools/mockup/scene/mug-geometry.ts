@@ -239,13 +239,50 @@ const REFERENCE_HANDLE_POINTS: Partial<Record<HandleStyle, number[][]>> = {
   heart: [[0,7.45,-3.89],[0,7.45,-4.35],[0,8.1,-4.8],[0,8.15,-5.3],[0,7.5,-5.95],[0,6.95,-6.25],[0,7.2,-7.15],[0,6.85,-7.95],[0,5.9,-8.12],[0,4.75,-7.45],[0,3.65,-6.15],[0,2.8,-5.2],[0,3.15,-4.75],[0,3.65,-4.35],[0,3.65,-3.89]],
   "oval-gold": [[0,8,-3.89],[0,8,-4.65],[0,7.6,-5.65],[0,6.4,-6.45],[0,4.9,-6.65],[0,3.4,-6.3],[0,2.2,-5.35],[0,1.95,-4.55],[0,1.95,-3.89]],
 };
-const getHandleCurve = (style: HandleStyle) =>
-  new THREE.CatmullRomCurve3(
+/** Continuous cubic shoulders avoid pinching at the heart's upper notch. */
+function asymmetricHeartCurve() {
+  const path = new THREE.CurvePath<THREE.Vector3>();
+  const point = (y: number, z: number) => new THREE.Vector3(0, y, z);
+  let start = point(8, -3.89);
+  const segments = [
+    [8, -4.3, 7.9, -4.55, 7.45, -4.85],
+    [7.15, -5.05, 6.75, -5.10, 6.72, -5.35],
+    [6.69, -5.60, 7.0, -6.15, 6.98, -6.8],
+    [6.96, -7.65, 6.15, -7.95, 5.4, -7.55],
+    [4.45, -7.04, 3.75, -6.20, 3.2, -5.45],
+    [2.65, -4.70, 2.35, -4.4, 2.35, -3.89],
+  ];
+  for (const [ay, az, by, bz, cy, cz] of segments) {
+    const end = point(cy, cz);
+    const curve = new THREE.CubicBezierCurve3(start, point(ay, az), point(by, bz), end);
+    curve.arcLengthDivisions = 300;
+    path.add(curve);
+    start = end;
+  }
+  return path;
+}
+const getHandleCurve = (style: HandleStyle) => {
+  if (style === "heart-asymmetric") return asymmetricHeartCurve();
+  const curve = new THREE.CatmullRomCurve3(
     (REFERENCE_HANDLE_POINTS[style] ?? (style === "rounded" ? ROUNDED_HANDLE_POINTS : HANDLE_POINTS))
-      .map((p) => new THREE.Vector3(p[0], p[1], p[2])),
-    false,
-    "centripetal",
+      .map((p) => new THREE.Vector3(p[0], p[1], p[2])), false, "centripetal",
   );
+  curve.arcLengthDivisions = 1000;
+  return curve;
+};
+
+/** Rejoin duplicate angular vertices after normal recomputation or deformation. */
+export function smoothHandleSeamNormals(geometry: THREE.BufferGeometry) {
+  const normals = geometry.getAttribute("normal");
+  const average = new THREE.Vector3(), other = new THREE.Vector3();
+  for (let i = 0; i <= 144; i++) {
+    const a = i * 41, b = a + 40;
+    average.fromBufferAttribute(normals, a).add(other.fromBufferAttribute(normals, b)).normalize();
+    normals.setXYZ(a, average.x, average.y, average.z);
+    normals.setXYZ(b, average.x, average.y, average.z);
+  }
+  normals.needsUpdate = true;
+}
 export const HANDLE_A_X = 0.66;
 export const HANDLE_B_N = 0.52;
 export function handleExtentR(): number {
@@ -257,7 +294,7 @@ export function buildHandleGeometry(style: HandleStyle = "classic"): THREE.Buffe
   const rounded = style !== "classic";
   const sectionX = style === 'livesub' ? 0.46 : style === "heart" || style === "heart-asymmetric" ? 0.42 : style === "oval-gold" ? 0.49 : rounded ? 0.58 : HANDLE_A_X;
   const sectionN = style === 'livesub' ? 0.42 : style === "heart" || style === "heart-asymmetric" ? 0.42 : style === "spoon" ? 0.39 : HANDLE_B_N;
-  const weldStrength = style === 'livesub' ? 0.06 : style === "heart" || style === "heart-asymmetric" ? 0.45 : 0.72;
+  const weldStrength = style === 'livesub' ? 0.06 : style === "heart" || style === "heart-asymmetric" ? 0.30 : 0.56;
   const tubular = 144,
     radial = 40,
     ring = radial + 1;
@@ -330,17 +367,7 @@ export function buildHandleGeometry(style: HandleStyle = "classic"): THREE.Buffe
     n = geo.getAttribute("normal");
   const normal = new THREE.Vector3(),
     ceramicNormal = new THREE.Vector3();
-  for (let i = 0; i <= tubular; i++) {
-    // Fecha a costura da seção sem uma linha de brilho longitudinal.
-    const a = i * ring,
-      b = a + radial;
-    normal
-      .fromBufferAttribute(n, a)
-      .add(new THREE.Vector3().fromBufferAttribute(n, b))
-      .normalize();
-    n.setXYZ(a, normal.x, normal.y, normal.z);
-    n.setXYZ(b, normal.x, normal.y, normal.z);
-  }
+  smoothHandleSeamNormals(geo);
   for (let i = 0; i < p.count; i++) {
     const r = Math.hypot(p.getX(i), p.getZ(i));
     const blend =

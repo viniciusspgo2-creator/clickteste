@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { writeHandoff } from "@/lib/creative/handoff";
 import { trimTransparentMockup } from "@/lib/creative/transparent-crop";
 import { FinalPreviewViewer } from "./final-preview-viewer";
+import "./export-dialog.css";
 import {
   ImagePlus,
   Settings2,
@@ -1495,54 +1496,56 @@ export function CameraPanel() {
 
 type ExportTab = "imagem" | "video" | "gif" | "lote" | "folha";
 
-const EXPORT_TABS: { id: ExportTab; label: string }[] = [
-  { id: "imagem", label: "Imagem" },
-  { id: "video", label: "Vídeo" },
-  { id: "gif", label: "GIF" },
-  { id: "lote", label: "Lote" },
-  { id: "folha", label: "Folha" },
-];
+const EXPORT_TABS = [
+  { id: "imagem", label: "Imagem", detail: "Enviar ao cliente", icon: ImagePlus },
+  { id: "video", label: "Vídeo", detail: "Mostrar em movimento", icon: Play },
+  { id: "gif", label: "GIF", detail: "Animação em loop", icon: RotateCw },
+  { id: "lote", label: "Lote de imagens", detail: "Vários ângulos em ZIP", icon: Grid3X3 },
+  { id: "folha", label: "Folha de sublimação", detail: "Preparar a impressão", icon: CupSoda },
+] as const;
 
 export function ExportDialog() {
   const open = useMockupStore((s) => s.exportOpen);
   const setOpen = useMockupStore((s) => s.setExportOpen);
   const [tab, setTab] = useState<ExportTab>("imagem");
+  const selected = EXPORT_TABS.find((item) => item.id === tab)!;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-h-[88dvh] overflow-y-auto border-white/10 bg-[#141110] text-neutral-100 sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="font-display flex items-center gap-2">
-            <Download className="h-4 w-4 text-primary" /> Exportar
-          </DialogTitle>
-          <DialogDescription className="text-xs text-neutral-400">
-            Imagens em alta resolução, vídeo em MP4 ou WebM com ALFA, GIF
-            animado, lote em ZIP e a folha de sublimação.
-          </DialogDescription>
+      <DialogContent className="cg-export-dialog">
+        <DialogHeader className="cg-export-heading">
+          <div className="cg-export-eyebrow"><Download size={14} /> SEU PROJETO, PRONTO PARA SAIR</div>
+          <DialogTitle className="font-display">Exportar criação</DialogTitle>
+          <DialogDescription>Escolha o que você precisa. Confira o resultado e baixe seu arquivo.</DialogDescription>
         </DialogHeader>
-
-        <div className="mb-1 flex gap-1 rounded-xl border border-white/10 bg-black/30 p-1">
-          {EXPORT_TABS.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={cn(
-                "flex-1 rounded-lg px-1.5 py-2 text-[13px] font-bold transition-all",
-                tab === t.id
-                  ? "bg-primary text-[#1d130d] shadow-sm"
-                  : "text-neutral-400 hover:bg-white/5 hover:text-neutral-200",
-              )}
-            >
-              {t.label}
+        <div className="cg-export-types" role="tablist" aria-label="Tipo de exportação"
+          onKeyDown={(event) => {
+            const index = EXPORT_TABS.findIndex((item) => item.id === tab);
+            const next = event.key === "ArrowRight" ? (index + 1) % EXPORT_TABS.length
+              : event.key === "ArrowLeft" ? (index + EXPORT_TABS.length - 1) % EXPORT_TABS.length
+                : event.key === "Home" ? 0 : event.key === "End" ? EXPORT_TABS.length - 1 : -1;
+            if (next < 0) return;
+            event.preventDefault();
+            setTab(EXPORT_TABS[next].id);
+            event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus();
+          }}>
+          {EXPORT_TABS.map(({ id, label, detail, icon: Icon }) => (
+            <button type="button" key={id} role="tab" id={`cg-export-tab-${id}`}
+              aria-selected={tab === id} aria-controls="cg-export-content" tabIndex={tab === id ? 0 : -1}
+              onClick={() => setTab(id)}>
+              <Icon size={19} /><span><strong>{label}</strong><small>{detail}</small></span>
             </button>
           ))}
         </div>
-
-        {tab === "imagem" && <ImageTab />}
-        {tab === "video" && <VideoTab />}
-        {tab === "gif" && <GifTab />}
-        {tab === "lote" && <BatchTab />}
-        {tab === "folha" && <TemplateTab />}
+        <div id="cg-export-content" className={`cg-export-content cg-export-content--${tab}`} role="tabpanel"
+          aria-labelledby={`cg-export-tab-${tab}`} tabIndex={0}>
+          {tab !== "imagem" && <div className="cg-export-section-heading"><selected.icon size={20} /><div><h3>{selected.label}</h3><p>{selected.detail}. Ajuste as opções abaixo para gerar o arquivo.</p></div></div>}
+          {tab === "imagem" && <ImageTab />}
+          {tab === "video" && <VideoTab />}
+          {tab === "gif" && <GifTab />}
+          {tab === "lote" && <BatchTab />}
+          {tab === "folha" && <TemplateTab />}
+        </div>
       </DialogContent>
     </Dialog>
   );
@@ -1727,29 +1730,24 @@ function ImageTab() {
     } finally { setSending(false); }
   };
 
-  const tooBig = width > MAX_EXPORT_PX || height > MAX_EXPORT_PX;
+  const tooBig = !Number.isFinite(width) || !Number.isFinite(height) || width < 1 || height < 1 || width > MAX_EXPORT_PX || height > MAX_EXPORT_PX;
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-2 rounded-xl border border-primary/25 bg-primary/5 p-3" aria-label="Prévia da exportação">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-sm font-semibold">Prévia do mockup</p>
-          <span className="text-xs text-neutral-400">{width} × {height} px</span>
+    <div className="cg-export-image">
+      <div className="cg-export-preview" aria-label="Prévia da exportação">
+        <div className="cg-export-preview-title"><strong>{preview ? "Arquivo final" : "Prévia da composição"}</strong><span>{es.format.toUpperCase()} · {width} × {height} px</span></div>
+        <div className="cg-export-preview-surface" aria-busy={busy || draftBusy}>
+          {(previewUrl || draftUrl) && <img src={previewUrl || draftUrl!}
+            alt={previewUrl ? "Pré-visualização exata da imagem que será exportada" : "Prévia do mockup com o fundo e o enquadramento da exportação"} />}
+          {(busy || (!preview && draftBusy)) && <div className="cg-export-preview-loading" role="status"><Loader2 className="h-4 w-4 animate-spin" />{busy ? "Preparando arquivo em alta resolução…" : "Atualizando prévia…"}</div>}
+          {!previewUrl && !draftUrl && !draftBusy && !busy && <p role="status">{draftError || "Escolha um tamanho para visualizar sua composição."}</p>}
         </div>
-        <div className="relative flex min-h-48 items-center justify-center overflow-hidden rounded-lg p-2"
-          style={{ background: 'repeating-conic-gradient(#dfdfda 0% 25%, #f5f5f1 0% 50%) 50% / 20px 20px' }} aria-busy={draftBusy}>
-          {draftUrl && <img src={draftUrl}
-            alt="Prévia do mockup com o fundo e o enquadramento da exportação"
-            className="max-h-64 max-w-full object-contain" />}
-          {draftBusy && <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/45 text-sm text-white" role="status">
-            <Loader2 className="h-4 w-4 animate-spin" />Atualizando prévia…
-          </div>}
-          {!draftUrl && !draftBusy && <p className="max-w-xs text-center text-xs text-neutral-700" role="status">
-            {draftError || "Escolha um tamanho válido para visualizar a composição."}
-          </p>}
+        <div className="cg-export-preview-caption">
+          <p>{preview ? `Arquivo conferido · ${(preview.blob.size / 1024 / 1024).toFixed(2)} MB. O download terá exatamente esta imagem.` : "A composição se adapta ao tamanho escolhido. Gere o arquivo final para conferir todos os detalhes antes de baixar."}</p>
+          {preview && <FinalPreviewViewer result={preview} />}
         </div>
-        <p className="text-xs leading-relaxed text-neutral-400">A prévia atualiza com o tamanho e o fundo escolhidos. Use Pré-visualizar exportação para conferir o arquivo final em alta resolução.</p>
       </div>
+      <div className="cg-export-options">
       <div className="space-y-3 rounded-xl border border-primary/25 bg-primary/5 p-3">
         <label
           className="block text-sm font-semibold"
@@ -1766,12 +1764,12 @@ function ImageTab() {
         >
           <option value="social">WhatsApp / Redes · quadrado 1:1</option>
           <option value="story">Stories / Reels · vertical 9:16</option>
-          <option value="print">Alta resolução Print · 300 DPI</option>
+          <option value="print">Alta resolução · PNG 300 DPI</option>
           <option value="custom">Personalizado / outros formatos</option>
         </select>
         <p className="text-xs leading-relaxed text-neutral-400">
           {destination === "print"
-            ? "PNG de 3000 × 3000 px com resolução de 300 DPI gravada no arquivo (25,4 × 25,4 cm)."
+            ? "Mockup de 3000 × 3000 px, a 300 DPI. Para imprimir a estampa aberta, escolha Folha de sublimação."
             : destination === "story"
               ? "Imagem vertical de 1080 × 1920 px para suas redes."
               : destination === "social"
@@ -1931,62 +1929,29 @@ function ImageTab() {
         <WatermarkBox wm={wm} patch={patch} />
       </Section>
 
-      <p className="text-xs text-neutral-400">Enquadramento automático: a exportação adapta a câmera à proporção escolhida para incluir as peças. Confira a prévia final antes de baixar.</p>
-      <div className="flex items-center justify-between rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-[13px]">
-        <span className="text-neutral-400">
-          Saída:{" "}
-          <strong className="text-neutral-100">
-            {width} × {height} px
-          </strong>
-        </span>
-        <span className="text-neutral-500">≈ {estimate}</span>
+      <details className="cg-export-editor-link">
+        <summary>Continuar a criação no Editor de Artes</summary>
+        <p>Leve a composição em PNG transparente para montar uma apresentação. A transferência acontece neste navegador.</p>
+        <button type="button" onClick={() => void sendToEditor()} disabled={busy || sending}>
+          {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+          {sending ? "Transferindo composição..." : "Enviar mockup para o Editor de Artes"}
+        </button>
+      </details>
+      {!art.imageId && <p className="cg-export-warning"><TriangleAlert size={15} />A caneca está sem arte. Você pode continuar ou adicionar sua estampa.</p>}
+      {tooBig && <p className="cg-export-warning" role="alert"><TriangleAlert size={15} />Escolha medidas válidas, até {MAX_EXPORT_PX} px por lado.</p>}
       </div>
-
-      {!art.imageId && (
-        <p className="flex items-center gap-1.5 text-[13px] text-amber-400">
-          <TriangleAlert className="h-3.5 w-3.5" /> A caneca está sem arte —
-          envie uma imagem ou use o exemplo.
-        </p>
-      )}
-      {tooBig && (
-        <p className="flex items-center gap-1.5 text-[13px] text-red-400">
-          <TriangleAlert className="h-3.5 w-3.5" /> Reduza a escala: máximo de{" "}
-          {MAX_EXPORT_PX} px por lado.
-        </p>
-      )}
-
-      {preview && previewUrl && <div className="space-y-3 rounded-xl border border-primary/25 bg-primary/5 p-3">
-        <p className="text-sm font-semibold">Confira a imagem antes de baixar</p>
-        <div className="flex min-h-40 items-center justify-center overflow-hidden rounded-lg" style={{ background: 'repeating-conic-gradient(#dfdfda 0% 25%, #f5f5f1 0% 50%) 50% / 20px 20px' }}>
-          <img src={previewUrl} alt="Pré-visualização exata da imagem que será exportada" className="max-h-80 max-w-full object-contain" />
-        </div>
-        <p className="text-xs text-neutral-400">{preview.width} × {preview.height} px · {(preview.blob.size / 1024 / 1024).toFixed(2)} MB. O download terá exatamente esta imagem, com o fundo e o enquadramento exibidos.</p>
-        <FinalPreviewViewer result={preview} />
-        <PrimaryButton className="w-full" onClick={() => {
+      <div className="cg-export-actionbar">
+        <div><strong>{preview ? "Pronto para baixar" : "Tudo pronto para conferir?"}</strong><span>{width} × {height} px · {es.format.toUpperCase()}{es.dpi ? ` · ${es.dpi} DPI` : ""} · {preview ? `${(preview.blob.size / 1024 / 1024).toFixed(2)} MB` : `≈ ${estimate}`}</span></div>
+        {preview ? <PrimaryButton disabled={sending} onClick={() => {
           downloadBlob(preview.blob, preview.filename);
           toast({ title: "Imagem exportada!", description: `${preview.width} × ${preview.height} px · arquivo conferido na prévia.` });
           setOpen(false);
         }}><Download className="h-4 w-4" />Confirmar e baixar imagem</PrimaryButton>
-      </div>}
-
-      <button type="button" onClick={() => void sendToEditor()} disabled={busy || sending}
-        className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#e67f2c]/50 bg-[#422719] px-4 py-3 text-sm font-bold text-[#ffad68] transition-colors hover:bg-[#59321f] disabled:opacity-40">
-        {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-        {sending ? "Transferindo composição..." : "Enviar mockup para o Editor de Artes"}
-      </button>
-      <p className="text-xs text-neutral-500">A caneca é transferida em PNG transparente pelo próprio navegador, sem upload para o servidor. As margens transparentes são recortadas automaticamente para facilitar o encaixe nos templates.</p>
-      <PrimaryButton
-        onClick={doExport}
-        disabled={busy || tooBig}
-        className="w-full"
-      >
-        {busy ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <Sparkles className="h-4 w-4" />
-        )}
-        {busy ? "Preparando a prévia…" : preview ? "Atualizar pré-visualização" : "Pré-visualizar exportação"}
-      </PrimaryButton>
+          : <PrimaryButton onClick={doExport} disabled={busy || sending || tooBig}>
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            {busy ? "Preparando a prévia…" : "Pré-visualizar exportação"}
+          </PrimaryButton>}
+      </div>
     </div>
   );
 }
