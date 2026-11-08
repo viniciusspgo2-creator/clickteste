@@ -93,11 +93,11 @@ test("actual body and reference handle bounds fit lateral, top and perspective v
   }
 });
 
-test("the thin C stays loadable for saved projects and is absent from new selections", () => {
+test("retired thin C and heart stay loadable for saved projects and are absent from new selections", () => {
   const {SELECTABLE_HANDLE_STYLES, normalizeHandleStyle} = require('../src/components/tools/mockup/lib/handle-styles.ts');
   assert.equal(normalizeHandleStyle('livesub'), 'livesub');
-  assert.equal(SELECTABLE_HANDLE_STYLES.length, 6);
-  assert.equal(SELECTABLE_HANDLE_STYLES.some(style => style.id === 'livesub'), false);
+  assert.equal(SELECTABLE_HANDLE_STYLES.length, 5);
+  for(const id of ['livesub','heart'])assert.equal(SELECTABLE_HANDLE_STYLES.some(style=>style.id===id),false);
   for (const id of ['classic', 'rounded']) assert.ok(SELECTABLE_HANDLE_STYLES.some(style => style.id === id));
   const model = buildModel('classic', normalizeHandleStyle('livesub'));
   assert.ok(model.handle.boundingBox.max.y > 7);

@@ -77,6 +77,7 @@ import { BaseArtPanel } from "./base-art-panel";
 import { OutputFormatControl } from "./output-format-control";
 import { PrintLayersPanel } from "./print-layers-panel";
 import { HDRIPanel } from "./hdri-panel";
+import { SceneFraming } from "./scene-framing";
 import { PremiumBackgrounds } from "./premium-backgrounds";
 import { saveCurrentProject } from "./projects-dialog";
 import { exportImage, downloadBlob } from "../exporters/image-exporter";
@@ -240,6 +241,8 @@ export function Workspace({
     st.patchObjectArt(active, p);
   }
   function openGuideAction(action: GuideAction) {
+    if (action === "save") { st.setProjectsOpen(true); return; }
+    if (action === "backgrounds" || action === "camera") { setAdvanced(true); setStageFocus(false); setTab(action); setDrawer("library"); return; }
     if (action === "upload") { onUpload(); return; }
     if (action === "export") { st.setExportOpen(true); return; }
     if (action === "move") { st.setTool("move"); setDrawer(null); return; }
@@ -534,6 +537,7 @@ export function Workspace({
                   ))}
                 </div>
               </Section>
+              <SceneFraming />
               <PremiumBackgrounds notify={notify} />
               <ScenePanel />
               <ShadowPresets />
@@ -822,6 +826,7 @@ export function Workspace({
           )}
           {tab === "scene" && (
             <>
+              <SceneFraming />
               <PremiumBackgrounds notify={notify} />
               <ScenePanel />
             </>
@@ -1334,7 +1339,8 @@ export function Workspace({
       {conciergeOpen&&<StudioConcierge area="studio" onClose={()=>setConciergeOpen(false)} onAction={a=>{
         if(a==='guides'){st.setShowGuides(true);return true;}
         if(a==='export'){st.setExportOpen(true);return true;}
-        const areas:Record<string,Tab>={arts:'arts',base:'base',models:'models',light:'light',camera:'camera',effects:'effects',compose:'compose',backgrounds:'backgrounds'};
+        if(a==='projects'){st.setProjectsOpen(true);return true;}
+        const areas:Record<string,Tab>={arts:'arts',base:'base',models:'models',light:'light',camera:'camera',effects:'effects',compose:'compose',backgrounds:'backgrounds',scene:'backgrounds',layers:'layers'};
         const matched=areas[a];
         if(matched){setTab(matched);setAdvanced(true);setStageFocus(false);setDrawer('library');return true;}
         return false;

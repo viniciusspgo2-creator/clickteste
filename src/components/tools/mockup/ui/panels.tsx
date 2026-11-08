@@ -11,6 +11,8 @@ import { writeHandoff } from "@/lib/creative/handoff";
 import { trimTransparentMockup } from "@/lib/creative/transparent-crop";
 import { FinalPreviewViewer } from "./final-preview-viewer";
 import "./export-dialog.css";
+import { MotionPreview } from "./motion-preview";
+import { SceneFraming } from "./scene-framing";
 import {
   ImagePlus,
   Settings2,
@@ -1554,6 +1556,7 @@ export function ExportDialog() {
 /* ---------- aba imagem ---------- */
 
 function ImageTab() {
+  const presentationZoom = useMockupStore(s=>s.zoom);
   const router = useRouter();
   const [sending, setSending] = useState(false);
   const es = useMockupStore((s) => s.exportSettings);
@@ -1662,7 +1665,7 @@ function ImageTab() {
       });
     }, 350);
     return () => { cancelled = true; window.clearTimeout(timer); };
-  }, [width, height, es.format, es.quality, background, wm, sceneBackground, enqueueRender]);
+  }, [width, height, es.format, es.quality, background, wm, sceneBackground, es.framing, presentationZoom, enqueueRender]);
 
   const estimate = useMemo(() => {
     const px = width * height;
@@ -1737,7 +1740,7 @@ function ImageTab() {
       <div className="cg-export-preview" aria-label="Prévia da exportação">
         <div className="cg-export-preview-title"><strong>{preview ? "Arquivo final" : "Prévia da composição"}</strong><span>{es.format.toUpperCase()} · {width} × {height} px</span></div>
         <div className="cg-export-preview-surface" aria-busy={busy || draftBusy}>
-          {(previewUrl || draftUrl) && <img src={previewUrl || draftUrl!}
+          {(previewUrl || draftUrl) && <img draggable={false} onDragStart={event=>event.preventDefault()} src={previewUrl || draftUrl!}
             alt={previewUrl ? "Pré-visualização exata da imagem que será exportada" : "Prévia do mockup com o fundo e o enquadramento da exportação"} />}
           {(busy || (!preview && draftBusy)) && <div className="cg-export-preview-loading" role="status"><Loader2 className="h-4 w-4 animate-spin" />{busy ? "Preparando arquivo em alta resolução…" : "Atualizando prévia…"}</div>}
           {!previewUrl && !draftUrl && !draftBusy && !busy && <p role="status">{draftError || "Escolha um tamanho para visualizar sua composição."}</p>}
@@ -1793,6 +1796,7 @@ function ImageTab() {
           })
         }
       />
+      <SceneFraming compact />
       <Section
         key={destination === "custom" ? "custom" : "preset"}
         title="Avançado: tamanho e formato"
@@ -2049,8 +2053,11 @@ function VideoTab() {
   const [progress, setProgress] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
   const isMagic = mug.variant === "magic";
+  const previewStop = useRef<(() => void) | null>(null);
+  const framing = useMockupStore(s=>s.exportSettings.framing);
 
   const doExport = async () => {
+    previewStop.current?.();
     setBusy(true);
     setProgress(0);
     abortRef.current = new AbortController();
@@ -2089,7 +2096,10 @@ function VideoTab() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="cg-motion-export">
+      <MotionPreview video={video} framing={framing} enabled={!busy} stopRef={previewStop} />
+      <div className="cg-export-options space-y-4">
+      <SceneFraming compact />
       <Segmented
         label="Movimento"
         value={video.anim}
@@ -2291,6 +2301,7 @@ function VideoTab() {
           ? "WebM com ALFA • processamento no seu dispositivo. Se o navegador não for compatível, avisaremos antes de gerar."
           : "MP4 quando disponível; WebM em outros navegadores. Sem upload, tudo no seu dispositivo."}
       </p>
+      </div>
     </div>
   );
 }

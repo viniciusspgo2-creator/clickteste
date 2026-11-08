@@ -113,6 +113,9 @@ export function StudioLights() {
 
   // The PMREM capture must follow every control that affects the softboxes.
   const hdr = getEnvironment(light.hdriId)?.texture;
+  // Release inactive GPU allocations. The registry retains the texture data;
+  // Three uploads it again when a saved/previous environment is reused.
+  useEffect(() => () => hdr?.dispose(), [hdr]);
   const envKey = [preset.id, light.rotation, light.intensity, light.temperature,
     light.keyStrength ?? 1, light.fillStrength ?? 1, light.rimStrength ?? 1,
     light.softness].join(":");
@@ -333,7 +336,7 @@ export function Backdrop() {
     uDir: { value: uDir },
   };
 
-  if (bg.type === "transparent" || bg.type === "image") return null;
+  if (bg.type === "transparent" || bg.type === "image" || (bg.panorama && bg.type === "studio-white")) return null;
 
   return (
     <>

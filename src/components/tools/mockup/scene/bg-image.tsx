@@ -208,6 +208,7 @@ export function ImageBackdrop() {
   }, [material, texture, entry, bg]);
 
   useFrame(() => {
+    if (studioRefs.exporting) return;
     // eslint-disable-next-line react-hooks/immutability -- mesh é um objeto three.js
     mesh.visible =
       !!texture && bg.type === "image" && !studioRefs.exportTransparent;

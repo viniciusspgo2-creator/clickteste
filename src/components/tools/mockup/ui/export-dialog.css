@@ -82,3 +82,15 @@
 @media (prefers-reduced-motion: reduce) { .cg-export-dialog, .cg-export-dialog * { animation: none !important; transition: none !important; } }
 .cg-export-dialog .cg-control-section { border-radius: 8px; background: #20242d; border-color: #ffffff16; }
 .cg-export-dialog .cg-control-section > button > span { color: #d1d6e0; font-size: 11px; letter-spacing: .04em; }
+.cg-export-dialog .cg-framing-presets { display:flex; flex-wrap:wrap; gap:6px; }
+.cg-export-dialog .cg-framing-presets button { flex:1; border:1px solid #ffffff20; border-radius:6px; padding:7px 4px; font-size:11px; }
+.cg-export-dialog .cg-hint { color:#a9afbd; font-size:12px; line-height:1.6; }
+.cg-motion-export { display:grid; grid-template-columns:minmax(0,1fr) 375px; }
+.cg-export-content--video { padding:0!important; }
+.cg-export-content--video > .cg-export-section-heading { margin:0; max-width:none; padding:18px 24px; }
+.cg-motion-preview canvas { width:100%; height:100%; object-fit:contain; }
+.cg-motion-controls { display:flex; align-items:center; gap:8px; margin-top:14px; }
+.cg-motion-controls button { display:flex; align-items:center; justify-content:center; gap:7px; padding:10px 13px; border:1px solid #ffffff20; border-radius:7px; font-size:12px; }
+.cg-motion-controls button:first-child { color:#ffb47b; background:#ff862512; border-color:#ff933b60; }
+.cg-motion-caption { font-size:12px; line-height:1.65; color:#a9afbd; margin-top:14px; }
+@media(max-width:760px){.cg-motion-export{grid-template-columns:1fr}.cg-motion-controls{flex-wrap:wrap}}

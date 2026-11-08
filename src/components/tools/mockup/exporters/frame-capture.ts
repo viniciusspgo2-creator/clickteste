@@ -51,6 +51,14 @@ export interface FrameSession {
   oldClearColor: THREE.Color;
   oldClearAlpha: number;
   oldControlsEnabled?: boolean;
+  oldRenderTarget: THREE.WebGLRenderTarget | null;
+  oldViewport: THREE.Vector4;
+  oldScissor: THREE.Vector4;
+  oldScissorTest: boolean;
+  oldAutoClear: boolean;
+  oldOverrideMaterial: THREE.Material | null;
+  textureSwaps: { material: THREE.MeshPhysicalMaterial; original: THREE.Texture; temporary: THREE.CanvasTexture }[];
+  ended: boolean;
   usingWhite: boolean;
   tex: THREE.CanvasTexture | null;
   previewCanvas: HTMLCanvasElement | null; // canvas original de preview (restaurado no fim)
@@ -203,6 +211,14 @@ export function beginFrames(
     oldClearColor: gl.getClearColor(new THREE.Color()),
     oldClearAlpha: gl.getClearAlpha(),
     oldControlsEnabled: studioRefs.controls?.enabled,
+    oldRenderTarget: gl.getRenderTarget(),
+    oldViewport: gl.getViewport(new THREE.Vector4()),
+    oldScissor: gl.getScissor(new THREE.Vector4()),
+    oldScissorTest: gl.getScissorTest(),
+    oldAutoClear: gl.autoClear,
+    oldOverrideMaterial: scene.overrideMaterial,
+    textureSwaps: [],
+    ended: false,
     tex: null,
     previewCanvas: null,
     artCanvas: null,
@@ -230,8 +246,7 @@ export function beginFrames(
       material?.map &&
       (material.map as THREE.CanvasTexture).isCanvasTexture
     ) {
-      session.tex = material.map as THREE.CanvasTexture;
-      session.previewCanvas = session.tex.image as HTMLCanvasElement;
+      session.previewCanvas = material.map.image as HTMLCanvasElement;
       const canvas = document.createElement("canvas");
       canvas.width = Math.min(
         gl.capabilities.maxTextureSize || 4096,
@@ -244,8 +259,7 @@ export function beginFrames(
       );
       renderWithOverride(canvas, session.mugOverride);
       session.artCanvas = canvas;
-      session.tex.image = canvas;
-      session.tex.needsUpdate = true;
+      session.tex = installExportTexture(session, material!, canvas);
     }
     group?.traverse((o) => {
       const mesh = o as THREE.Mesh;
@@ -267,15 +281,15 @@ export function beginFrames(
         Math.min(gl.capabilities.maxTextureSize || 4096, CANVAS_W_EXPORT);
       canvas.height = canvasHeightFor(canvas.width, undefined, mug.model);
       renderArtCanvas(canvas, art, mug);
+      const exportTexture = installExportTexture(session, mat, canvas);
       session.companionTextures.push({
-        tex,
+        tex: exportTexture,
         preview: tex.image as HTMLCanvasElement,
         canvas,
         art,
         mug,
       });
-      tex.image = canvas;
-      tex.needsUpdate = true;
+
     });
     const bases: THREE.Mesh[] = [];
     group?.traverse(o => { if (o.name === "mug-base-print" && o.visible) bases.push(o as THREE.Mesh); });
@@ -287,8 +301,8 @@ export function beginFrames(
       const art = companion?.art ?? st.art;
       const canvas = renderBaseArt(art, { ...st.mug, ...companion } as MugState, baseSide);
       if (!canvas) continue;
-      session.baseTextures.push({ tex, preview: tex.image as HTMLCanvasElement });
-      tex.image = canvas; tex.needsUpdate = true;
+      const temporary = installExportTexture(session, mesh.material as THREE.MeshPhysicalMaterial, canvas);
+      session.baseTextures.push({ tex: temporary, preview: tex.image as HTMLCanvasElement });
     }
     const hide = (o: THREE.Object3D | undefined) => {
       if (o?.visible) {
@@ -309,7 +323,7 @@ export function beginFrames(
     }
     if (session.usingTransparent || session.usingWhite) {
       scene.background = session.usingWhite ? new THREE.Color("#ffffff") : null;
-      for (const name of ["backdrop", "glowboard", "bg-image"])
+      for (const name of ["backdrop", "glowboard", "bg-image", "environment-backdrop"])
         hide(scene.getObjectByName(name));
       if (session.usingTransparent) hide(scene.getObjectByName("pedestal"));
       if (
@@ -325,6 +339,9 @@ export function beginFrames(
         session.ground.material = session.shadowMat;
       }
     }
+    gl.setRenderTarget(null);
+    gl.setScissorTest(false);
+    scene.overrideMaterial = null;
     gl.setPixelRatio(1);
     gl.setSize(session.ssWidth, session.ssHeight, false);
     gl.setClearColor(
@@ -336,6 +353,20 @@ export function beginFrames(
     endFrames(session);
     throw e;
   }
+}
+
+/** A different-sized canvas needs its own Source and GPU allocation. Never resize
+ * the live texture's image: WebGL2 immutable storage may retain/reuse wrong pixels. */
+function installExportTexture(session: FrameSession, material: THREE.MeshPhysicalMaterial, canvas: HTMLCanvasElement) {
+  const original = material.map!;
+  const temporary = new THREE.CanvasTexture(canvas);
+  temporary.copy(original as THREE.CanvasTexture);
+  temporary.source = new THREE.Source(canvas);
+  temporary.needsUpdate = true;
+  session.textureSwaps.push({ material, original, temporary });
+  material.map = temporary;
+  material.needsUpdate = true;
+  return temporary;
 }
 
 /** renderiza a folha em alta resolução com overrides aplicados */
@@ -380,6 +411,12 @@ export function fitCamera(session: FrameSession): THREE.PerspectiveCamera {
   const cam2 = refCam.clone();
   cam2.aspect = session.width / session.height;
   cam2.updateProjectionMatrix();
+  // The optional close-up preserves the user's zoom and composition. Automatic
+  // framing stays the default and protects the entire group from cropping.
+  if (useMockupStore.getState().exportSettings.framing === "current") {
+    cam2.updateMatrixWorld();
+    return cam2;
+  }
 
   const viewDir = new THREE.Vector3()
     .subVectors(center, refCam.position)
@@ -443,6 +480,8 @@ export function renderFrame(
   session: FrameSession,
   cam: THREE.PerspectiveCamera,
 ) {
+  if (session.ended) throw new ExportError("A captura já foi encerrada.");
+  session.gl.setRenderTarget(null);
   // fundo imagem acompanha a câmera que renderiza (encaixe por quadro)
   alignBackdrop(session.scene, cam);
   const composer = studioRefs.composer;
@@ -527,52 +566,47 @@ export function applyWatermark(
 /** restaura o estado completo do renderer */
 export function endFrames(session: FrameSession) {
   const { gl, scene } = session;
-  studioRefs.exporting = false;
-  studioRefs.exportTransparent = false;
-  // pede o refresh assistido da folha nos próximos frames — cobre a queda/
-  // restauração assíncrona do contexto WebGL durante a exportação
-  studioRefs.artRefreshFrames = 45;
-  if (session.tex && session.previewCanvas) {
-    // REDESENHA a folha de preview do estado atual antes de devolver a
-    // textura — à prova de contexto WebGL perdido/restaurado durante a
-    // exportação (a caneca nunca fica branca depois de exportar) e de
-    // qualquer mudança de estado que tenha passado durante o processo.
-    try {
-      renderWithOverride(session.previewCanvas, {});
-    } catch {
-      /* estado indisponível: mantém o conteúdo atual do canvas */
+  if (session.ended) return;
+  session.ended = true;
+  try {
+    // Restore the original material maps first; temporary Sources never touch them.
+    for (const { material, original, temporary } of session.textureSwaps) {
+      if (material.map === temporary) { material.map = original; material.needsUpdate = true; }
+      temporary.dispose();
     }
-    session.tex.image = session.previewCanvas;
-    session.tex.needsUpdate = true;
-  }
-  for (const item of session.baseTextures) {
-    item.tex.image = item.preview; item.tex.needsUpdate = true;
-  }
-  session.baseTextures = [];
-  for (const item of session.companionTextures) {
-    item.tex.image = item.preview;
-    item.tex.needsUpdate = true;
-  }
-  if (session.usingTransparent || session.usingWhite)
-    scene.background = session.oldBg;
-  for (const o of session.hidden) o.visible = true;
-  if (session.ground && session.oldGroundMat)
-    session.ground.material = session.oldGroundMat;
-  session.shadowMat?.dispose();
-  gl.setPixelRatio(session.oldPR);
-  gl.setSize(session.oldSize.x, session.oldSize.y, false);
-  gl.setClearColor(session.oldClearColor, session.oldClearAlpha);
-  if (studioRefs.controls && session.oldControlsEnabled !== undefined)
-    studioRefs.controls.enabled = session.oldControlsEnabled;
-  const cam = studioRefs.camera;
-  if (cam && studioRefs.renderPass) studioRefs.renderPass.camera = cam;
-  if (session.usingFx && studioRefs.composer) {
-    studioRefs.composer.setPixelRatio(session.oldPR);
-    studioRefs.composer.setSize(session.oldSize.x, session.oldSize.y);
-  }
-  if (cam) {
-    settleFloaters(scene);
-    gl.render(scene, cam);
+    session.textureSwaps = [];
+    session.baseTextures = [];
+    scene.overrideMaterial = session.oldOverrideMaterial;
+    if (session.usingTransparent || session.usingWhite)
+      scene.background = session.oldBg;
+    for (const o of session.hidden) o.visible = true;
+    if (session.ground && session.oldGroundMat)
+      session.ground.material = session.oldGroundMat;
+    session.shadowMat?.dispose();
+    gl.setPixelRatio(session.oldPR);
+    gl.setSize(session.oldSize.x, session.oldSize.y, false);
+    gl.setClearColor(session.oldClearColor, session.oldClearAlpha);
+    gl.autoClear = session.oldAutoClear;
+    gl.setRenderTarget(session.oldRenderTarget);
+    gl.setViewport(session.oldViewport);
+    gl.setScissor(session.oldScissor);
+    gl.setScissorTest(session.oldScissorTest);
+    if (studioRefs.controls && session.oldControlsEnabled !== undefined)
+      studioRefs.controls.enabled = session.oldControlsEnabled;
+    const cam = studioRefs.camera;
+    if (cam && studioRefs.renderPass) studioRefs.renderPass.camera = cam;
+    if (session.usingFx && studioRefs.composer) {
+      studioRefs.composer.setPixelRatio(session.oldPR);
+      studioRefs.composer.setSize(session.oldSize.x, session.oldSize.y);
+    }
+    if (cam) {
+      settleFloaters(scene);
+      alignBackdrop(scene, cam);
+      gl.render(scene, cam);
+    }
+  } finally {
+    studioRefs.exporting = false;
+    studioRefs.exportTransparent = false;
   }
 }
 

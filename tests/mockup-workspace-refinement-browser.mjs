@@ -19,7 +19,7 @@ try {
   await p.keyboard.press('Escape');checks.push('Comandos de projeto e recursos continuam acessíveis, sem duplicação no cabeçalho.');
   await p.getByRole('button',{name:'Produto',exact:true}).click();
   const handleGroup=p.getByRole('group',{name:'Escolher modelo de alça'});
-  assert.equal(await handleGroup.getByRole('button').count(),6);
+  assert.equal(await handleGroup.getByRole('button').count(),5);
   assert.equal(await handleGroup.getByRole('button',{name:/Caneca 325 ml/}).count(),0);
   await handleGroup.getByRole('button',{name:/Coração assimétrico/}).click();
   await p.evaluate(()=>{const s=window.studioTest.store.getState();s.patchObject('hero',{handleColor:'#c90d22',interiorColor:'#c90d22'});});
@@ -28,7 +28,7 @@ try {
   await p.screenshot({path:path.join(h.output,'heart-handle.png')});
   await p.getByRole('button',{name:/Arredondada Formato/}).click();
   await p.screenshot({path:path.join(h.output,'studio.png')});
-  checks.push('Seis alças selecionáveis; a alça fina foi retirada sem remover o ID legado.');
+  checks.push('Cinco alças selecionáveis; a alça fina foi retirada sem remover o ID legado.');
   await p.evaluate(async()=>{const t=window.studioTest;const text=await(await fetch('/fixtures/legacy-v1.cgstudio')).text();await t.portable.importPortableProject(new File([text],'legacy.cgstudio'));});
   await p.getByRole('button',{name:'Exportar criação',exact:true}).click();
   const dialog=p.getByRole('dialog',{name:'Exportar criação',exact:true});await dialog.waitFor();

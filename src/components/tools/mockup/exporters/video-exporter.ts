@@ -22,7 +22,7 @@ import {
   setMugOverride,
   type FrameSession,
 } from "./frame-capture";
-import { mugsGroup } from "../scene/studio-refs";
+import { mugsGroup, studioRefs } from "../scene/studio-refs";
 import { useMockupStore, type VideoAnim } from "../state/store";
 import { createAlphaVideoEncoder } from "./alpha-video-encoder";
 
@@ -58,6 +58,13 @@ export interface AnimOpts {
 
 const easeInOut = (t: number) =>
   t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+
+/** Preserve the chosen orbit target as well as zoom in optional manual framing. */
+function motionCenter(session: FrameSession) {
+  return useMockupStore.getState().exportSettings.framing === "current" && studioRefs.controls
+    ? studioRefs.controls.target.clone()
+    : sceneCenter(session.scene);
+}
 
 /* ---------------- mesa giratória (turntable) ---------------- */
 
@@ -181,6 +188,38 @@ function applyCameraPath(
   cam.updateMatrixWorld();
 }
 
+/** Lightweight real-time preview: same animation path and turntable as export,
+ * no encoder, network request, store patch or replacement artwork. */
+export function createMotionPreview(canvas: HTMLCanvasElement, resolution: {w:number;h:number}, opts: AnimOpts) {
+  const scale = Math.min(1, 480 / Math.max(resolution.w, resolution.h));
+  const width = Math.max(1, Math.round(resolution.w * scale));
+  const height = Math.max(1, Math.round(resolution.h * scale));
+  canvas.width = width; canvas.height = height;
+  const context = canvas.getContext("2d");
+  if (!context) throw new ExportError("Não foi possível abrir a prévia em movimento.");
+  if (opts.anim === "revelacao" && useMockupStore.getState().mug.variant !== "magic") throw new ExportError("A revelação só está disponível para caneca mágica.");
+  const session = beginFrames(width, height, { transparent:opts.transparent, noSupersample:true });
+  let base: THREE.PerspectiveCamera;
+  try { base = fitCamera(session); } catch (error) { endFrames(session); throw error; }
+  const center = motionCenter(session);
+  const baseOffset = new THREE.Vector3().subVectors(base.position, center);
+  const tt = opts.anim === "giro" ? beginTurntable(session.scene) : null;
+  let ended = false;
+  return {
+    render(progress:number) {
+      if (ended) return;
+      const t = Math.max(0, Math.min(1, progress));
+      if (tt) applyTurntable(tt, videoAngle(t, opts));
+      applyCameraPath(opts.anim, t, base, baseOffset, center, value=>setMugOverride(session,{magicHeat:value}));
+      renderFrame(session, base);
+      context.clearRect(0,0,width,height);
+      context.drawImage(session.gl.domElement,0,0,width,height);
+      applyWatermark(context,width,height);
+    },
+    stop() { if (ended) return; ended=true; try { endTurntable(tt); } finally { endFrames(session); } },
+  };
+}
+
 /* ---------------- MP4 ---------------- */
 
 export interface VideoResult {
@@ -229,7 +268,7 @@ async function exportVideoAlpha(
     encoder = await createAlphaVideoEncoder(w, h, fps);
     session = beginFrames(w, h, { transparent: true, ssCap: extra.quality === "fast" ? 1 : 2 });
     const base = fitCamera(session);
-    const center = sceneCenter(session.scene);
+    const center = motionCenter(session);
     const baseOffset = new THREE.Vector3().subVectors(base.position, center);
     tt = anim === "giro" ? beginTurntable(session.scene) : null;
     const total = Math.max(2, Math.round(duration * fps));
@@ -288,7 +327,7 @@ async function exportVideoWebCodecs(
   const session = beginFrames(w, h, { transparent: false, ssCap: extra.quality === "fast" ? 1 : 2 });
   try {
     const base = fitCamera(session);
-    const center = sceneCenter(session.scene);
+    const center = motionCenter(session);
     const isMagic = useMockupStore.getState().mug.variant === "magic";
     if (anim === "revelacao" && !isMagic) {
       throw new ExportError(
@@ -452,7 +491,7 @@ async function exportVideoMediaRecorder(
     };
 
     const base = fitCamera(session);
-    const center = sceneCenter(session.scene);
+    const center = motionCenter(session);
     const baseOffset = new THREE.Vector3().subVectors(base.position, center);
     const tt = anim === "giro" ? beginTurntable(session.scene) : null;
     const done = new Promise<Blob>((resolve) => {
@@ -532,7 +571,7 @@ export async function exportGif(
   const session: FrameSession = beginFrames(rw, rh, { transparent: false });
   try {
     const base = fitCamera(session);
-    const center = sceneCenter(session.scene);
+    const center = motionCenter(session);
     const gif = GIFEncoder();
     const total = Math.max(4, Math.round(duration * fps));
     const baseOffset = new THREE.Vector3().subVectors(base.position, center);

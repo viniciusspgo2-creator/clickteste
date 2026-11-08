@@ -73,6 +73,7 @@ test('V5.13: valida tamanho declarado, tipo, JSON inválido e limite inválido',
 const history=load('src/lib/creative/assistant-history.ts');
 const provider=load('src/lib/creative/provider-response.ts');
 const route=load('src/app/api/creative-assistant/route.ts',{
+ '@/lib/creative/studio-help':load('src/lib/creative/studio-help.ts'),
  'next/server':{NextResponse:{json(body,init={}){return new Response(JSON.stringify(body),{status:init.status||200,headers:{'content-type':'application/json',...init.headers}});}}},
  '@/lib/creative/assistant-request':reader,
  '@/lib/creative/assistant-history':history,
