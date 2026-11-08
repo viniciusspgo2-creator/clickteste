@@ -55,3 +55,12 @@ server.log
 # Skills directory
 /skills/
 /work/
+
+# Private key bundles, local database exports and service credentials
+*.key
+*.p12
+*.pfx
+*.dump
+/backups/
+/credentials*.json
+/service-account*.json

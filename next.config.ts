@@ -5,6 +5,8 @@ const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "SAMEORIGIN" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  { key: "Strict-Transport-Security", value: "max-age=31536000" },
+  { key: "Content-Security-Policy", value: "base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'" },
   {
     key: "Permissions-Policy",
     value: "camera=(), microphone=(), geolocation=()",
@@ -13,6 +15,8 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  poweredByHeader: false,
+  productionBrowserSourceMaps: false,
   /* config options here */
   typescript: {
     ignoreBuildErrors: false,
@@ -30,6 +34,11 @@ const nextConfig: NextConfig = {
         source: "/(.*)",
         headers: securityHeaders,
       },
+      ...["/api/admin/:path*", "/api/access/:path*"].map(source => ({ source, headers: [
+        { key: "Cache-Control", value: "private, no-store" },
+        { key: "Vary", value: "Cookie, Authorization" },
+        { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
+      ] })),
     ];
   },
 };

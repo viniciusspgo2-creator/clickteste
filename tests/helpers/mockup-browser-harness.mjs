@@ -65,7 +65,7 @@ export async function startStudioHarness({ noticesOnly = false, withEditor = fal
       const name = decodeURIComponent(new URL(req.url, "http://localhost").pathname);
       if (name.startsWith('/api/')) {res.setHeader('Content-Type','application/json');res.end(JSON.stringify({ok:true,items:[],total:0}));return;}
       const fixtures = path.join(root, "tests/fixtures/mockup-preview");
-      const base = name.startsWith("/fixtures/") ? fixtures : /^\/(mockup|cg-editor|creative-library|fonts)\//.test(name) ? path.join(root, "public") : output;
+      const base = name.startsWith("/fixtures/") ? fixtures : /^\/(mockup|cg-editor|creative-library|fonts|templates)\//.test(name) ? path.join(root, "public") : output;
       const relative = name.startsWith("/fixtures/") ? name.slice("/fixtures".length) : name === "/" || withEditor && name.startsWith('/editor-artes') ? "/index.html" : name;
       const file = path.resolve(base, "." + relative);
       if (!file.startsWith(base + path.sep)) { res.writeHead(403); res.end(); return; }

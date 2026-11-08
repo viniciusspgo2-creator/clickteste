@@ -1,3 +1,4 @@
+import {readMultipartBody,RequestBodyError} from '@/lib/security/request-body';
 import { NextResponse } from "next/server";
 import sharp from "sharp";
 import { requireAdmin } from "@/lib/admin-auth";
@@ -35,7 +36,7 @@ export async function POST(req: Request) {
   if (Number(req.headers.get("content-length")) > MAX_FILE_BYTES + 16384)
     return fail("O limite é de 4 MB por imagem.", 413);
   try {
-    const form = await req.formData(),
+    const form = await readMultipartBody(req,MAX_FILE_BYTES+16384),
       file = form.get("image"),
       kind = form.get("kind");
     if (kind !== "model" && kind !== "background")
@@ -114,6 +115,7 @@ export async function POST(req: Request) {
       { status: 201 },
     );
   } catch (error) {
+    if (error instanceof RequestBodyError) return fail(error.message,error.status);
     if (error instanceof SyntaxError)
       return fail("Dados do cadastro inválidos.");
     if (

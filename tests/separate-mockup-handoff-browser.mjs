@@ -60,6 +60,13 @@ try{
  await p.goto(h.url+'/editor-artes?from=mockup');await p.getByText('Composição recebida do Studio.',{exact:false}).waitFor();
  await waitForAsync(draft,d=>d?.nodes.length===1);
  pass('PNG único anterior continua abrindo como composição completa.');
+ await p.locator('input[accept*=".cgtemplate"]').setInputFiles('public/templates/template-inteligente-demonstracao.cgtemplate');
+ const template=await waitForAsync(draft,d=>!!d?.smartTemplate&&d.nodes.some(n=>n.role==='foreground'));
+ assert.equal(template.nodes.filter(n=>n.role==='mockup').length,1);
+ assert.ok(template.nodes.find(n=>n.role==='mockup').maskSrc?.startsWith('data:image/'));
+ await p.screenshot({path:path.join(h.output,'secure-template-import.png')});
+ pass('Template inteligente existente abre pela interface real, mantendo a caneca e aplicando a máscara após a extração segura.');
+
  await p.setViewportSize({width:390,height:844});await p.screenshot({path:path.join(h.output,'editor-mobile.png')});assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
  assert.deepEqual(errors,[]);pass('Editor cabe no celular e não apresentou erros de JavaScript durante o fluxo.');
  await fs.writeFile(path.join(h.output,'results.json'),JSON.stringify({passed:true,checks,errors,payload},null,2));console.log(JSON.stringify({passed:true,checks:checks.length,output:h.output}));

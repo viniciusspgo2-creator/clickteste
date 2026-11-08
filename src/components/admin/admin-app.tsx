@@ -329,7 +329,7 @@ function ConfigTab({ onLogout }: { onLogout: () => void }) {
             type="password"
             value={next}
             onChange={(e) => setNext(e.target.value)}
-            placeholder="Nova senha (mín. 6)"
+            placeholder="Nova senha (mín. 12)"
             className={inputCls}
             autoComplete="new-password"
           />

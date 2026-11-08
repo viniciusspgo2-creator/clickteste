@@ -1,3 +1,4 @@
+import {readJsonBody} from '@/lib/security/request-body';
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-auth";
 import { db } from "@/lib/db";
@@ -18,7 +19,7 @@ export async function PUT(
     );
   try {
     const { id } = await params,
-      input = catalogInput.parse(await req.json());
+      input = catalogInput.parse(await readJsonBody(req, 32768));
     const old = await db.mockupSceneItem.findUnique({
       where: { id },
       select: { kind: true },

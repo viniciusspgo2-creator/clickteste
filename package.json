@@ -15,14 +15,13 @@
     "db:reset": "prisma migrate reset",
     "build:staging": "prisma generate && tsc --noEmit && next build",
     "verify:source": "node scripts/verify-source.mjs",
-    "verify:creative": "node scripts/verify-source.mjs && node --test --test-concurrency=4 tests/v36-feature-checks.mjs tests/v37-feature-checks.mjs tests/v38-stability.mjs tests/v39-layers.mjs tests/v40-realism-print-template.mjs tests/v41-video-glaze-template.mjs tests/v42-export-integrity.mjs tests/v43-reliability.mjs tests/v44-mask-composition.mjs tests/v45-video-template-preflight.mjs tests/v46-realism-video-assistant.mjs tests/v47-assistant-video-reliability.mjs tests/v48-sublimation-psd-pdf.mjs tests/v49-video-fullhd.mjs tests/v49-build-type-fixes.mjs tests/v50-video-preflight.mjs tests/v51-mp4-integrity.mjs tests/v52-mug-realism-shadow-budget.mjs tests/v53-transparent-handoff.mjs tests/v54-template-safety.mjs tests/v55-portable-project.mjs tests/v56-project-recovery.mjs tests/v57-draft-race.mjs tests/v58-import-session.mjs tests/v59-mp4-sample-integrity.mjs tests/v510-bounded-image-load.mjs tests/v511-font-video-safety.mjs tests/v512-assistant-end-to-end.mjs tests/v513-assistant-request-timeouts.mjs tests/v514-image-export-dpi.mjs tests/v515-export-boundaries-progress.mjs tests/v516-blob-arraybuffer-types.mjs tests/v517-handle-c-installed-fonts.mjs tests/v60-editor-canvas-tabs-tools.mjs tests/creative-precision.mjs tests/ruler-guides.mjs tests/v61-curated-library.mjs tests/v61-separated-layouts.mjs"
+    "verify:creative": "node scripts/verify-source.mjs && node --test --test-concurrency=4 tests/v36-feature-checks.mjs tests/v37-feature-checks.mjs tests/v38-stability.mjs tests/v39-layers.mjs tests/v40-realism-print-template.mjs tests/v41-video-glaze-template.mjs tests/v42-export-integrity.mjs tests/v43-reliability.mjs tests/v44-mask-composition.mjs tests/v45-video-template-preflight.mjs tests/v46-realism-video-assistant.mjs tests/v47-assistant-video-reliability.mjs tests/v48-sublimation-psd-pdf.mjs tests/v49-video-fullhd.mjs tests/v49-build-type-fixes.mjs tests/v50-video-preflight.mjs tests/v51-mp4-integrity.mjs tests/v52-mug-realism-shadow-budget.mjs tests/v53-transparent-handoff.mjs tests/v54-template-safety.mjs tests/v55-portable-project.mjs tests/v56-project-recovery.mjs tests/v57-draft-race.mjs tests/v58-import-session.mjs tests/v59-mp4-sample-integrity.mjs tests/v510-bounded-image-load.mjs tests/v511-font-video-safety.mjs tests/v512-assistant-end-to-end.mjs tests/v513-assistant-request-timeouts.mjs tests/v514-image-export-dpi.mjs tests/v515-export-boundaries-progress.mjs tests/v516-blob-arraybuffer-types.mjs tests/v517-handle-c-installed-fonts.mjs tests/v60-editor-canvas-tabs-tools.mjs tests/creative-precision.mjs tests/ruler-guides.mjs tests/v61-curated-library.mjs tests/v61-separated-layouts.mjs tests/security-boundaries.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@hookform/resolvers": "^5.1.1",
-    "@mdxeditor/editor": "^3.39.1",
     "@prisma/client": "^6.11.1",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-alert-dialog": "^1.1.14",
@@ -85,9 +84,8 @@
     "react-hook-form": "^7.60.0",
     "react-markdown": "^10.1.0",
     "react-resizable-panels": "^3.0.3",
-    "react-syntax-highlighter": "^15.6.1",
     "recharts": "^2.15.4",
-    "sharp": "^0.34.3",
+    "sharp": "^0.35.5",
     "sonner": "^2.0.6",
     "tailwind-merge": "^3.3.1",
     "tailwindcss-animate": "^1.0.7",
@@ -110,5 +108,11 @@
     "tailwindcss": "^4",
     "tw-animate-css": "^1.3.5",
     "typescript": "^5"
+  },
+  "overrides": {
+    "deepmerge-ts": "^8.0.0",
+    "exceljs": {
+      "uuid": "^11.1.1"
+    }
   }
 }

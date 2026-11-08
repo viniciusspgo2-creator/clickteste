@@ -1,11 +1,13 @@
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/admin-auth";
 import { MOCKUP_SCENES_ENABLED } from "@/lib/features";
+import {checkPremiumSession} from '@/lib/premium-session';
 export const runtime = "nodejs";
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  try { if (!(await checkPremiumSession(req)).ok) return new Response(null,{status:401,headers:{'Cache-Control':'private, no-store'}}); } catch { return new Response(null,{status:503}); }
   const { id } = await params;
   if (!/^[a-zA-Z0-9_-]{1,80}$/.test(id))
     return new Response(null, { status: 404 });

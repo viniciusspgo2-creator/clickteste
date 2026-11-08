@@ -19,7 +19,7 @@ function load(p,stubs={}){
  return mod.exports;
 }
 const video=()=>load('src/lib/creative/video-templates.ts',{'mp4-muxer':{},'./mp4-integrity':{inspectRenderedMp4:()=>({})},'./design':{}});
-const template=()=>load('src/lib/creative/smart-templates.ts',{jszip:{},'./design':{uid:()=> 'generated-id'}});
+const template=()=>load('src/lib/creative/smart-templates.ts',{'./template-archive':{},'./design':{uid:()=> 'generated-id'}});
 const mockup={id:'one',kind:'image',x:80,y:30,w:800,h:400,angle:24,opacity:1,role:'mockup'};
 const slot={x:300,y:100,w:500,h:400};
 test('720p real para um vídeo horizontal e limites corretos para retrato',()=>{

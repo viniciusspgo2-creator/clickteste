@@ -15,7 +15,7 @@ function load(name,stubs={}){
  return mod.exports;
 }
 const video=()=>load('src/lib/creative/video-templates.ts',{'mp4-muxer':{},'./mp4-integrity':{inspectRenderedMp4:()=>({})},'./design':{}});
-const smart=()=>load('src/lib/creative/smart-templates.ts',{jszip:{},'./design':{uid:()=>'fixture-id'}});
+const smart=()=>load('src/lib/creative/smart-templates.ts',{'./template-archive':{},'./design':{uid:()=>'fixture-id'}});
 const ai=()=>load('src/lib/creative/assistant-request.ts');
 class FakeVideo extends EventTarget{
  readyState=0;duration=3;seeking=false;_currentTime=0;

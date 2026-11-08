@@ -3,6 +3,10 @@
  * must be upgraded to shared KV before making high-volume public access available.
  */
 import {NextRequest,NextResponse} from 'next/server';
+import {resolvePremiumSession} from '@/lib/premium-session';
+import {sameOriginMutation} from '@/lib/studio-access-options';
+import {clientAddress,takeSharedRateLimit} from '@/lib/security/rate-limit';
+import {rateLimit} from '@/lib/admin-auth';
 import {readAssistantBody,AssistantRequestError} from '@/lib/creative/assistant-request';
 import {sanitizeAssistantHistory} from '@/lib/creative/assistant-history';
 import {STUDIO_ASSISTANT_KNOWLEDGE} from '@/lib/creative/studio-help';
@@ -15,7 +19,6 @@ const actionsByArea={
  studio:['arts','base','models','scene','light','camera','effects','compose','backgrounds','export','guides','projects','layers'],
  templates:[]
 } as const;
-const frequency=new Map<string,{start:number,count:number}>();
 const knowledge=`Você é o assistente especializado da Click & Gruda, para o Studio Mockup 3D, Studio Templates e Editor de Artes PARA SUBLIMAÇÃO DE CANECAS. Conhecimento validado:
 - No Editor: estampa padrão 21 × 9,5 cm (2480 × 1122 px), área visível aproximada 19 × 8,5 cm; upload temporário e privado no navegador; exportar .cgdesign; layers, sombra, recorte, textos curvos, elementos e templates.
 - A transferência Studio → Editor leva PNG da caneca sem sombra do chão; sombra pode ser aplicada manualmente pelo Editor.
@@ -30,11 +33,16 @@ Responda sempre em português, inglês ou espanhol conforme locale do usuário. 
 export async function POST(req:NextRequest){
  const key=process.env.OPENAI_API_KEY;
  if(!key)return NextResponse.json({ok:false,reason:'not_configured'},{status:503});
- const forwarded=req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()||'anonymous';
- const ip=forwarded.slice(0,80),now=Date.now();const previous=frequency.get(ip);
- const slot=previous&&now-previous.start<3600000?previous:{start:now,count:0};slot.count++;frequency.set(ip,slot);
- if(frequency.size>5000)for(const [k,v] of frequency)if(now-v.start>3600000)frequency.delete(k);
- if(slot.count>24)return NextResponse.json({ok:false,reason:'too_many_requests'},{status:429});
+ if(!sameOriginMutation(req))return NextResponse.json({ok:false,reason:'forbidden'},{status:403});
+ let identityKey='';
+ try{
+  const {access,identity}=await resolvePremiumSession(req);
+  if(!access.ok)return NextResponse.json({ok:false,reason:'unauthorized'},{status:401});
+  identityKey=identity?.codeId??'admin:'+clientAddress(req);
+  if(!rateLimit('assistant:'+identityKey,24,3600000))return NextResponse.json({ok:false,reason:'too_many_requests'},{status:429});
+  const limit=await takeSharedRateLimit('assistant',identityKey,24,3600000);
+  if(!limit.allowed)return NextResponse.json({ok:false,reason:'too_many_requests'},{status:429,headers:{'Retry-After':String(limit.retryAfter)}});
+ }catch{return NextResponse.json({ok:false,reason:'unavailable'},{status:503});}
  try{
   // Prevent unusually large bodies from reaching the provider, and block cross-site form abuse.
   if(Number(req.headers.get('content-length')||0)>4096)return NextResponse.json({ok:false,reason:'request_too_large'},{status:413});

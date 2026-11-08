@@ -130,9 +130,9 @@ export default async function RootLayout({
         <PageTracker />
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }}
         />
-        {seo.gaId && (
+        {/^G-[A-Z0-9]+$/.test(seo.gaId) && (
           <>
             <script async src={`https://www.googletagmanager.com/gtag/js?id=${seo.gaId}`} />
             <script

@@ -15,7 +15,7 @@ const load=(path,stubs={})=>{
   if(key in stubs)return stubs[key];throw new Error('Unexpected import '+key);
  });return mod.exports;
 };
-const smart=()=>load('src/lib/creative/smart-templates.ts',{jszip:{},'./design':{uid:()=>'asset'}});
+const smart=()=>load('src/lib/creative/smart-templates.ts',{'./template-archive':{},'./design':{uid:()=>'asset'}});
 const cache=()=>load('src/lib/creative/effect-cache.ts');
 const validator=()=>load('src/lib/creative/validate-project.ts');
 const mug={id:'mug',kind:'image',role:'mockup',x:100,y:50,w:400,h:200,angle:15,opacity:1,shadow:20,shadowX:12,shadowY:24,blur:8,strokeWidth:4,maskSrc:'data:image/png;base64,AA==',maskMode:'alpha',maskInvert:true};

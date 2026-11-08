@@ -4,13 +4,17 @@
 
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { todayInSaoPaulo } from '@/lib/admin-auth';
+import {readJsonBody} from '@/lib/security/request-body';
+import {clientAddress} from '@/lib/security/rate-limit';
+import {sameOriginMutation} from '@/lib/studio-access-options';
+import { todayInSaoPaulo, rateLimit } from '@/lib/admin-auth';
 
 export const runtime = 'nodejs';
 
 export async function POST(req: Request) {
+  if (!sameOriginMutation(req) || !rateLimit('track:'+clientAddress(req),60,60000)) return new NextResponse(null,{status:204});
   try {
-    const body = (await req.json()) as { path?: string; sid?: string };
+    const body = (await readJsonBody(req,2048)) as { path?: string; sid?: string };
     const path = String(body.path ?? '/').slice(0, 200);
     const sid = String(body.sid ?? '').slice(0, 64);
 

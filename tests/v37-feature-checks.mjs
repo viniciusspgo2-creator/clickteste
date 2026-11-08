@@ -45,9 +45,11 @@ test('Proteção do agente restringe ações ao módulo e bloqueia origem extern
  new Function('module','exports','require',parse('src/lib/creative/assistant-request.ts'))(helper,helper.exports,()=>{});
  const history={exports:{}};
  new Function('module','exports','require',parse('src/lib/creative/assistant-history.ts'))(history,history.exports,()=>{});
+ const originGuard={exports:{}};
+ new Function('module','exports','require',parse('src/lib/studio-access-options.ts'))(originGuard,originGuard.exports,()=>{});
  const provider={exports:{}};
  new Function('module','exports','require',parse('src/lib/creative/provider-response.ts'))(provider,provider.exports,()=>{});
- new Function('module','exports','require','process','fetch',js)(mod,mod.exports,name=>name==='@/lib/creative/assistant-request'?helper.exports:name==='@/lib/creative/assistant-history'?history.exports:name==='@/lib/creative/provider-response'?provider.exports:api,{env:{OPENAI_API_KEY:'test-mock-not-real'}},responder);
+ new Function('module','exports','require','process','fetch',js)(mod,mod.exports,name=>name==='@/lib/studio-access-options'?originGuard.exports:name==='@/lib/premium-session'?{resolvePremiumSession:async()=>({access:{ok:true},identity:{codeId:'qa'}})}:name==='@/lib/security/rate-limit'?{clientAddress:()=> '127.0.0.1',takeSharedRateLimit:async()=>({allowed:true,retryAfter:60})}:name==='@/lib/admin-auth'?{rateLimit:()=>true}:name==='@/lib/creative/assistant-request'?helper.exports:name==='@/lib/creative/assistant-history'?history.exports:name==='@/lib/creative/provider-response'?provider.exports:api,{env:{OPENAI_API_KEY:'test-mock-not-real'}},responder);
  const req=(area,origin)=>{const request=new Request('https://clickgruda.test/api/creative-assistant',{method:'POST',headers:{origin,'content-type':'application/json','x-forwarded-for':`test-${area}-${origin}`},body:JSON.stringify({area,locale:'pt',question:'Abra produto'})});request.nextUrl={host:'clickgruda.test'};return request;};
  const invalid=await mod.exports.POST(req('editor','https://evil.test'));assert.equal(invalid.status,403);
  const editor=await mod.exports.POST(req('editor','https://clickgruda.test'));assert.equal(editor.body.action,null);

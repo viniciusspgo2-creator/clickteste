@@ -1,6 +1,8 @@
+import 'server-only';
 import { createHash, randomBytes } from 'node:crypto';
 import { db } from '@/lib/db';
-import { requireAdmin } from '@/lib/admin-auth';
+import { requireAdmin, rateLimit } from '@/lib/admin-auth';
+import { clientAddress } from '@/lib/security/rate-limit';
 import { monitoringEnabled, persistentSessionsEnabled } from '@/lib/studio-access-options';
 
 export const BROWSER_COOKIE = 'cg_studio_browser';
@@ -13,9 +15,12 @@ function cookie(req: Request, name: string) {
 }
 export const browserToken = (req: Request) => validToken(cookie(req, BROWSER_COOKIE));
 export function accessCredential(req: Request) {
-  const stored = persistentSessionsEnabled() ? cookie(req, ACCESS_COOKIE) : undefined;
-  if (stored && /^[ps]\.[a-f0-9]{64}$/.test(stored)) return { token: stored.slice(2), remember: stored[0] === 'p', fromCookie: true };
   const bearer = validToken(req.headers.get('authorization')?.replace(/^Bearer /, ''));
+  const stored = cookie(req, ACCESS_COOKIE), persistent = persistentSessionsEnabled();
+  // Session-only cookies also authorize image/font tags in legacy bearer mode.
+  // Its explicit bearer contract and lack of browser persistence stay intact.
+  if (stored && /^[ps]\.[a-f0-9]{64}$/.test(stored) && (persistent || stored[0] === 's') && (persistent || !bearer))
+    return { token: stored.slice(2), remember: stored[0] === 'p', fromCookie: true };
   return bearer ? { token: bearer, remember: false, fromCookie: false } : null;
 }
 export const accessPlan = (type: string) => type === 'library_trial' ? 'Teste da Biblioteca' : type === 'library' ? 'Biblioteca Click Gruda' : 'Studio Temporário';
@@ -31,6 +36,7 @@ type Resolution = { access: StudioAccess; identity?: StudioIdentity };
 export async function resolvePremiumSession(req: Request): Promise<Resolution> {
   // The existing master authentication remains first and fully independent.
   if (requireAdmin(req)) return { access: { ok: true, plan: 'Admin Master' } };
+  if (!rateLimit('session-resolution:' + clientAddress(req), 1200, 60000)) return { access: { ok: false, reason: 'rate' } };
   const credential = accessCredential(req), browser = browserToken(req);
   if (!credential || !browser) return { access: { ok: false, reason: 'session' } };
   const now = new Date(), sessionHash = hashToken(credential.token), browserHash = hashToken(browser);

@@ -1,4 +1,5 @@
 import {NextResponse} from 'next/server';
+import {readJsonBody} from '@/lib/security/request-body';
 import {randomUUID} from 'node:crypto';
 import {db} from '@/lib/db';
 import {requireAdmin} from '@/lib/admin-auth';
@@ -11,12 +12,11 @@ export async function GET(req:Request) {
  try{return NextResponse.json({ok:true,items:await listAnnouncements()},{headers:{'Cache-Control':'no-store'}});}catch{return fail('Não foi possível carregar os comunicados.',503);}
 }
 export async function POST(req:Request) {
- if(!requireAdmin(req))return fail('Não autorizado.',401);
  if(!validNoticeOrigin(req))return fail('Origem não autorizada.',403);
+ if(!requireAdmin(req))return fail('Não autorizado.',401);
  try {
   if(Number(req.headers.get('content-length'))>12000)return fail('Conteúdo muito grande.',413);
-  const text=await req.text();if(text.length>12000)return fail('Conteúdo muito grande.',413);
-  const body=JSON.parse(text),parsed=announcementInput.safeParse(body);
+  const body=await readJsonBody(req,12000),parsed=announcementInput.safeParse(body);
   if(!parsed.success)return fail(parsed.error.issues.map(i=>i.message).join(' '));
   const id=body.id??randomUUID();if(typeof id!=='string'||!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(id))return fail('Identificador inválido.');
   const key=NOTICE_PREFIX+id,value=JSON.stringify(parsed.data);
