@@ -8,12 +8,14 @@ import {drawOutputWithMirror} from './export-transform';
 import {loadImageWithTimeout} from './async-image-load';
 import {assertExportBlobFormat, addPngDpiMetadata} from './image-export-integrity';
 import type {DesignGuide} from './guides';
+import {drawGrounding,clearGroundingCache,pinGroundedNode,type Grounding} from './grounding';
 /** Editor local: documento, desenho e exportação. Nada do usuário é enviado ao servidor. */
 export type NodeKind='text'|'image'|'rect'|'circle'|'bezier';
 export type ColorGradient={kind:'linear'|'radial';from:string;to:string;angle:number};
 export type BezierPoints={sx:number;sy:number;c1x:number;c1y:number;c2x:number;c2y:number;ex:number;ey:number};
 export type EraserStroke={size:number;points:{x:number;y:number}[]};
 export type DesignNode={id:string;kind:NodeKind;x:number;y:number;w:number;h:number;angle:number;opacity:number;
+ grounding?:Grounding;
  effectKind?:LayerEffect;effectIntensity?:number;effectColor?:string;
  shapeId?:string;shapePoints?:number;pathPoints?:EditablePoint[];pathClosed?:boolean;lineCap?:CanvasLineCap;lineJoin?:CanvasLineJoin;dashStyle?:'solid'|'dashed'|'dotted';dashSpacing?:number;
  role?:'template'|'background'|'mockup'|'content'|'foreground';layerName?:string;maskSrc?:string;maskMode?:'luminance'|'alpha';maskInvert?:boolean;maskSpace?:'element'|'canvas';locked?:boolean;visible?:boolean;aspectLock?:boolean;
@@ -42,7 +44,7 @@ export function imageFor(src:string){
 }
 export function invalidateImage(src:string){images.delete(src)}
 /** Free local image and mask buffers when a project is reset. Saved projects are untouched. */
-export function clearDesignRenderCache(){images.clear();rasterEffectCache.clear();clearAssetTokens();}
+export function clearDesignRenderCache(){images.clear();rasterEffectCache.clear();clearGroundingCache();clearAssetTokens();}
 const limit=(n:number,min:number,max:number)=>Math.max(min,Math.min(max,n));
 export function nodeFill(ctx:CanvasRenderingContext2D,n:DesignNode):string|CanvasGradient{
  const g=n.gradient;if(!g)return n.fill||'#ff831f';
@@ -115,7 +117,7 @@ export async function assertDesignAssetsReady(doc:DesignDocument):Promise<void>{
  }
 }
 export async function drawDesign(canvas:HTMLCanvasElement,doc:DesignDocument,timeSeconds?:number,options?:{strict?:boolean}){
- const renderedNodes=(timeSeconds===undefined?doc.nodes:doc.nodes.map(n=>animateDesignNode(n,timeSeconds))).filter(n=>n.visible!==false);
+ const renderedNodes=(timeSeconds===undefined?doc.nodes:doc.nodes.map(n=>animateDesignNode(n,timeSeconds))).map(n=>pinGroundedNode(n,doc.height)).filter(n=>n.visible!==false);
  const fontLoad=ensureDesignFonts(renderedNodes.filter(x=>x.kind==='text').map(x=>x.font||''));
  if(options?.strict)await fontLoad;else await fontLoad.catch(()=>{});
  if(canvas.width!==doc.width)canvas.width=doc.width;if(canvas.height!==doc.height)canvas.height=doc.height;
@@ -216,8 +218,12 @@ export async function drawDesign(canvas:HTMLCanvasElement,doc:DesignDocument,tim
      }
      rasterEffectCache.put(key,layer,tw*th);
     }
+    if(n.grounding)drawGrounding(ctx,n,layer,{sx:0,sy:0,sw:tw,sh:th},key);
     ctx.drawImage(layer,-n.w/2,-n.h/2,n.w,n.h);
-   }else ctx.drawImage(img,sx,sy,sw,sh,-n.w/2,-n.h/2,n.w,n.h);
+   }else{
+    if(n.grounding)drawGrounding(ctx,n,img,{sx,sy,sw,sh},effectKey({src:n.src,w:192,h:192,sx,sy,sw,sh}));
+    ctx.drawImage(img,sx,sy,sw,sh,-n.w/2,-n.h/2,n.w,n.h);
+   }
   }catch(error){if(options?.strict)throw new Error(`Falha ao renderizar a camada “${n.layerName||n.role||n.kind}”: ${error instanceof Error?error.message:'imagem inválida'}`);}}
   if(n.shapeId){
    const path=new Path2D();path.addPath(new Path2D(vectorShapePath(n.shapeId,n.shapePoints)),new DOMMatrix([n.w/1000,0,0,n.h/1000,-n.w/2,-n.h/2]));

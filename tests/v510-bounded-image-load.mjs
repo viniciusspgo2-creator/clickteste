@@ -11,7 +11,7 @@ function moduleFromTs(file,dependencyMap={}){
  assert.deepEqual((result.diagnostics||[]).filter(x=>x.category===ts.DiagnosticCategory.Error),[]);
  const mod={exports:{}};
  new Function('require','module','exports',result.outputText)((name)=>{
-  if(['./layer-effects','./vector-shapes','./vector-path'].includes(name))return moduleFromTs(`src/lib/creative/${name.slice(2)}.ts`);
+  if(['./layer-effects','./vector-shapes','./vector-path','./grounding','./effect-cache'].includes(name))return moduleFromTs(`src/lib/creative/${name.slice(2)}.ts`);
   if(Object.hasOwn(dependencyMap,name))return dependencyMap[name];
   throw Error(`Unexpected dependency ${name} in ${file}`);
  },mod,mod.exports);

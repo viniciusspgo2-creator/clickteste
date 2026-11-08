@@ -11,7 +11,7 @@ function transpiled(path,stubs={}){
  assert.deepEqual((output.diagnostics||[]).filter(d=>d.category===ts.DiagnosticCategory.Error),[]);
  const mod={exports:{}};
  new Function('module','exports','require',output.outputText)(mod,mod.exports,id=>{
-  if(['./layer-effects','./vector-shapes','./vector-path'].includes(id))return transpiled(`src/lib/creative/${id.slice(2)}.ts`);
+  if(['./layer-effects','./vector-shapes','./vector-path','./grounding','./effect-cache'].includes(id))return transpiled(`src/lib/creative/${id.slice(2)}.ts`);
   if(Object.hasOwn(stubs,id))return stubs[id];
   throw new Error(`Import de teste inesperado: ${id}`);
  });

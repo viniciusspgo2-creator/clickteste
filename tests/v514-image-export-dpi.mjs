@@ -11,7 +11,7 @@ function importIsolated(relative){
  const result=ts.transpileModule(readFileSync(abs,'utf8'),{fileName:abs,reportDiagnostics:true,compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,strict:true}});
  assert.deepEqual((result.diagnostics||[]).filter(d=>d.category===ts.DiagnosticCategory.Error),[]);
  const fixtureModule={exports:{}};
- new Function('module','exports',result.outputText)(fixtureModule,fixtureModule.exports);
+ new Function('module','exports','require',result.outputText)(fixtureModule,fixtureModule.exports,id=>{if(!id.startsWith('./'))throw Error('unexpected dependency '+id);return importIsolated(`src/lib/creative/${id.slice(2)}.ts`);});
  return fixtureModule.exports;
 }
 const {detectImageSignature,assertExportBlobFormat,addPngDpiToBytes,addPngDpiMetadata}=importIsolated('src/lib/creative/image-export-integrity.ts');
@@ -100,7 +100,7 @@ test('V5.14: exportDesign integrado não baixa WebP com bytes PNG de fallback',a
   './image-export-integrity':importIsolated('src/lib/creative/image-export-integrity.ts'),
  };
  new Function('module','exports','require',compilation.outputText)(fixtureModule,fixtureModule.exports,id=>{
-  if(['./layer-effects','./vector-shapes','./vector-path'].includes(id))return importIsolated(`src/lib/creative/${id.slice(2)}.ts`);
+  if(['./layer-effects','./vector-shapes','./vector-path','./grounding'].includes(id))return importIsolated(`src/lib/creative/${id.slice(2)}.ts`);
   if(Object.hasOwn(stubs,id))return stubs[id];throw Error('unexpected dependency '+id);
  });
  const before=globalThis.document;

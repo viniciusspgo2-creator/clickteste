@@ -51,6 +51,11 @@ export function validateProjectDocument(input:unknown):asserts input is DesignDo
   for(const key of ['w','h'])if(!numeric(n[key],0.01,16384))throw new Error(`Tamanho inválido no elemento ${index+1}.`);
   if(!numeric(n.opacity,0,1))throw new Error(`Transparência inválida no elemento ${index+1}.`);
   if(n.effectKind!==undefined&&!effectKinds.includes(n.effectKind as typeof effectKinds[number]))throw Error('Efeito inválido.');
+  if(n.grounding!==undefined){
+   const g=n.grounding;
+   if(n.kind!=='image'||!isRecord(g)||!numeric(g.strength,0,1)||!numeric(g.softness,0,1)||!numeric(g.direction,-1,1)||!numeric(g.length,.05,.5)||!numeric(g.offset,-.2,.2))throw Error('Sombra de contato inválida.');
+   if(g.pin!==undefined&&(!isRecord(g.pin)||!numeric(g.pin.surface,0,1)||!numeric(g.pin.contactX,0,1)||!numeric(g.pin.contactY,0,1)))throw Error('Apoio na mesa inválido.');
+  }
   if(n.effectIntensity!==undefined&&!numeric(n.effectIntensity,0,100))throw Error('Intensidade inválida.');
   if(n.effectColor!==undefined&&(typeof n.effectColor!=='string'||!/^#[a-f0-9]{6}$/i.test(n.effectColor)))throw Error('Cor do efeito inválida.');
   if(n.shapeId!==undefined&&(!vectorShapes.some(s=>s.id===n.shapeId)||n.kind!=='rect'))throw Error('Forma inválida.');

@@ -3,6 +3,7 @@ import { useCallback,useEffect,useMemo,useRef,useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Undo2, Redo2, ImagePlus, Type, Shapes, Layers3, Trash2, Copy, ChevronUp, ChevronDown, Download, SlidersHorizontal, Search, Upload, RectangleHorizontal, Circle, Sparkles, FolderOpen, Save, WandSparkles, X, Plus, Maximize, FlipHorizontal2, FlipVertical2, Crop, LockKeyhole, Users, Eye, EyeOff, Lock, Unlock, Layers2, RotateCcw, BookOpen, Sticker, Shapes as ObjectsIcon, Paintbrush, Pipette, RotateCw, ShieldCheck, History, AlertTriangle, CheckCircle2, Scissors, ClipboardPaste, Eraser, PenTool, Ruler, Magnet, Keyboard, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal, Minus, Palette } from 'lucide-react';
 import { asDataUrl,blankDocument,clearDesignRenderCache,drawDesign,exportDesign,formats,imageFor,saveBlob,uid,type DesignDocument,type DesignNode,type ExportFormat } from '@/lib/creative/design';
+import {naturalGrounding,groundingPresets,groundingTargets,canGround,findContactFootprint,pinGroundedDocument,type Grounding} from '@/lib/creative/grounding';
 import { readEditorHandoff } from '@/lib/creative/handoff';
 import { prepareMockupHandoff } from '@/lib/creative/mockup-handoff-document';
 import {studioScenes,findStudioScene,composeStudioScene,type StudioScene} from '@/lib/creative/studio-scenes';
@@ -179,6 +180,9 @@ export function CreativeEditor(){
  const gesture=useRef<Gesture|null>(null);
  const renderId=useRef(0);
  const active=doc.nodes.find(n=>n.id===selected)||null;
+ const [groundingBusy,setGroundingBusy]=useState(false);
+ const groundTargets=groundingTargets(doc.nodes,selected);
+ const [showGroundLine,setShowGroundLine]=useState(false);
  const printChecks=useMemo(()=>checkBeforeExport(doc),[doc]);
  const [qualityChecks,setQualityChecks]=useState<PrintMessage[]>([]);
  const [checkingQuality,setCheckingQuality]=useState(false);
@@ -197,11 +201,39 @@ export function CreativeEditor(){
  const update=useCallback((f:(d:DesignDocument)=>DesignDocument)=>{
   nudgeRef.current=null;
   const prior=stateRef.current;
-  const next=[...prior.history.slice(0,prior.step+1),f(prior.history[prior.step])];
+  const next=[...prior.history.slice(0,prior.step+1),pinGroundedDocument(f(prior.history[prior.step]))];
   stateRef.current={history:next,step:next.length-1};
   setHistory(next);setStep(next.length-1);
  },[]);
  const patch=useCallback((id:string,p:Partial<DesignNode>)=>update(d=>({...d,nodes:d.nodes.map(n=>n.id===id&&!n.locked?{...n,...p}:n)})),[update]);
+ const integrateWithTable=async()=>{
+  const captured=stateRef.current.history[stateRef.current.step],targets=groundingTargets(captured.nodes,selected);
+  if(!targets.length)return;
+  const request=++templateRequestRef.current;setGroundingBusy(true);
+  try{
+   const prepared=await Promise.all(targets.map(async node=>{
+    const factor=Math.min(1,320/Math.max(node.w,node.h)),width=Math.max(100,Math.round(node.w*factor)),height=Math.max(100,Math.round(node.h*factor));
+    const canvas=document.createElement('canvas');
+    // Measure the physical silhouette locally. Foreground occlusion is not a foot.
+    await drawDesign(canvas,{width,height,background:'transparent',nodes:[{...node,x:0,y:0,w:width,h:height,angle:0,flipX:false,flipY:false,skew:0,opacity:1,grounding:undefined,effectKind:undefined,shadow:0,shadowX:0,shadowY:0,blur:0,maskSrc:node.maskSpace==='canvas'?undefined:node.maskSrc,eraserStrokes:node.eraserStrokes?.map(stroke=>({...stroke,size:stroke.size*factor}))}]},undefined,{strict:true});
+    const ctx=canvas.getContext('2d');if(!ctx)throw Error('Canvas indisponível');
+    const contact=findContactFootprint(ctx.getImageData(0,0,width,height).data,width,height);
+    if(!contact)throw Error('A imagem não tem uma base visível para apoiar.');
+    const old=node.grounding;
+    // Curated backgrounds have a suggested table plane. Other scenes retain the current foot height.
+    const surface=old?.pin?.surface??(captured.smartTemplate?.slot?Math.min(.96,(captured.smartTemplate.slot.y+captured.smartTemplate.slot.h*.85)/captured.height):clamp((node.y+contact.bottom*node.h)/captured.height,0,1));
+    return {id:node.id,grounding:{...(old||naturalGrounding),pin:{surface,contactX:(contact.left+contact.right)/2,contactY:contact.bottom}}};
+   }));
+   if(!canCommitAsyncTemplate(request,templateRequestRef.current,captured,stateRef.current.history[stateRef.current.step])){
+    setNotice('A arte mudou durante o encaixe. Clique em Integrar à mesa novamente.');return;
+   }
+   update(d=>({...d,nodes:d.nodes.map(node=>{const found=prepared.find(item=>item.id===node.id);return found?{...node,grounding:found.grounding,shadow:0,shadowX:0,shadowY:0}:node;})}));
+   setSelected(targets[0].id);setRightCollapsed(false);setShowGroundLine(true);
+   setNotice(`${targets.length===1?'Caneca apoiada':'Canecas apoiadas'} com sombra de contato. Arraste para os lados; para subir ou descer, ajuste a linha da mesa ou solte o apoio.`);
+  }catch(e){setNotice(e instanceof Error?e.message:'Não foi possível encaixar a caneca. Sua arte foi preservada.');}
+  finally{setGroundingBusy(false);}
+ };
+ const changeGrounding=(changes:Partial<Grounding>)=>{if(active)patch(active.id,{grounding:{...(active.grounding||naturalGrounding),...changes}});};
  const selectGuide=(id:string)=>{setSelectedGuide(id);setSelected(null);setFreeGuidesVisible(true);};
  const changeGuides=(guides:DesignGuide[])=>{if(guides.length<=MAX_GUIDES)update(d=>({...d,guides}));};
  const commitGuide=(id:string,guide:DesignGuide|null,before:DesignDocument)=>{
@@ -628,7 +660,7 @@ export function CreativeEditor(){
   }else attrs={...resized,...textResize};
   // O arraste tem uma única etapa no histórico, mesmo com centenas de pointermoves.
   const current=stateRef.current;
-  const next=current.history.map((d,i)=>i!==current.step?d:{...d,nodes:d.nodes.map(n=>n.id===g.id?{...n,...attrs}:n)});
+  const next=current.history.map((d,i)=>i!==current.step?d:pinGroundedDocument({...d,nodes:d.nodes.map(n=>n.id===g.id?{...n,...attrs}:n)}));
   stateRef.current={history:next,step:current.step};setHistory(next);
  };
  const up=()=>{draftingRef.current=false;setSnapLines({});const g=gesture.current;if(!g)return;gesture.current=null;
@@ -729,7 +761,7 @@ export function CreativeEditor(){
   if(delta&&active&&!active.locked&&active.visible!==false){
    e.preventDefault();
    const state=stateRef.current,current=state.history[state.step];
-   const moved={...current,nodes:current.nodes.map(n=>n.id===active.id?{...n,x:Math.round((n.x+delta.x)*1000)/1000,y:Math.round((n.y+delta.y)*1000)/1000}:n)};
+   const moved=pinGroundedDocument({...current,nodes:current.nodes.map(n=>n.id===active.id?{...n,x:Math.round((n.x+delta.x)*1000)/1000,y:Math.round((n.y+delta.y)*1000)/1000}:n)});
    const previous=nudgeRef.current;
    const continuing=e.repeat&&previous?.id===active.id&&previous.tab===activeTabRef.current&&previous.document===current;
    const next=continuing?[...state.history.slice(0,state.step),moved]:[...state.history.slice(0,state.step+1),moved];
@@ -885,6 +917,11 @@ export function CreativeEditor(){
    <button type="button" onClick={()=>{openPanel('texts');addText();}}><Type size={17}/><span>Texto</span></button>
   </nav>
   </div>
+  {doc.nodes.some(n=>n.role==='mockup')||active&&canGround(active)?<section className="cr-table-bar" aria-label="Integração da caneca ao cenário">
+   <div><Sparkles size={22}/><span><strong>Faça a caneca pertencer ao cenário</strong><small>Sombra de contato e apoio na mesa · grátis, no seu navegador</small></span></div>
+   <button type="button" className="cr-table-primary" disabled={groundingBusy||!groundTargets.length} onClick={()=>void integrateWithTable()}><WandSparkles size={19}/>{groundingBusy?'Encaixando…':'Integrar à mesa'}{groundTargets.length>1?` (${groundTargets.length} canecas)`:''}</button>
+   <button type="button" disabled={!groundTargets.length} onClick={()=>{setSelected(groundTargets[0].id);setRightCollapsed(false);setShowGroundLine(true);requestAnimationFrame(()=>document.querySelector('.cr-table-controls')?.scrollIntoView({behavior:'smooth',block:'start'}));}}>Ajustar sombra e apoio</button>
+  </section>:null}
   <div className={`cr-shell ${leftCollapsed?'cr-left-collapsed':''} ${rightCollapsed?'cr-right-collapsed':''}`}><nav className="cr-rail" aria-label="Ferramentas">
    {([['templates','Começar',Sparkles],['backgrounds','Fundos',ImagePlus],['texts','Textos',Type],['uploads','Uploads',Upload],['library','Biblioteca',BookOpen],['elements','Elementos',Shapes],['icons','Ícones',Sticker],['objects','Objetos',ObjectsIcon],['personagens','Acervo PNG',Users],['layers','Camadas',Layers2],['effects','Efeitos',Sparkles]] as const).filter(([id])=>id!=='icons'||ENABLE_ICONS_TAB).map(([id,label,Icon])=><button key={id} className={['texts','library','layers'].includes(id)?'cr-rail-group-start':undefined} aria-current={panel===id?'page':undefined} onClick={()=>openPanel(id)} title={t(label)}><Icon size={21}/><small>{t(label)}</small></button>)}
   </nav><aside className="cr-left" ref={leftPanelRef}>  <div className="cr-editor-tabs" role="tablist" aria-label="Artes abertas">
@@ -993,6 +1030,7 @@ export function CreativeEditor(){
     {snapLines.x!==undefined&&<div className="cr-snap-line cr-snap-x" style={{left:snapLines.x*zoom}} aria-hidden="true"/>}
     {snapLines.y!==undefined&&<div className="cr-snap-line cr-snap-y" style={{top:snapLines.y*zoom}} aria-hidden="true"/>}
     <canvas tabIndex={0} ref={canvasRef} style={{width:'100%',height:'100%',cursor:eraserMode?'crosshair':'grab'}} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} aria-label="Tela de criação: setas movem a seleção, Shift acelera, Alt ajusta com precisão"/>
+    {showGroundLine&&active?.grounding?.pin&&<div className="cr-table-plane" style={{top:`${active.grounding.pin.surface*100}%`}} aria-hidden="true"><span>Linha da mesa · ajuste em Realismo na mesa</span></div>}
     {mugFaceGuides&&isMugDocument(doc)&&<div className="cr-mug-face-guides" aria-hidden="true"><span style={{left:'25%'}}>Face 1</span><span style={{left:'75%'}}>Face 2</span><i style={{left:'25%'}}/><i style={{left:'50%'}}/><i style={{left:'75%'}}/></div>}
     {guides&&doc.width===2480&&doc.height===1122&&<div className="cr-print-guides" aria-hidden="true" style={{left:Math.round((doc.width-2244)/2)*zoom,top:Math.round((doc.height-1004)/2)*zoom,width:2244*zoom,height:1004*zoom}}><span>ÁREA VISÍVEL · 19 × 8,5 cm</span></div>}
     {active&&active.visible!==false&&!active.locked&&<div className="cr-selection" style={{left:active.x*zoom,top:active.y*zoom,width:active.w*zoom,height:active.h*zoom,transform:`rotate(${active.angle}deg)`}}>{(['nw','ne','sw','se'] as Corner[]).map(c=><button key={c} type="button" className={`cr-handle cr-handle-${c}`} aria-label={`Redimensionar ${c} com proporção preservada`} title="Arraste para diminuir ou aumentar mantendo as proporções" onPointerDown={e=>startCorner(e,c,active)} onPointerMove={move} onPointerUp={up} onPointerCancel={up}/>)}<button type="button" className="cr-rotate-handle" title="Arraste para girar livremente" aria-label="Girar objeto com o mouse" onPointerDown={e=>startRotate(e,active)} onPointerMove={move} onPointerUp={up} onPointerCancel={up}><RotateCw size={17}/></button>
@@ -1006,6 +1044,26 @@ export function CreativeEditor(){
   <aside className="cr-inspector"><details className="cr-responsive-panel" open><summary className="cr-responsive-summary">Propriedades da arte</summary><div className="cr-panel-head"><h2>{t('Propriedades')}</h2><span>{t('AJUSTES DE PRECISÃO')}</span></div>
   {!active?<div className="cr-inspector-empty"><span className="cr-section-eyebrow">COMO PERSONALIZAR</span><WandSparkles size={25}/><h3>Um detalhe por vez</h3><p>Clique em um texto, imagem ou forma na arte. Os ajustes desse item aparecem aqui.</p><ol><li><span>1</span>Adicione pela barra da esquerda.</li><li><span>2</span>Clique no item para selecionar.</li><li><span>3</span>Ajuste tamanho, posição e estilo.</li></ol><small><Keyboard size={15}/> Use Ctrl + Z para desfazer quando precisar.</small></div>:<div className="cr-properties">
    <div className="cr-edit-actions"><button onClick={copySelected} title="Copiar elemento selecionado para outra aba"><Copy size={14}/> Copiar</button><button onClick={cutSelected} disabled={!!active.locked} title="Recortar camada para colar"><Scissors size={14}/> Recortar</button><button onClick={pasteSelected} disabled={!clipboardReady} title="Colar camada copiada"><ClipboardPaste size={14}/> Colar</button></div><div className="cr-selected-bar"><span>{active.kind==='text'?'Texto':active.kind==='image'?'Imagem':'Forma'}</span><small>{active.locked?'Camada bloqueada':'Editando este item'}</small></div>
+   {canGround(active)&&<section className="cr-table-controls" aria-label="Sombra e apoio na mesa">
+    <div className="cr-table-control-title"><Sparkles size={21}/><div><strong>Realismo na mesa</strong><small>{active.grounding?.pin?'Presa à mesa · move para os lados':'Sombra de contato + sombra projetada'}</small></div></div>
+    <button type="button" className="cr-table-primary" disabled={!!active.locked||groundingBusy} onClick={()=>void integrateWithTable()}>{groundingBusy?'Encaixando…':'Integrar à mesa em 1 clique'}</button>
+    <p>O encaixe usa a base visível do PNG. Ajuste a linha de apoio para coincidir com a mesa do cenário.</p>
+    <fieldset disabled={!!active.locked||groundingBusy}><legend>Acabamento da sombra</legend>
+     <div className="cr-table-presets">{([['soft','Suave'],['natural','Natural'],['strong','Marcada']] as const).map(([key,label])=><button type="button" key={key} onClick={()=>changeGrounding({...groundingPresets[key],pin:active.grounding?.pin})}>{label}</button>)}</div>
+     {active.grounding&&<>
+      <Range label="Intensidade da sombra" value={Math.round(active.grounding.strength*100)} min={0} max={100} unit="%" change={v=>changeGrounding({strength:v/100})}/>
+      <Range label="Suavidade da sombra" value={Math.round(active.grounding.softness*100)} min={0} max={100} unit="%" change={v=>changeGrounding({softness:v/100})}/>
+      <div className="cr-table-directions" role="group" aria-label="Direção da sombra">{([[-.7,'← Esquerda'],[0,'Atrás'],[.7,'Direita →']] as const).map(([direction,label])=><button key={label} type="button" aria-pressed={active.grounding?.direction===direction} onClick={()=>changeGrounding({direction})}>{label}</button>)}</div>
+      <Range label="Comprimento da sombra" value={Math.round(active.grounding.length*100)} min={5} max={50} unit="%" change={v=>changeGrounding({length:v/100})}/>
+      {active.grounding.pin?<>
+       <label className="cr-table-guide-toggle"><input type="checkbox" checked={showGroundLine} onChange={e=>setShowGroundLine(e.target.checked)}/> Mostrar linha da mesa</label>
+       <Range label="Linha da mesa" value={Math.round(active.grounding.pin.surface*1000)/10} min={0} max={100} unit="%" change={v=>changeGrounding({pin:{...active.grounding!.pin!,surface:v/100}})}/>
+       <button type="button" className="cr-table-release" onClick={()=>changeGrounding({pin:undefined})}>Soltar da mesa</button>
+      </>:<button type="button" className="cr-table-release" onClick={()=>void integrateWithTable()}>Prender à mesa</button>}
+      <button type="button" className="cr-table-release" onClick={()=>patch(active.id,{grounding:undefined})}>Remover integração</button>
+     </>}
+    </fieldset>
+   </section>}
    {active.role==='mockup'&&doc.smartTemplate?.slot&&<div className="cr-feature" role="group" aria-label="Encaixe inteligente da caneca"><div><strong>{t('Encaixe inteligente')}</strong><p>{t('Recupere a posição e a proporção da caneca neste cenário, mantendo a máscara de primeiro plano.')}</p><button type="button" className="cr-primary" disabled={!!active.locked} onClick={()=>{if(!doc.smartTemplate?.slot)return;const fitted=fitMockupIntoSlot(active,doc.smartTemplate.slot,doc.smartTemplate.maskSrc,1,doc.smartTemplate.maskMode,doc.smartTemplate.maskInvert);patch(active.id,fitted);setNotice(t('Caneca reenquadrada no template.'));}}><Maximize size={15}/>{t('Reencaixar caneca')}</button><div className="cr-fit-scale-options" role="group" aria-label="Escala da caneca no encaixe">{([0.9,1,1.1] as const).map(f=><button key={f} type="button" disabled={!!active.locked} title="Ajustar a caneca proporcionalmente" onClick={()=>{if(!doc.smartTemplate?.slot)return;const fitted=fitMockupIntoSlot(active,doc.smartTemplate.slot,doc.smartTemplate.maskSrc,f,doc.smartTemplate.maskMode,doc.smartTemplate.maskInvert);patch(active.id,fitted);setNotice(`Caneca enquadrada em ${Math.round(f*100)}%, sem achatar.`);}}>{Math.round(f*100)}%</button>)}</div></div></div>}
    {active.locked&&<div className="cr-layer-lock-notice"><Lock size={15}/> Camada protegida. Desbloqueie pelo cadeado acima ou na aba Camadas.</div>}
    <fieldset className="cr-properties-fields" disabled={!!active.locked}>
