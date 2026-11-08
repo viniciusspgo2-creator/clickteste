@@ -16,6 +16,7 @@ import {
   FloatShadows,
 } from "./studio";
 import { Mug } from "./mug";
+import { PanoramaBackdrop } from "./panorama-backdrop";
 import { ImageBackdrop } from "./bg-image";
 import { CameraRig } from "./camera-rig";
 import { PostFX } from "./postfx";
@@ -54,6 +55,7 @@ function SceneContent() {
     <>
       <Backdrop />
       <ImageBackdrop />
+      <PanoramaBackdrop />
       <StudioLights />
       <Ground />
       <Mug />

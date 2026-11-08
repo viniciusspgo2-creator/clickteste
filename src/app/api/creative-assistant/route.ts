@@ -5,13 +5,14 @@
 import {NextRequest,NextResponse} from 'next/server';
 import {readAssistantBody,AssistantRequestError} from '@/lib/creative/assistant-request';
 import {sanitizeAssistantHistory} from '@/lib/creative/assistant-history';
+import {STUDIO_ASSISTANT_KNOWLEDGE} from '@/lib/creative/studio-help';
 import {readAssistantProviderResponse} from '@/lib/creative/provider-response';
 export const runtime='nodejs';
 /** Disponibilidade sem expor chave, modelo ou informações privadas. */
 export function GET(){return NextResponse.json({ok:true,aiEnabled:Boolean(process.env.OPENAI_API_KEY)},{headers:{'Cache-Control':'no-store'}});}
 const actionsByArea={
  editor:['backgrounds','templates','texts','elements','personagens','uploads','guides','export'],
- studio:['arts','base','models','scene','light','camera','effects','compose'],
+ studio:['arts','base','models','scene','light','camera','effects','compose','backgrounds','export','guides','projects','layers'],
  templates:[]
 } as const;
 const frequency=new Map<string,{start:number,count:number}>();
@@ -51,7 +52,7 @@ export async function POST(req:NextRequest){
   const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),15000);
   let output:Record<string,unknown>;
   try{
-   const result=await fetch('https://api.openai.com/v1/chat/completions',{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},signal:controller.signal,body:JSON.stringify({model:process.env.CREATIVE_ASSISTANT_MODEL||'gpt-4o-mini',response_format:{type:'json_object'},temperature:.2,max_tokens:500,messages:[{role:'system',content:knowledge},{role:'user',content:JSON.stringify({area,locale,question,previousQuestions})}]})});
+   const result=await fetch('https://api.openai.com/v1/chat/completions',{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},signal:controller.signal,body:JSON.stringify({model:process.env.CREATIVE_ASSISTANT_MODEL||'gpt-4o-mini',response_format:{type:'json_object'},temperature:.2,max_tokens:500,messages:[{role:'system',content:area==='studio'?knowledge+'\n\nEste pedido é do STUDIO MOCKUP 3D. Priorize exclusivamente os controles reais abaixo e não confunda a foto do mockup com a estampa aberta. Se faltar informação, peça a etapa e o controle usados. Não prometa tempo/temperatura universal nem qualidade inexistente no original.\n'+STUDIO_ASSISTANT_KNOWLEDGE:knowledge},{role:'user',content:JSON.stringify({area,locale,question,previousQuestions})}]})});
    if(!result.ok)return NextResponse.json({ok:false,reason:'provider_error'},{status:502});
    // Headers alone are not completion: bound and abort the full response body.
    const provider=await readAssistantProviderResponse(result,controller.signal) as {choices?:{message?:{content?:unknown}}[]};

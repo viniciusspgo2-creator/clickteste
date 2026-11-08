@@ -127,6 +127,10 @@ export interface LightState {
 }
 
 export interface BackgroundState {
+  panorama?: boolean;
+  panoramaScene?: string;
+  panoramaHeight?: number;
+  panoramaRotation?: number;
   imageContrast: number;
   imageVignette: number;
   type:
@@ -245,6 +249,8 @@ export interface GifState {
 }
 
 export interface ExportState {
+  framing?: "safe" | "current";
+  presentationZoom?: number;
   ratioId: string;
   customW: number;
   customH: number;
@@ -1055,7 +1061,9 @@ export const useMockupStore = create<MockupStore>((set, get) => {
     patch: (slice, partial) => {
       guardHistory();
       const current = get()[slice] as unknown as Record<string, unknown>;
-      const next = { ...current, ...(partial as Record<string, unknown>) };
+      const change = partial as Record<string, unknown>;
+      const next = { ...current, ...change };
+      if (slice === "bg" && "type" in change && !("panorama" in change)) next.panorama = false;
       set({ [slice]: next } as unknown as Partial<MockupStore>);
     },
 
@@ -1211,6 +1219,7 @@ export const useMockupStore = create<MockupStore>((set, get) => {
         bg: { ...st.bg, ...s.bg },
         camera: { ...st.camera, ...s.camera },
         exportSettings: { ...st.exportSettings, ...s.exportSettings },
+        zoom: Number.isFinite(s.exportSettings?.presentationZoom) ? clamp(s.exportSettings!.presentationZoom!,25,300) : st.zoom,
         companions,
         layerOrder: [...new Set([...ordered, ...ids])],
         selectedIds: ["hero"],

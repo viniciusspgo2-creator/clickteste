@@ -25,6 +25,9 @@ export async function startStudioHarness({ noticesOnly = false } = {}) {
     import {useMockupStore as store} from ${JSON.stringify(path.join(root, "src/components/tools/mockup/state/store.ts"))};
     import {studioRefs as refs} from ${JSON.stringify(path.join(root, "src/components/tools/mockup/scene/studio-refs.ts"))};
     import * as art from ${JSON.stringify(path.join(root, "src/components/tools/mockup/lib/art-registry.ts"))};
+    import * as backgrounds from ${JSON.stringify(path.join(root, "src/components/tools/mockup/lib/background-registry.ts"))};
+    import * as frames from ${JSON.stringify(path.join(root, "src/components/tools/mockup/exporters/frame-capture.ts"))};
+    import * as video from ${JSON.stringify(path.join(root, "src/components/tools/mockup/exporters/video-exporter.ts"))};
     import * as images from ${JSON.stringify(path.join(root, "src/components/tools/mockup/exporters/image-exporter.ts"))};
     import * as projects from ${JSON.stringify(path.join(root, "src/components/tools/mockup/ui/projects-dialog.tsx"))};
     import * as portable from ${JSON.stringify(path.join(root, "src/components/tools/mockup/lib/portable-project.ts"))};
@@ -35,7 +38,7 @@ export async function startStudioHarness({ noticesOnly = false } = {}) {
     const urls=new Map(), created=URL.createObjectURL.bind(URL), revoked=URL.revokeObjectURL.bind(URL);
     URL.createObjectURL=b=>{const u=created(b);urls.set(u,b);return u;};
     URL.revokeObjectURL=u=>{urls.delete(u);revoked(u);};
-    window.studioTest={store,refs,art,images,projects,portable,urls,get captures(){return captures;}};
+    window.studioTest={store,refs,art,images,video,backgrounds,frames,projects,portable,urls,get captures(){return captures;}};
     createRoot(document.getElementById('root')).render(${noticesOnly ? "<><StudioAnnouncements/><AnnouncementsPanel refreshKey={0} onUnauthorized={()=>{window.noticeUnauthorized=true;}}/></>" : "<MockupStudio/>"});
   `;
   await build({ stdin: { contents: entry, resolveDir: root, loader: "tsx" }, absWorkingDir: root,

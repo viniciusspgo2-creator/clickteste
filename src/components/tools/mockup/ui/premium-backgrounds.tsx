@@ -5,6 +5,7 @@ import { useMockupStore } from "../state/store";
 import { loadBgBlob } from "../lib/background-registry";
 import { exportImage, downloadBlob } from "../exporters/image-exporter";
 import { zipSync } from "fflate";
+import { PanoramaScenes } from "./panorama-scenes";
 import { SliderRow } from "./controls";
 const waitPaint = () =>
   new Promise<void>((resolve) =>
@@ -38,6 +39,7 @@ export function PremiumBackgrounds({
   notify: (text: string) => void;
 }) {
   const st = useMockupStore();
+  const [mode, setMode] = useState<"photos"|"panorama">("photos");
   const [category, setCategory] = useState("Todos");
   const [chosen, setChosen] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
@@ -82,8 +84,13 @@ export function PremiumBackgrounds({
   }
   return (
     <div>
+      <div className="cg-scene-modes" role="group" aria-label="Coleção de cenários">
+        <button type="button" aria-pressed={mode==='photos'} onClick={()=>setMode('photos')}>Fotos e datas · {catalog.length}</button>
+        <button type="button" aria-pressed={mode==='panorama'} onClick={()=>setMode('panorama')}>Ambientes 360° · 24</button>
+      </div>
+      {mode==='panorama'?<PanoramaScenes notify={notify}/>:<>
       <p className="cg-hint">
-        30 cenários originais. Clique para aplicar; marque vários para baixar um
+        {catalog.length} cenários originais. Clique para aplicar; marque vários para baixar um
         lote com a mesma composição.
       </p>
       <select
@@ -112,7 +119,7 @@ export function PremiumBackgrounds({
                 }
               }}
             >
-              <img loading="lazy" src={b.src} alt={`Cenário ${b.label}`} />
+              <img loading="lazy" draggable={false} onDragStart={event=>event.preventDefault()} src={b.src} alt={`Cenário ${b.label}`} />
               <strong>{b.label}</strong>
             </button>
             <label className="cg-batch-row">
@@ -158,6 +165,7 @@ export function PremiumBackgrounds({
         step={0.01}
         onChange={(imageVignette) => st.patch("bg", { imageVignette })}
       />
+      </>}
     </div>
   );
 }

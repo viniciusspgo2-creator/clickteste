@@ -59,6 +59,7 @@ test('V5.12: valida limites, ausência de corpo e cancelamento prévio',async()=
 const reqReader=load('src/lib/creative/assistant-request.ts');
 const history=load('src/lib/creative/assistant-history.ts');
 const route=load('src/app/api/creative-assistant/route.ts',{
+ '@/lib/creative/studio-help':load('src/lib/creative/studio-help.ts'),
  'next/server':{NextResponse:{json(body,init={}){return new Response(JSON.stringify(body),{status:init.status||200,headers:{'Content-Type':'application/json',...init.headers}});}}},
  '@/lib/creative/assistant-request':reqReader,
  '@/lib/creative/assistant-history':history,

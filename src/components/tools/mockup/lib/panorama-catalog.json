@@ -1,0 +1,363 @@
+[
+  {
+    "id": "studio_small_01",
+    "label": "Softbox clássico",
+    "category": "Estúdio",
+    "preview": "https://cdn.polyhaven.com/asset_img/thumbs/studio_small_01.png?width=256&height=256",
+    "hdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/studio_small_01_2k.hdr",
+    "bytes": 6730854,
+    "lightHdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/studio_small_01_1k.hdr",
+    "lightBytes": 1701440,
+    "source": "https://polyhaven.com/a/studio_small_01",
+    "license": "CC0-1.0",
+    "authors": [
+      "Greg Zaal"
+    ]
+  },
+  {
+    "id": "studio_small_02",
+    "label": "Luz lateral de produto",
+    "category": "Estúdio",
+    "preview": "https://cdn.polyhaven.com/asset_img/thumbs/studio_small_02.png?width=256&height=256",
+    "hdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/studio_small_02_2k.hdr",
+    "bytes": 6713781,
+    "lightHdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/studio_small_02_1k.hdr",
+    "lightBytes": 1701272,
+    "source": "https://polyhaven.com/a/studio_small_02",
+    "license": "CC0-1.0",
+    "authors": [
+      "Greg Zaal"
+    ]
+  },
+  {
+    "id": "studio_small_03",
+    "label": "Recorte de porcelana",
+    "category": "Estúdio",
+    "preview": "https://cdn.polyhaven.com/asset_img/thumbs/studio_small_03.png?width=256&height=256",
+    "hdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/studio_small_03_2k.hdr",
+    "bytes": 6673807,
+    "lightHdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/studio_small_03_1k.hdr",
+    "lightBytes": 1686299,
+    "source": "https://polyhaven.com/a/studio_small_03",
+    "license": "CC0-1.0",
+    "authors": [
+      "Greg Zaal"
+    ]
+  },
+  {
+    "id": "studio_small_04",
+    "label": "Estúdio amplo",
+    "category": "Estúdio",
+    "preview": "https://cdn.polyhaven.com/asset_img/thumbs/studio_small_04.png?width=256&height=256",
+    "hdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/studio_small_04_2k.hdr",
+    "bytes": 6679344,
+    "lightHdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/studio_small_04_1k.hdr",
+    "lightBytes": 1688042,
+    "source": "https://polyhaven.com/a/studio_small_04",
+    "license": "CC0-1.0",
+    "authors": [
+      "Greg Zaal"
+    ]
+  },
+  {
+    "id": "studio_small_05",
+    "label": "Luz de catálogo",
+    "category": "Estúdio",
+    "preview": "https://cdn.polyhaven.com/asset_img/thumbs/studio_small_05.png?width=256&height=256",
+    "hdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/studio_small_05_2k.hdr",
+    "bytes": 6797542,
+    "lightHdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/studio_small_05_1k.hdr",
+    "lightBytes": 1723695,
+    "source": "https://polyhaven.com/a/studio_small_05",
+    "license": "CC0-1.0",
+    "authors": [
+      "Greg Zaal"
+    ]
+  },
+  {
+    "id": "studio_small_06",
+    "label": "Reflexo suave",
+    "category": "Estúdio",
+    "preview": "https://cdn.polyhaven.com/asset_img/thumbs/studio_small_06.png?width=256&height=256",
+    "hdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/studio_small_06_2k.hdr",
+    "bytes": 6689147,
+    "lightHdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/studio_small_06_1k.hdr",
+    "lightBytes": 1695535,
+    "source": "https://polyhaven.com/a/studio_small_06",
+    "license": "CC0-1.0",
+    "authors": [
+      "Greg Zaal"
+    ]
+  },
+  {
+    "id": "studio_small_07",
+    "label": "Estúdio de contraste",
+    "category": "Estúdio",
+    "preview": "https://cdn.polyhaven.com/asset_img/thumbs/studio_small_07.png?width=256&height=256",
+    "hdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/studio_small_07_2k.hdr",
+    "bytes": 6549798,
+    "lightHdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/studio_small_07_1k.hdr",
+    "lightBytes": 1654093,
+    "source": "https://polyhaven.com/a/studio_small_07",
+    "license": "CC0-1.0",
+    "authors": [
+      "Greg Zaal"
+    ]
+  },
+  {
+    "id": "studio_small_08",
+    "label": "Softbox difuso",
+    "category": "Estúdio",
+    "preview": "https://cdn.polyhaven.com/asset_img/thumbs/studio_small_08.png?width=256&height=256",
+    "hdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/studio_small_08_2k.hdr",
+    "bytes": 5930381,
+    "lightHdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/studio_small_08_1k.hdr",
+    "lightBytes": 1508872,
+    "source": "https://polyhaven.com/a/studio_small_08",
+    "license": "CC0-1.0",
+    "authors": [
+      "Sergej Majboroda"
+    ]
+  },
+  {
+    "id": "studio_small_09",
+    "label": "Luz equilibrada",
+    "category": "Estúdio",
+    "preview": "https://cdn.polyhaven.com/asset_img/thumbs/studio_small_09.png?width=256&height=256",
+    "hdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/studio_small_09_2k.hdr",
+    "bytes": 6312947,
+    "lightHdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/studio_small_09_1k.hdr",
+    "lightBytes": 1615248,
+    "source": "https://polyhaven.com/a/studio_small_09",
+    "license": "CC0-1.0",
+    "authors": [
+      "Sergej Majboroda"
+    ]
+  },
+  {
+    "id": "photo_studio_01",
+    "label": "Estúdio fotográfico",
+    "category": "Estúdio",
+    "preview": "https://cdn.polyhaven.com/asset_img/thumbs/photo_studio_01.png?width=256&height=256",
+    "hdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/photo_studio_01_2k.hdr",
+    "bytes": 6375901,
+    "lightHdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/photo_studio_01_1k.hdr",
+    "lightBytes": 1597273,
+    "source": "https://polyhaven.com/a/photo_studio_01",
+    "license": "CC0-1.0",
+    "authors": [
+      "Sergej Majboroda"
+    ]
+  },
+  {
+    "id": "brown_photostudio_02",
+    "label": "Estúdio acolhedor",
+    "category": "Interiores",
+    "preview": "https://cdn.polyhaven.com/asset_img/thumbs/brown_photostudio_02.png?width=256&height=256",
+    "hdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/brown_photostudio_02_2k.hdr",
+    "bytes": 6492863,
+    "lightHdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/brown_photostudio_02_1k.hdr",
+    "lightBytes": 1648130,
+    "source": "https://polyhaven.com/a/brown_photostudio_02",
+    "license": "CC0-1.0",
+    "authors": [
+      "Sergej Majboroda"
+    ]
+  },
+  {
+    "id": "brown_photostudio_06",
+    "label": "Luz natural quente",
+    "category": "Interiores",
+    "preview": "https://cdn.polyhaven.com/asset_img/thumbs/brown_photostudio_06.png?width=256&height=256",
+    "hdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/brown_photostudio_06_2k.hdr",
+    "bytes": 6186161,
+    "lightHdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/brown_photostudio_06_1k.hdr",
+    "lightBytes": 1569967,
+    "source": "https://polyhaven.com/a/brown_photostudio_06",
+    "license": "CC0-1.0",
+    "authors": [
+      "Sergej Majboroda"
+    ]
+  },
+  {
+    "id": "photo_studio_loft_hall",
+    "label": "Loft iluminado",
+    "category": "Interiores",
+    "preview": "https://cdn.polyhaven.com/asset_img/thumbs/photo_studio_loft_hall.png?width=256&height=256",
+    "hdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/photo_studio_loft_hall_2k.hdr",
+    "bytes": 6432146,
+    "lightHdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/photo_studio_loft_hall_1k.hdr",
+    "lightBytes": 1640243,
+    "source": "https://polyhaven.com/a/photo_studio_loft_hall",
+    "license": "CC0-1.0",
+    "authors": [
+      "Sergej Majboroda"
+    ]
+  },
+  {
+    "id": "photo_studio_london_hall",
+    "label": "Janelas de Londres",
+    "category": "Interiores",
+    "preview": "https://cdn.polyhaven.com/asset_img/thumbs/photo_studio_london_hall.png?width=256&height=256",
+    "hdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/photo_studio_london_hall_2k.hdr",
+    "bytes": 6420850,
+    "lightHdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/photo_studio_london_hall_1k.hdr",
+    "lightBytes": 1631821,
+    "source": "https://polyhaven.com/a/photo_studio_london_hall",
+    "license": "CC0-1.0",
+    "authors": [
+      "Sergej Majboroda"
+    ]
+  },
+  {
+    "id": "artist_workshop",
+    "label": "Ateliê criativo",
+    "category": "Interiores",
+    "preview": "https://cdn.polyhaven.com/asset_img/thumbs/artist_workshop.png?width=256&height=256",
+    "hdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/artist_workshop_2k.hdr",
+    "bytes": 6756758,
+    "lightHdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/artist_workshop_1k.hdr",
+    "lightBytes": 1719663,
+    "source": "https://polyhaven.com/a/artist_workshop",
+    "license": "CC0-1.0",
+    "authors": [
+      "Oliksiy Yakovlyev"
+    ]
+  },
+  {
+    "id": "christmas_photo_studio_01",
+    "label": "Natal aconchegante",
+    "category": "Natal",
+    "preview": "https://cdn.polyhaven.com/asset_img/thumbs/christmas_photo_studio_01.png?width=256&height=256",
+    "hdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/christmas_photo_studio_01_2k.hdr",
+    "bytes": 6615048,
+    "lightHdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/christmas_photo_studio_01_1k.hdr",
+    "lightBytes": 1679082,
+    "source": "https://polyhaven.com/a/christmas_photo_studio_01",
+    "license": "CC0-1.0",
+    "authors": [
+      "Sergej Majboroda"
+    ]
+  },
+  {
+    "id": "christmas_photo_studio_02",
+    "label": "Natal de estúdio",
+    "category": "Natal",
+    "preview": "https://cdn.polyhaven.com/asset_img/thumbs/christmas_photo_studio_02.png?width=256&height=256",
+    "hdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/christmas_photo_studio_02_2k.hdr",
+    "bytes": 6551054,
+    "lightHdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/christmas_photo_studio_02_1k.hdr",
+    "lightBytes": 1668525,
+    "source": "https://polyhaven.com/a/christmas_photo_studio_02",
+    "license": "CC0-1.0",
+    "authors": [
+      "Sergej Majboroda"
+    ]
+  },
+  {
+    "id": "christmas_photo_studio_04",
+    "label": "Noite de Natal",
+    "category": "Natal",
+    "preview": "https://cdn.polyhaven.com/asset_img/thumbs/christmas_photo_studio_04.png?width=256&height=256",
+    "hdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/christmas_photo_studio_04_2k.hdr",
+    "bytes": 6125131,
+    "lightHdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/christmas_photo_studio_04_1k.hdr",
+    "lightBytes": 1540259,
+    "source": "https://polyhaven.com/a/christmas_photo_studio_04",
+    "license": "CC0-1.0",
+    "authors": [
+      "Sergej Majboroda"
+    ]
+  },
+  {
+    "id": "christmas_photo_studio_05",
+    "label": "Natal com luz natural",
+    "category": "Natal",
+    "preview": "https://cdn.polyhaven.com/asset_img/thumbs/christmas_photo_studio_05.png?width=256&height=256",
+    "hdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/christmas_photo_studio_05_2k.hdr",
+    "bytes": 5976629,
+    "lightHdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/christmas_photo_studio_05_1k.hdr",
+    "lightBytes": 1513182,
+    "source": "https://polyhaven.com/a/christmas_photo_studio_05",
+    "license": "CC0-1.0",
+    "authors": [
+      "Sergej Majboroda"
+    ]
+  },
+  {
+    "id": "christmas_photo_studio_06",
+    "label": "Natal festivo",
+    "category": "Natal",
+    "preview": "https://cdn.polyhaven.com/asset_img/thumbs/christmas_photo_studio_06.png?width=256&height=256",
+    "hdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/christmas_photo_studio_06_2k.hdr",
+    "bytes": 6359448,
+    "lightHdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/christmas_photo_studio_06_1k.hdr",
+    "lightBytes": 1631504,
+    "source": "https://polyhaven.com/a/christmas_photo_studio_06",
+    "license": "CC0-1.0",
+    "authors": [
+      "Sergej Majboroda"
+    ]
+  },
+  {
+    "id": "kiara_1_dawn",
+    "label": "Amanhecer suave",
+    "category": "Natureza",
+    "preview": "https://cdn.polyhaven.com/asset_img/thumbs/kiara_1_dawn.png?width=256&height=256",
+    "hdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/kiara_1_dawn_2k.hdr",
+    "bytes": 6149550,
+    "lightHdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/kiara_1_dawn_1k.hdr",
+    "lightBytes": 1475077,
+    "source": "https://polyhaven.com/a/kiara_1_dawn",
+    "license": "CC0-1.0",
+    "authors": [
+      "Greg Zaal"
+    ]
+  },
+  {
+    "id": "venice_sunset",
+    "label": "Pôr do sol em Veneza",
+    "category": "Natureza",
+    "preview": "https://cdn.polyhaven.com/asset_img/thumbs/venice_sunset.png?width=256&height=256",
+    "hdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/venice_sunset_2k.hdr",
+    "bytes": 5723224,
+    "lightHdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/venice_sunset_1k.hdr",
+    "lightBytes": 1440400,
+    "source": "https://polyhaven.com/a/venice_sunset",
+    "license": "CC0-1.0",
+    "authors": [
+      "Greg Zaal"
+    ]
+  },
+  {
+    "id": "autumn_forest_04",
+    "label": "Bosque de outono",
+    "category": "Natureza",
+    "preview": "https://cdn.polyhaven.com/asset_img/thumbs/autumn_forest_04.png?width=256&height=256",
+    "hdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/autumn_forest_04_2k.hdr",
+    "bytes": 7737715,
+    "lightHdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/autumn_forest_04_1k.hdr",
+    "lightBytes": 1959488,
+    "source": "https://polyhaven.com/a/autumn_forest_04",
+    "license": "CC0-1.0",
+    "authors": [
+      "Alexander Scholten"
+    ]
+  },
+  {
+    "id": "green_point_park",
+    "label": "Parque ao ar livre",
+    "category": "Natureza",
+    "preview": "https://cdn.polyhaven.com/asset_img/thumbs/green_point_park.png?width=256&height=256",
+    "hdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/green_point_park_2k.hdr",
+    "bytes": 6591186,
+    "lightHdr": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/green_point_park_1k.hdr",
+    "lightBytes": 1664799,
+    "source": "https://polyhaven.com/a/green_point_park",
+    "license": "CC0-1.0",
+    "authors": [
+      "Greg Zaal",
+      "Rico Cilliers"
+    ]
+  }
+]

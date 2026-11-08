@@ -58,5 +58,5 @@ export function normalizeHandleStyle(value: unknown): HandleStyle {
     : "classic";
 }
 
-/** Retired from new selections; its ID still opens existing projects faithfully. */
-export const SELECTABLE_HANDLE_STYLES = HANDLE_STYLES.filter(style => style.id !== "livesub");
+/** Retired thin C and symmetric heart stay loadable in existing projects. */
+export const SELECTABLE_HANDLE_STYLES = HANDLE_STYLES.filter(style => style.id !== "livesub" && style.id !== "heart");

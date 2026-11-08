@@ -3,9 +3,10 @@ import {useEffect,useRef,useState} from 'react';
 import {usePlatformLanguage} from '@/components/platform/language-provider';
 import {BookOpen,Send,CheckCircle2,X,Sparkles} from 'lucide-react';
 import './creative.css';
+import { findStudioHelp, STUDIO_HELP_TOPICS } from '@/lib/creative/studio-help';
 
 type Area='editor'|'studio'|'templates';
-type Action='backgrounds'|'templates'|'texts'|'elements'|'personagens'|'uploads'|'guides'|'export'|'arts'|'base'|'models'|'scene'|'light'|'camera'|'effects'|'compose';
+type Action='backgrounds'|'templates'|'texts'|'elements'|'personagens'|'uploads'|'guides'|'export'|'arts'|'base'|'models'|'scene'|'light'|'camera'|'effects'|'compose'|'projects'|'layers';
 const catalog:{test:RegExp;message:string;action?:Action;label?:string}[]=[
  {test:/espelh|inverter|flip|virar (imagem|objeto|texto)/i,message:'No Editor, selecione a imagem, o texto ou a forma. Em Propriedades → Espelhar o elemento, escolha Horizontal ou Vertical. Você pode espelhar novamente para desfazer a inversão. A exportação respeita o espelhamento.'},
  {test:/camada|trazer.*frente|enviar.*tr[aá]s|por tr[aá]s|por cima|sobrepor|profundidade.*objeto/i,message:'No Editor, selecione o objeto e abra Propriedades → Ordem dos objetos. Use Trazer à frente, Subir 1 camada, Descer 1 camada ou Enviar para trás. A ordenação é salva na composição e pode ser desfeita com Ctrl+Z.'},
@@ -27,7 +28,7 @@ const catalog:{test:RegExp;message:string;action?:Action;label?:string}[]=[
 const suggestions=['Qual é o tamanho correto da estampa?', 'Como enviar um objeto para trás?', 'Como espelhar um elemento?', 'Como salvar no navegador?'];
 const actionsByArea:Record<Area,readonly Action[]>={
  editor:['backgrounds','templates','texts','elements','personagens','uploads','guides','export'],
- studio:['arts','base','models','scene','light','camera','effects','compose'],
+ studio:['arts','base','models','scene','light','camera','effects','compose','backgrounds','export','guides','projects','layers'],
  templates:[]
 };
 const actionAllowed=(area:Area,action:unknown):action is Action=>typeof action==='string'&&actionsByArea[area].includes(action as Action);
@@ -38,6 +39,7 @@ const generalHelp={
 } as const;
 export function StudioConcierge({area,onClose,onAction}:{area:Area;onClose:()=>void;onAction?:(action:Action)=>boolean}){
  const {language}=usePlatformLanguage();
+ const [helpGroup,setHelpGroup]=useState("Apresentação");
  const [aiAvailable,setAiAvailable]=useState<boolean|null>(null);
  const [providerUnavailable,setProviderUnavailable]=useState(false);
  useEffect(()=>{let mounted=true;const controller=new AbortController();
@@ -49,14 +51,15 @@ export function StudioConcierge({area,onClose,onAction}:{area:Area;onClose:()=>v
    .finally(()=>clearTimeout(deadline));
   return()=>{mounted=false;controller.abort();clearTimeout(deadline);};},[]);
  const [isAnswering,setIsAnswering]=useState(false);
- const [query,setQuery]=useState('');const [reply,setReply]=useState('Pergunte sobre impressão, Studio 3D, templates ou Editor. Posso abrir ferramentas disponíveis mediante sua confirmação.');
+ const [query,setQuery]=useState('');const [reply,setReply]=useState(area==='studio'?'Posso orientar o encaixe da estampa, aproximação, altura, cenários, luz, vídeo e arquivo para impressão. Escolha um assunto ou descreva sua dúvida. As ferramentas só serão abertas quando você confirmar.':'Pergunte sobre impressão, Studio 3D, templates ou Editor. Posso abrir ferramentas disponíveis mediante sua confirmação.');
  const [pending,setPending]=useState<{action:Action;label:string}|null>(null);const [conversation,setConversation]=useState<string[]>([]);
  // Requests may finish out of order (especially on slower mobile networks).
  // Only the latest user question may change the answer or propose an action.
  const requestRef=useRef<{version:number;controller:AbortController|null}>({version:0,controller:null});
  useEffect(()=>()=>{requestRef.current.version++;requestRef.current.controller?.abort();requestRef.current.controller=null;},[]);
  const ask=async(q:string)=>{const text=q.trim();if(!text)return;
-  const match=catalog.find(x=>x.test.test(text));
+  const studioMatch=area==='studio'?findStudioHelp(text):undefined;
+  const match=area==='studio'?(studioMatch?{message:studioMatch.answer,action:studioMatch.action,label:studioMatch.label}:undefined):catalog.find(x=>x.test.test(text));
   const previousQuestions=conversation.slice(-4);
   requestRef.current.controller?.abort();
   const controller=new AbortController();const version=++requestRef.current.version;
@@ -89,11 +92,12 @@ export function StudioConcierge({area,onClose,onAction}:{area:Area;onClose:()=>v
   setReply(language==='pt'?(match?.message||generalHelp[language]):generalHelp[language]);
   setPending(match?.action&&match.label&&actionAllowed(area,match.action)?{action:match.action,label:match.label}:null);
  };
- return <div className="cr-concierge" role="dialog" aria-label="Guia interativo de sublimação de canecas" aria-modal="false">
+ return <div className="cr-concierge" data-area={area} role="dialog" aria-label="Guia interativo de sublimação de canecas" aria-modal="false">
   <div className="cr-concierge-top"><div><BookOpen size={18}/><strong>Guia Inteligente · Canecas</strong><small>{area==='editor'?'Editor de Artes':area==='studio'?'Studio Mockup 3D':'Studio Templates'}</small></div><button type="button" aria-label="Fechar assistente" onClick={onClose}><X size={18}/></button></div>
   <div className="cr-concierge-content"><span className="cr-concierge-label">ASSISTENTE DA PLATAFORMA</span><p aria-live="polite">{isAnswering?"Consultando as orientações…":reply}</p>{conversation.length>0&&<small>Última pergunta: {conversation[conversation.length-1]}</small>}
    {pending&&<div className="cr-concierge-confirm"><strong>Quer ativar a opção “{pending.label}”?</strong><p>Digite SIM ou clique em Confirmar. Nenhuma configuração será alterada sem essa ação.</p><div><button type="button" onClick={()=>setPending(null)}>Cancelar</button><button type="button" disabled={isAnswering} onClick={()=>{const ok=onAction?.(pending.action)??false;setReply(ok?`Opção “${pending.label}” aberta. Você pode continuar editando normalmente.`:`Esta opção fica em outra ferramenta da plataforma. Abra o módulo correspondente para ativá-la.`);setPending(null)}}><CheckCircle2 size={15}/> Confirmar</button></div></div>}
-   {!pending&&<div className="cr-concierge-suggestions">{suggestions.map(s=><button key={s} type="button" onClick={()=>void ask(s)}>{s}</button>)}</div>}</div>
+   {!pending&&area==='studio'&&<div className="cr-concierge-topics" role="group" aria-label="Assuntos do assistente">{['Começar','Apresentação','Exportar','Resolver'].map(group=><button key={group} type="button" aria-pressed={helpGroup===group} onClick={()=>setHelpGroup(group)}>{group}</button>)}</div>}
+   {!pending&&<div className="cr-concierge-suggestions">{(area==='studio'?STUDIO_HELP_TOPICS.filter(topic=>topic.group===helpGroup).map(topic=>topic.title):suggestions).map(s=><button key={s} type="button" onClick={()=>void ask(s)}>{s}</button>)}</div>}</div>
   <form onSubmit={e=>{e.preventDefault();if(pending&&/^(sim|s[ií]|yes)$/i.test(query.trim())){const ok=onAction?.(pending.action)??false;setReply(ok?`Opção “${pending.label}” aberta.`:'Para acessar esta função, abra o módulo correspondente.');setPending(null);setQuery('');}else void ask(query);}}><input aria-label="Pergunte ao assistente" value={query} onChange={e=>setQuery(e.target.value)} placeholder={pending?'Digite SIM para confirmar...':'Como faço para...'} maxLength={300}/><button type="submit" aria-label="Enviar pergunta" disabled={isAnswering&&query.trim().length===0}><Send size={17}/></button></form>
   <div className="cr-concierge-foot"><Sparkles size={13}/> {aiAvailable===true?(providerUnavailable?'IA temporariamente indisponível · guia local ativo':'IA disponível nesta instalação'):aiAvailable===false?'Guia local · IA não configurada':'Verificando disponibilidade da IA'} · Somente perguntas de texto são enviadas ao provedor quando habilitado; nunca arquivos ou projetos. Ações exigem confirmação.</div>
  </div>;

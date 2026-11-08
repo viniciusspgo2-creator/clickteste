@@ -238,6 +238,8 @@ export function MockupStudio({ plan = "premium" }: { plan?: StudioPlan }) {
       className="cg-studio-root"
       onDragOver={(e) => {
         e.preventDefault();
+        if (st.exportOpen || st.projectsOpen || (e.target as HTMLElement).closest('[role="dialog"],[role="alertdialog"]')) return;
+        if (!e.dataTransfer.types.includes("Files")) return;
         setDrag(true);
       }}
       onDragLeave={(e) => {
@@ -246,6 +248,9 @@ export function MockupStudio({ plan = "premium" }: { plan?: StudioPlan }) {
       onDrop={async (e) => {
         e.preventDefault();
         setDrag(false);
+        // React portals bubble to this root. A preview dragged across its dialog
+        // must never be treated as an uploaded replacement for the user's print.
+        if (st.exportOpen || st.projectsOpen || (e.target as HTMLElement).closest('[role="dialog"],[role="alertdialog"]')) return;
         const f = e.dataTransfer.files[0];
         if (!f) return;
         if (st.bgAdjustMode) {
