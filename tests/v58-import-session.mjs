@@ -97,7 +97,7 @@ test('V5.8: startup handoff guard also supports preset and handoff together',()=
  assert.match(segment,/let initialSession=documentSessionRef\.current\.capture\(\)/);
  assert.match(segment,/initialSession=documentSessionRef\.current\.capture\(\)/);
  assert.match(segment,/if\(handoff&&mounted&&documentSessionRef\.current\.isCurrent\(initialSession\)\)/);
- assert.match(segment,/if\(mounted&&documentSessionRef\.current\.isCurrent\(initialSession\)\)/);
+ assert.match(segment,/if\(mounted&&documentSessionRef\.current\.isCurrent\(initialSession\)&&stateRef\.current\.history\[stateRef\.current\.step\]===captured\)/);
 });
 test('V5.8: stale asset-search responses cannot overwrite new query results',()=>{
  const start=source.indexOf(' const loadAssets='),end=source.indexOf(' useEffect(()=>{void loadAssets(1);}',start);

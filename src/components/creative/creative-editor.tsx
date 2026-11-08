@@ -3,7 +3,8 @@ import { useCallback,useEffect,useMemo,useRef,useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Undo2, Redo2, ImagePlus, Type, Shapes, Layers3, Trash2, Copy, ChevronUp, ChevronDown, Download, SlidersHorizontal, Search, Upload, RectangleHorizontal, Circle, Sparkles, FolderOpen, Save, WandSparkles, X, Plus, Maximize, FlipHorizontal2, FlipVertical2, Crop, LockKeyhole, Users, Eye, EyeOff, Lock, Unlock, Layers2, RotateCcw, BookOpen, Sticker, Shapes as ObjectsIcon, Paintbrush, Pipette, RotateCw, ShieldCheck, History, AlertTriangle, CheckCircle2, Scissors, ClipboardPaste, Eraser, PenTool, Ruler, Magnet, Keyboard, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal, Minus, Palette } from 'lucide-react';
 import { asDataUrl,blankDocument,clearDesignRenderCache,drawDesign,exportDesign,formats,imageFor,saveBlob,uid,type DesignDocument,type DesignNode,type ExportFormat } from '@/lib/creative/design';
-import { readHandoff } from '@/lib/creative/handoff';
+import { readEditorHandoff } from '@/lib/creative/handoff';
+import { prepareMockupHandoff } from '@/lib/creative/mockup-handoff-document';
 import {detachAutomaticSmartMask,replaceFlatScene,canCommitAsyncTemplate} from '@/lib/creative/template-transition';
 import {validateProjectDocument} from '@/lib/creative/validate-project';
 import {canApplyLoadedProject,inspectProjectMedia} from '@/lib/creative/project-media-check';
@@ -393,7 +394,7 @@ export function CreativeEditor(){
     initialSession=documentSessionRef.current.capture();
     stateRef.current={history:[d],step:0};savedDocumentRef.current=d;setHistory([d]);setStep(0);
    }
-   const handoff=params.get('from')==='mockup'?await readHandoff():null;
+   const handoff=params.get('from')==='mockup'?await readEditorHandoff():null;
    // Handoff and links to templates win over the last automatic draft.
    if(!handoff&&!preset&&!params.has('asset')&&mounted){
     const captured=stateRef.current.history[stateRef.current.step],request=projectLoadRef.current;
@@ -417,13 +418,17 @@ export function CreativeEditor(){
      }
     }catch{if(mounted&&canApplyLoadedProject(request,projectLoadRef.current,captured,stateRef.current.history[stateRef.current.step]))setNotice('O rascunho antigo não pôde ser recuperado. A arte atual foi preservada.');}
    }
-   if(handoff&&mounted&&documentSessionRef.current.isCurrent(initialSession)){const data=await asDataUrl(handoff);if(mounted&&documentSessionRef.current.isCurrent(initialSession)){
+   if(handoff&&mounted&&documentSessionRef.current.isCurrent(initialSession)){
+    const captured=stateRef.current.history[stateRef.current.step];
+    const document=await prepareMockupHandoff(handoff);
+    if(mounted&&documentSessionRef.current.isCurrent(initialSession)&&stateRef.current.history[stateRef.current.step]===captured){
     documentSessionRef.current.replace();
-    update(d=>({...d,width:1080,height:1350,background:'#141112'}));await addImage(data,true,'mockup');setTemplateFamily('social');setSocialFormat('feed');setPanel('templates');
+    update(()=>document);setSelected(document.nodes[0]?.id??null);setTemplateFamily('social');setSocialFormat('feed');setPanel('templates');
+    setNotice(handoff.mode==='separate'?`${document.nodes.length} canecas em camadas independentes. Selecione cada uma para mover, ajustar o tamanho ou a sombra.`:'Composição recebida do Studio. Escolha um cenário para sua apresentação.');
     // Remove o gatilho da URL para não sobrescrever um rascunho após recarregar.
     params.delete('from');const query=params.toString();
     window.history.replaceState(window.history.state,'',window.location.pathname+(query?'?'+query:'')+window.location.hash);
-   }}
+   }else if(mounted)setNotice('Seu trabalho foi preservado. Envie as canecas novamente para abrir uma nova composição.');}
   }
   catch{if(mounted)setNotice('Não foi possível recuperar o mockup do Studio. Tente enviar novamente.');}
   const id=new URLSearchParams(window.location.search).get('asset');

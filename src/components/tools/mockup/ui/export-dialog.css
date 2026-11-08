@@ -53,6 +53,9 @@
 .cg-export-editor-link summary { cursor: pointer; color: #c8cdd8; font-size: 12px; font-weight: 600; }
 .cg-export-editor-link p { font-size: 12px; color: #a9afbd; line-height: 1.5; margin-block: 12px; }
 .cg-export-editor-link button { display: flex; align-items: center; gap: 8px; text-align: left; color: #ffb47b; font-size: 12px; }
+.cg-export-editor-link .cg-editor-separate { width: 100%; padding: 12px; border: 1px solid #df783c80; border-radius: 8px; background: #e7782c12; font-weight: 650; }
+.cg-export-editor-link button:disabled { opacity: .55; cursor: wait; }
+.cg-export-editor-link .cg-editor-transfer-hint { margin-block: 8px 16px; font-size: 11px; }
 .cg-export-warning { display: flex; align-items: start; gap: 8px; color: #e9bd84; font-size: 12px; line-height: 1.5; }
 .cg-export-warning svg { flex: none; margin-top: 2px; }
 .cg-export-actionbar { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 20px; position: sticky; bottom: 0; z-index: 1; padding: 18px 24px; background: #17191ffa; border-top: 1px solid var(--export-line); }

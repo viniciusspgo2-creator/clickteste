@@ -27,6 +27,8 @@ export interface ExportOpts {
   supersample?: number;
   /** Export-to-editor only: excludes shadows on floor and contact surface. */
   hideGroundShadow?: boolean;
+  /** Internal Editor handoff: isolate one visible piece without changing state. */
+  objectId?: string;
 }
 
 export interface ExportResult {
@@ -48,6 +50,7 @@ export async function exportImage(opts: ExportOpts): Promise<ExportResult> {
   await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
   const session = beginFrames(width, height, { transparent: usingTransparent,
     hideGroundShadow: opts.hideGroundShadow,
+    objectId: opts.objectId,
     whiteBackground: opts.background === "white" || (requestedTransparent && opts.format === "jpeg"),
     ssCap: opts.supersample ?? 4 });
   try {
@@ -102,6 +105,7 @@ export async function exportImageCanvas(
   const session = beginFrames(width, height, {
     transparent: requestedTransparent && opts.format !== "jpeg",
     hideGroundShadow: opts.hideGroundShadow,
+    objectId: opts.objectId,
     whiteBackground: opts.background === "white" || (requestedTransparent && opts.format === "jpeg"),
     ssCap: 2,
   });

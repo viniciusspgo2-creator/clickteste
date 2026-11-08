@@ -64,7 +64,7 @@ test('Reconhece formatos sociais sem classificar estampas de caneca como posts',
 });
 
 test('Handoff abre a coleção de Posts e Stories e mantém o mockup editável',()=>{
- assert.match(editor,/await addImage\(data,true,'mockup'\);setTemplateFamily\('social'\);setSocialFormat\('feed'\)/);
+ assert.match(editor,/update\(\(\)=>document\);setSelected\(document.nodes\[0\]\?\.id\?\?null\);setTemplateFamily\('social'\);setSocialFormat\('feed'\)/);
  assert.match(editor,/const keep=detachAutomaticSmartMask\(d\)\.filter\(n=>n\.role!=='template'/);
  assert.match(editor,/nodes:\[\.\.\.base\.nodes,\.\.\.adapted\]/);
  assert.match(editor,/const applySocialPreset=.*makeSocialPreset\(preset\)/);
