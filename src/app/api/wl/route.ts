@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import {readJsonBody,RequestBodyError} from '@/lib/security/request-body';
+import {clientAddress} from '@/lib/security/rate-limit';
+import {rateLimit} from '@/lib/admin-auth';
+import {sameOriginMutation} from '@/lib/studio-access-options';
 
 const SLUG_RE = /^[a-zA-Z0-9][a-zA-Z0-9_-]{1,38}[a-zA-Z0-9]$/;
 const RESERVED = new Set(['api', 'admin', 'w', 'www', 'app', 'click', 'gruda']);
@@ -10,6 +14,7 @@ function normalizePhone(phone: string): string {
 
 // GET /api/wl?slug=nome — verifica disponibilidade do slug
 export async function GET(req: NextRequest) {
+  if (!rateLimit('wl-query:'+clientAddress(req),90,60000)) return NextResponse.json({available:false,error:'Aguarde e tente novamente.'},{status:429});
   const slug = req.nextUrl.searchParams.get('slug')?.trim() ?? '';
   if (!slug) {
     return NextResponse.json({ available: false, error: 'Slug obrigatório' }, { status: 400 });
@@ -23,8 +28,10 @@ export async function GET(req: NextRequest) {
 
 // POST /api/wl — cria link personalizado
 export async function POST(req: NextRequest) {
+  if (!sameOriginMutation(req)) return NextResponse.json({error:'Origem não autorizada.'},{status:403});
+  if (!rateLimit('wl-create:'+clientAddress(req),10,600000)) return NextResponse.json({error:'Aguarde e tente novamente.'},{status:429});
   try {
-    const body = await req.json();
+    const body = await readJsonBody(req,4096);
     const slug = String(body.slug ?? '').trim();
     const phone = normalizePhone(String(body.phone ?? ''));
     const message = String(body.message ?? '').slice(0, 600);
@@ -49,7 +56,7 @@ export async function POST(req: NextRequest) {
       data: { slug, phone, message, title },
     });
 
-    const origin = req.headers.get('origin') || req.nextUrl.origin;
+    const origin = req.nextUrl.origin;
     return NextResponse.json({
       ok: true,
       slug: created.slug,
@@ -57,7 +64,8 @@ export async function POST(req: NextRequest) {
       waUrl: `https://wa.me/${created.phone}${message ? `?text=${encodeURIComponent(message)}` : ''}`,
     });
   } catch (e) {
-    console.error('WL POST error', e);
+    if(e instanceof RequestBodyError)return NextResponse.json({error:e.message},{status:e.status});
+    console.error('WL POST error', e instanceof Error?e.name:'unknown');
     return NextResponse.json({ error: 'Erro ao criar link. Tente novamente.' }, { status: 500 });
   }
 }

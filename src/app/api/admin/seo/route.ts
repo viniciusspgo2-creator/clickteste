@@ -1,3 +1,4 @@
+import {readJsonBody} from '@/lib/security/request-body';
 /* ============================================================
    GET /api/admin/seo → configuração atual
    PUT /api/admin/seo → salva configuração
@@ -22,7 +23,7 @@ export async function PUT(req: Request) {
   }
   let body: Partial<SeoConfig> & { keywords?: string | string[] };
   try {
-    body = await req.json();
+    body = await readJsonBody(req, 32768);
   } catch {
     return NextResponse.json({ ok: false, error: 'Requisição inválida.' }, { status: 400 });
   }

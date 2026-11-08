@@ -26,9 +26,9 @@ export async function GET(req:Request){
 }
 const patch=z.object({presenceId:z.string().min(1).max(128),action:z.enum(['block_device','unblock_device','end_session','block_code'])}).strict();
 export async function PATCH(req:Request){
+ if(!sameOriginMutation(req))return fail('Origem inválida.',403);
  if(!requireAdmin(req))return fail('Não autorizado.',401);
  if(!monitoringEnabled())return fail('Monitoramento desativado.',404);
- if(!sameOriginMutation(req))return fail('Origem inválida.',403);
  try{
   const text=await req.text();if(text.length>2048)return fail('Requisição muito grande.',413);
   const parsed=patch.safeParse(JSON.parse(text));if(!parsed.success)return fail('Selecione uma ação válida.',400);

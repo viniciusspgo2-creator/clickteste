@@ -1,3 +1,4 @@
+import {readJsonBody} from '@/lib/security/request-body';
 import { NextResponse } from "next/server";
 import { randomBytes } from "node:crypto";
 import { Prisma } from "@prisma/client";
@@ -63,7 +64,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   if (!requireAdmin(req)) return unauthorized();
   try {
-    const body = await req.json();
+    const body = await readJsonBody(req, 32768);
     const parsed = parseCodeCreation(body);
     const mode = body.accessMode === "universal" ? "universal" : "individual";
     if (mode === "universal" && (parsed.names.length !== 1 || !Number.isInteger(body.maxUses) || body.maxUses < 1 || body.maxUses > 100))
@@ -88,7 +89,7 @@ export async function POST(req: Request) {
 export async function PATCH(req: Request) {
   if (!requireAdmin(req)) return unauthorized();
   try {
-    const body = await req.json();
+    const body = await readJsonBody(req, 32768);
     const code = trim(body.code, 32).toUpperCase();
     const row = await db.accessCode.findUnique({ where: { code } });
     if (!row) return bad("Código não encontrado.", 404);

@@ -1,3 +1,4 @@
+import {readJsonBody} from '@/lib/security/request-body';
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/admin-auth';
 import { db } from '@/lib/db';
@@ -6,7 +7,7 @@ const err=(error:string,status=400)=>NextResponse.json({ok:false,error},{status}
 export async function PATCH(req:Request,{params}:{params:Promise<{id:string}>}){
  if(!requireAdmin(req))return err('Não autorizado',401);
  const {id}=await params;
- try{const value=await req.json();const data:{name?:string;category?:string;tags?:string;status?:string;order?:number}={};
+ try{const value=await readJsonBody(req, 32768);const data:{name?:string;category?:string;tags?:string;status?:string;order?:number}={};
  if(typeof value.name==='string')data.name=value.name.trim().slice(0,120);
  if(typeof value.category==='string')data.category=value.category.trim().slice(0,80);
  if(Array.isArray(value.tags))data.tags=JSON.stringify(value.tags.filter((x:unknown)=>typeof x==='string').slice(0,20));

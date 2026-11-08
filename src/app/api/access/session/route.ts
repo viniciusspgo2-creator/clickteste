@@ -33,7 +33,9 @@ async function session(req:Request,claim:boolean){
   const updated=identity.accessMode==='individual'
    ?await db.accessCode.updateMany({where:codeConditions(identity,now),data})
    :await db.accessCodeUse.updateMany({where:slotConditions(identity,now),data});
-  return NextResponse.json(updated.count?{...access,sessionToken,capabilities}:{ok:false,reason:'session',capabilities},{headers});
+  const response=NextResponse.json(updated.count?{...access,sessionToken,capabilities}:{ok:false,reason:'session',capabilities},{headers});
+  if(updated.count)writeStudioCookie(response,req,sessionToken,false,identity.sessionExpiresAt);
+  return response;
  }catch{return NextResponse.json({ok:false,reason:'network'},{status:503,headers});}
 }
 export async function GET(req:Request){return session(req,false);}

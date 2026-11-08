@@ -10,26 +10,31 @@ import {
 } from "@/lib/premium-session";
 
 import {monitoringEnabled,persistentSessionsEnabled,sameOriginMutation,sessionDeadline} from '@/lib/studio-access-options';
-import {clearStudioCookie,writeStudioCookie} from '@/lib/studio-session-cookie';
+import {writeStudioCookie} from '@/lib/studio-session-cookie';
 
+import {readJsonBody,RequestBodyError} from '@/lib/security/request-body';
+import {clientAddress,takeSharedRateLimit} from '@/lib/security/rate-limit';
 export const runtime = "nodejs";
 export async function POST(req: Request) {
   if(!sameOriginMutation(req))return NextResponse.json({ok:false,reason:'invalid'},{status:403});
+  const ip = clientAddress(req);
+  if (!rateLimit(`studio-login:${ip}`, 30, 10 * 60_000))
+    return NextResponse.json({ ok: false, reason: "rate" }, { status: 429 });
   let body: { code?: unknown; remember?: unknown };
   try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ ok: false, reason: "invalid" }, { status: 400 });
+    body = await readJsonBody(req, 4096);
+  } catch (error) {
+    return NextResponse.json({ ok: false, reason: "invalid" }, { status: error instanceof RequestBodyError ? error.status : 400 });
   }
   const code = String(body.code ?? "")
     .trim()
     .toUpperCase();
   if (!code || code.length > 32)
     return NextResponse.json({ ok: false, reason: "invalid" }, { status: 400 });
-  const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
-  if (!rateLimit(`studio-login:${ip}`, 30, 10 * 60_000))
-    return NextResponse.json({ ok: false, reason: "rate" }, { status: 429 });
+  try {
+    const limit=await takeSharedRateLimit('studio-activation',ip,30,10*60_000);
+    if(!limit.allowed)return NextResponse.json({ok:false,reason:'rate'},{status:429,headers:{'Retry-After':String(limit.retryAfter)}});
+  }catch{return NextResponse.json({ok:false,reason:'network'},{status:503});}
   const browser = browserToken(req) ?? newToken();
   const browserHash = hashToken(browser);
   const sessionToken = newToken();
@@ -95,8 +100,7 @@ export async function POST(req: Request) {
     const response = NextResponse.json({...publicResult,...(!persistentSessionsEnabled()&&legacyToken?{sessionToken:legacyToken}:{}),cookieSession:persistentSessionsEnabled()&&result.ok}, {
       headers: { "Cache-Control": "no-store" },
     });
-    if(result.ok&&persistentSessionsEnabled()&&sessionExpiresAt)writeStudioCookie(response,req,sessionToken,remember,sessionExpiresAt);
-    if(result.ok&&!persistentSessionsEnabled())clearStudioCookie(response,req);
+    if(result.ok&&sessionExpiresAt)writeStudioCookie(response,req,sessionToken,remember,sessionExpiresAt);
     if (result.ok)
       response.cookies.set(BROWSER_COOKIE, browser, {
         httpOnly: true,

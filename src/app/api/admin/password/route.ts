@@ -1,3 +1,4 @@
+import {readJsonBody} from '@/lib/security/request-body';
 /* ============================================================
    POST /api/admin/password → troca a senha do painel
    ============================================================ */
@@ -14,7 +15,7 @@ export async function POST(req: Request) {
 
   let body: { current?: string; next?: string };
   try {
-    body = await req.json();
+    body = await readJsonBody(req, 32768);
   } catch {
     return NextResponse.json({ ok: false, error: 'Requisição inválida.' }, { status: 400 });
   }
@@ -25,9 +26,9 @@ export async function POST(req: Request) {
   if (!(await checkAdminPassword(current))) {
     return NextResponse.json({ ok: false, error: 'Senha atual incorreta.' }, { status: 401 });
   }
-  if (next.length < 6) {
+  if (next.length < 12 || next.length > 1024) {
     return NextResponse.json(
-      { ok: false, error: 'A nova senha precisa ter pelo menos 6 caracteres.' },
+      { ok: false, error: 'Use de 12 a 1024 caracteres na nova senha.' },
       { status: 400 },
     );
   }

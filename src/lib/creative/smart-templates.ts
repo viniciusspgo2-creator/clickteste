@@ -1,7 +1,7 @@
 /** Format .cgtemplate: ZIP with manifest.json and optional backdrop/foreground/mask/shadow images.
  * A slot defines a proposed position for an existing local mug; the mug image remains local.
  */
-import JSZip from 'jszip';
+import {unpackTemplateArchive} from './template-archive';
 import {uid,type DesignDocument,type DesignNode} from './design';
 type Slot={x:number;y:number;w:number;h:number};
 /** Ajusta qualquer mockup ao encaixe sem esticar, preservando sua imagem e efeitos. */
@@ -70,15 +70,13 @@ export function validateTemplateImageSignature(bytes:Uint8Array,path:string):voi
 function validPath(path:string){if(path.startsWith('/')||path.includes('..')||!/^[-_\w./ ]+\.(png|jpe?g|webp)$/i.test(path))throw new Error('O template contém um caminho de imagem inválido');return path;}
 export async function importSmartTemplate(file:File,current:DesignDocument):Promise<{document:DesignDocument;warning:string}>{
  if(file.size>50*1024*1024)throw new Error('Template maior que 50 MB');
- const archive=await JSZip.loadAsync(await file.arrayBuffer(),{checkCRC32:true});
- const entry=archive.file('manifest.json');if(!entry)throw new Error('Template sem manifest.json');
- const manifest=validateSmartManifest(JSON.parse(await entry.async('text')));
- if(Object.keys(archive.files).length>30)throw new Error('Template com arquivos demais; limite de 30 entradas.');
+ const archive=unpackTemplateArchive(new Uint8Array(await file.arrayBuffer()));
+ const manifest=validateSmartManifest(JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(archive.get('manifest.json')!)));
  let totalUncompressed=0;
  const image=async(path:string|undefined)=>{
-  if(!path)return undefined;validPath(path);const f=archive.file(path);
+  if(!path)return undefined;validPath(path);const f=archive.get(path);
   if(!f)throw new Error(`Imagem ausente no pacote: ${path}`);
-  const bytes=await f.async('uint8array');if(bytes.byteLength>12*1024*1024)throw new Error('Imagem do template acima de 12 MB');
+  const bytes=f;if(bytes.byteLength>12*1024*1024)throw new Error('Imagem do template acima de 12 MB');
   totalUncompressed+=bytes.byteLength;if(totalUncompressed>30*1024*1024)throw new Error('Imagens descompactadas excedem 30 MB');
   validateTemplateImageSignature(bytes,path);
   const mime=/\.png$/i.test(path)?'image/png':/\.webp$/i.test(path)?'image/webp':'image/jpeg';return data(bytes,mime);

@@ -53,7 +53,7 @@ test('área segura detecta texto girado e protege texto sem rotação',()=>{
  assert.ok(msgs.some(x=>x.kind==='warning'&&x.message.includes('área visível')));
 });
 test('template permite reencaixe repetido sem distorcer e sem perder máscara',()=>{
- const {fitMockupIntoSlot}=moduleFor('src/lib/creative/smart-templates.ts',{jszip:{},'./design':{uid:()=> 'test'}});
+ const {fitMockupIntoSlot}=moduleFor('src/lib/creative/smart-templates.ts',{'./template-archive':{},'./design':{uid:()=> 'test'}});
  const before=node({x:50,y:80,w:400,h:200,angle:45,role:'mockup',shadow:18});
  const slot={x:600,y:200,w:300,h:500};
  const fit=fitMockupIntoSlot(before,slot,'data:image/png;base64,AA==');

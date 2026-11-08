@@ -1,3 +1,5 @@
+import {unpackTemplateArchive,TemplateArchiveError} from '@/lib/creative/template-archive';
+import {readMultipartBody,RequestBodyError} from '@/lib/security/request-body';
 import { NextResponse } from 'next/server';
 import { randomUUID } from 'node:crypto';
 import { requireAdmin } from '@/lib/admin-auth';
@@ -31,7 +33,7 @@ export async function POST(req:Request){
   if(!requireAdmin(req))return ERR('Não autorizado',401);
   if(Number(req.headers.get('content-length')||0)>4*1024*1024+65536)return ERR('Máximo de 4 MB por arquivo',413);
   try{
-    const form=await req.formData();const file=form.get('file');const kind=String(form.get('kind')||'');
+    const form=await readMultipartBody(req,4*1024*1024+65536);const file=form.get('file');const kind=String(form.get('kind')||'');
     if(!(file instanceof File)||!kinds.includes(kind as (typeof kinds)[number]))return ERR('Arquivo ou tipo inválido');
     const name=String(form.get('name')||file.name).trim().slice(0,120);
     const category=String(form.get('category')||'Geral').trim().slice(0,80)||'Geral';
@@ -48,13 +50,10 @@ export async function POST(req:Request){
     const bytes=Buffer.from(await file.arrayBuffer());
     if(!validate(bytes,ext))return ERR('Arquivo inválido, inseguro ou incompatível com o formato.');
     if(ext==='cgtemplate'){
-      const JSZip=(await import('jszip')).default;
-      const zip=await JSZip.loadAsync(bytes,{checkCRC32:true});
-      const list=Object.keys(zip.files);if(list.length>12||!zip.file('manifest.json'))return ERR('Template inteligente inválido: manifest.json ausente ou muitos arquivos.');
-      if(list.some(path=>path.startsWith('/')||path.includes('..')||(!path.endsWith('/')&&!/^[-_\w./ ]+\.(png|jpe?g|webp|json)$/i.test(path))))return ERR('Template contém arquivos incompatíveis.');
-      const json=JSON.parse(await zip.file('manifest.json')!.async('text'));
+      const zip=unpackTemplateArchive(bytes,12);
+      const json=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(zip.get('manifest.json')!));
       if(json.format!=='clickgruda-smart-template'||json.version!==1||!Number.isFinite(json.width)||!Number.isFinite(json.height)||json.width>4096||json.height>4096||json.width<100||json.height<100)return ERR('Manifest de template inteligente inválido.');
-      for(const field of ['background','foreground','mask','shadow'])if(json[field]&&!zip.file(json[field]))return ERR(`Arquivo ausente no template: ${field}`);
+      for(const field of ['background','foreground','mask','shadow'])if(json[field]&&!zip.has(json[field]))return ERR(`Arquivo ausente no template: ${field}`);
     }
     if(kind==='font'){const coverage=classifyFont(bytes,ext);tags.push(coverage.status);if(coverage.missing)tags.push('faltando-'+coverage.missing.slice(0,18));}
     const key=`creative/${kind}/${randomUUID()}.${ext}`;
@@ -62,5 +61,5 @@ export async function POST(req:Request){
     try{const asset=await db.creativeAsset.create({data:{name,kind,category,tags:JSON.stringify(tags),status,storageKey:key,mimeType:MIME[ext],bytes:bytes.length},select:{id:true,kind:true,name:true,category:true,tags:true,status:true,order:true,mimeType:true,bytes:true,createdAt:true,updatedAt:true}});
       return NextResponse.json({ok:true,asset:serializeAsset(asset)},{status:201});
     }catch(e){await r2Request('DELETE',key).catch(()=>{});throw e;}
-  }catch(e){return ERR(e instanceof Error?e.message:'Não foi possível salvar arquivo',503);}
+  }catch(e){return ERR((e instanceof RequestBodyError||e instanceof TemplateArchiveError)?e.message:'Não foi possível salvar o arquivo. Confira o formato e tente novamente.',e instanceof RequestBodyError?e.status:e instanceof TemplateArchiveError?400:503);}
 }

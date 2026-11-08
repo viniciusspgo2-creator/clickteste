@@ -15,7 +15,7 @@ function table(bytes:Buffer,ext:string):Buffer|null{
    const start=bytes.readUInt32BE(offset+4),size=bytes.readUInt32BE(offset+8),original=bytes.readUInt32BE(offset+12);
    if(start+size>bytes.length||original>4_000_000)return null;
    const segment=bytes.subarray(start,start+size);
-   return original>size?inflateSync(segment):segment;
+   return original>size?inflateSync(segment,{maxOutputLength:4*1024*1024}):segment;
   }
   return null;
  }

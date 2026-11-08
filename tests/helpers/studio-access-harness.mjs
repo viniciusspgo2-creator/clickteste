@@ -23,7 +23,7 @@ export async function startStudioAccessHarness(){
  function load(name){
   const p=path.resolve(root,name);if(cache.has(p))return cache.get(p).exports;
   const module={exports:{}};cache.set(p,module);
-  const context={module,exports:module.exports,require(id){if(id==='@/lib/db')return {db};if(id.startsWith('@/'))return load('src/'+id.slice(2)+'.ts');if(id.startsWith('.'))return load(path.resolve(path.dirname(p),id+'.ts'));return require(id);},process:{env},Buffer,Request,Response,URL,console,setTimeout,clearTimeout,crypto:globalThis.crypto};
+  const context={module,exports:module.exports,require(id){if(id==='server-only')return {};if(id==='@/lib/db')return {db};if(id.startsWith('@/'))return load('src/'+id.slice(2)+'.ts');if(id.startsWith('.'))return load(path.resolve(path.dirname(p),id+'.ts'));return require(id);},process:{env},Buffer,Request,Response,URL,TextDecoder,TextEncoder,Blob,File,Headers,console,setTimeout,clearTimeout,crypto:globalThis.crypto};
   const source=require('node:fs').readFileSync(p,'utf8'),js=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText;
   vm.runInNewContext(js,context,{filename:p});return module.exports;
  }

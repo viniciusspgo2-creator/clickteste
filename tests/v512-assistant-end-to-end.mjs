@@ -59,6 +59,10 @@ test('V5.12: valida limites, ausência de corpo e cancelamento prévio',async()=
 const reqReader=load('src/lib/creative/assistant-request.ts');
 const history=load('src/lib/creative/assistant-history.ts');
 const route=load('src/app/api/creative-assistant/route.ts',{
+ '@/lib/premium-session':{resolvePremiumSession:async()=>({access:{ok:true},identity:{codeId:'qa'}})},
+ '@/lib/studio-access-options':{sameOriginMutation:()=>true},
+ '@/lib/security/rate-limit':{clientAddress:()=> '127.0.0.1',takeSharedRateLimit:async()=>({allowed:true,retryAfter:60})},
+ '@/lib/admin-auth':{rateLimit:()=>true},
  '@/lib/creative/studio-help':load('src/lib/creative/studio-help.ts'),
  'next/server':{NextResponse:{json(body,init={}){return new Response(JSON.stringify(body),{status:init.status||200,headers:{'Content-Type':'application/json',...init.headers}});}}},
  '@/lib/creative/assistant-request':reqReader,

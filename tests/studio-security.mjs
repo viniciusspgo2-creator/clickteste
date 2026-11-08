@@ -1,0 +1,71 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import {zipSync,strToU8} from 'fflate';
+import {randomUUID,createHmac} from 'node:crypto';
+import {startStudioAccessHarness,mergeCookies,toolRequire} from './helpers/studio-access-harness.mjs';
+const h=await startStudioAccessHarness(),checks=[];
+const pass=t=>{checks.push(t);console.log('PASS',checks.length,t)};
+try{
+ const request=(path,options={})=>new Request('https://studio.example'+path,options);
+ const csrf=request('/api/admin/codes',{method:'POST',headers:{cookie:h.adminCookie,origin:'https://attacker.example','content-type':'application/json'},body:JSON.stringify({clientName:'Never created',clientType:'library'})});
+ const baseline=await h.db.accessCode.count();assert.equal(h.admin.requireAdmin(csrf),false);assert.equal((await h.load('src/app/api/admin/codes/route.ts').POST(csrf)).status,401);assert.equal(await h.db.accessCode.count(),baseline);
+ assert.ok(h.admin.requireAdmin(request('/api/admin/codes',{headers:{cookie:h.adminCookie}})));
+ assert.equal(h.admin.requireAdmin(request('/api/admin/codes',{headers:{cookie:'evil_'+h.adminCookie}})),false);
+ assert.equal(h.admin.requireAdmin(request('/api/admin/codes',{headers:{cookie:'cg_admin=%E0%A4%A'}})),false);
+ assert.equal(h.admin.verifyAdminToken(h.adminCookie.slice(9)+'.extra'),false);
+ const expired=Buffer.from(JSON.stringify({exp:Date.now()-1})).toString('base64url'),sig=createHmac('sha256',h.env.ADMIN_SECRET).update(expired).digest('base64url');assert.equal(h.admin.verifyAdminToken(expired+'.'+sig),false);
+ pass('Master existente continua válido; CSRF, cookies com prefixo falso, codificação inválida e tokens adulterados/expirados são rejeitados.');
+ const limits=h.load('src/lib/security/rate-limit.ts');
+ await h.db.siteConfig.create({data:{key:'seo-security-preserved',value:'original'}});
+ await h.db.siteConfig.create({data:{key:'xxsecurity_rate_v1:preserved',value:'original',updatedAt:new Date(Date.now()-172800000)}});
+ await h.db.siteConfig.create({data:{key:'__security_rate_v1:old',value:'{}',updatedAt:new Date(Date.now()-172800000)}});
+ const counts=await Promise.all(Array.from({length:16},()=>limits.takeSharedRateLimit('qa',randomUUID().slice(0,0)+'same-user',3,60000)));
+ assert.equal(counts.filter(r=>r.allowed).length,3);assert.equal((await limits.takeSharedRateLimit('qa','same-user',3,60000)).allowed,false);
+ assert.equal((await h.db.siteConfig.findUnique({where:{key:'seo-security-preserved'}})).value,'original');assert.ok(await h.db.siteConfig.findUnique({where:{key:'xxsecurity_rate_v1:preserved'}}));assert.equal(await h.db.siteConfig.findUnique({where:{key:'__security_rate_v1:old'}}),null);
+ assert.equal(limits.clientAddress(request('/api',{headers:{'x-forwarded-for':'invented-bucket'}})),'unknown');
+ pass('Contador atômico compartilha limite entre chamadas concorrentes e limpa somente seu próprio namespace.');
+ const bodies=h.load('src/lib/security/request-body.ts');
+ const oversized=request('/api',{method:'POST',headers:{'content-type':'application/json','content-length':'1'},body:JSON.stringify({value:'a'.repeat(200)})});await assert.rejects(()=>bodies.readJsonBody(oversized,64),e=>e.status===413);
+ await assert.rejects(()=>bodies.readJsonBody(request('/api',{method:'POST',headers:{'content-type':'application/json'},body:'null'})),e=>e.status===400);
+ let cancelled=false;const pending=new ReadableStream({cancel(){cancelled=true}});const slow=new Request('https://studio.example/api',{method:'POST',body:pending,duplex:'half'});await assert.rejects(()=>bodies.readBodyBytes(slow,64,25),e=>e.status===408);assert.equal(cancelled,true);
+ pass('Corpos reais acima do limite, JSON nulo e envio parado são recusados; Content-Length falso não contorna o limite.');
+ const auth=h.load('src/app/api/admin/login/route.ts');
+ const crossLogin=await auth.POST(request('/api/admin/login',{method:'POST',headers:{origin:'https://attacker.example','content-type':'application/json'},body:JSON.stringify({password:h.qaPassword})}));assert.equal(crossLogin.status,403);
+ const login=await h.call('/api/admin/login',{method:'POST',body:{password:h.qaPassword},headers:{'x-forwarded-for':'198.51.100.10'}});assert.equal(login.status,200);assert.match(login.response.headers.getSetCookie()[0],/HttpOnly/);assert.match(login.response.headers.getSetCookie()[0],/Secure/);
+ const savedSecret=await h.db.siteConfig.findUnique({where:{key:'admin_pass_hash'}});
+ const old=h.db.siteConfig.findUnique.bind(h.db.siteConfig);h.db.siteConfig.findUnique=async()=>{throw Error('DO-NOT-LEAK-DB-CREDENTIAL')};
+ try{const unavailable=await h.call('/api/admin/login',{method:'POST',body:{password:'old-environment-password'},headers:{'x-forwarded-for':'198.51.100.11'}});assert.equal(unavailable.status,503);assert.ok(!JSON.stringify(unavailable.data).includes('DO-NOT-LEAK'));assert.ok(h.admin.requireAdmin(request('/api/admin/codes',{headers:{cookie:h.adminCookie}})));}finally{h.db.siteConfig.findUnique=old;}
+ assert.equal((await h.db.siteConfig.findUnique({where:{key:'admin_pass_hash'}})).value,savedSecret.value);
+ for(let i=0;i<8;i++)assert.equal((await h.call('/api/admin/login',{method:'POST',body:{password:'wrong'},headers:{'x-forwarded-for':'198.51.100.12'}})).status,401);
+ assert.equal((await h.call('/api/admin/login',{method:'POST',body:{password:'wrong'},headers:{'x-forwarded-for':'198.51.100.12'}})).status,429);
+ pass('Login com senha existente funciona; falta de banco não reativa senha antiga, não expõe erro interno e não invalida o Master já autenticado; excesso de tentativas é limitado.');
+ const code=await h.db.accessCode.create({data:{code:'QA-'+randomUUID().slice(0,12).toUpperCase(),clientType:'library',clientName:'Existing member'}});
+ h.env.STUDIO_PERSISTENT_SESSIONS='1';const activated=await h.call('/api/access/validate',{method:'POST',body:{code:code.code,remember:true},headers:{'x-forwarded-for':'198.51.100.13'}});assert.equal(activated.data.ok,true);
+ const cookies=mergeCookies(activated.cookies);assert.equal((await h.call('/api/access/session',{cookie:cookies})).data.ok,true);
+ const assets=h.load('src/app/api/creative-assets/route.ts'),download=h.load('src/app/api/creative-assets/[id]/route.ts'),ai=h.load('src/app/api/creative-assistant/route.ts');
+ assert.equal((await assets.GET(request('/api/creative-assets'))).status,401);assert.equal((await download.GET(request('/api/creative-assets/nonexistent'),{params:Promise.resolve({id:'nonexistent'})})).status,401);
+ const memberList=await assets.GET(request('/api/creative-assets',{headers:{cookie:cookies}}));assert.equal(memberList.status,200);assert.equal((await memberList.json()).ok,true);
+ const memberApi=request('/api/creative-assistant',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({question:'Help'})});h.env.OPENAI_API_KEY='qa-not-a-real-key';assert.equal((await ai.POST(memberApi)).status,401);delete h.env.OPENAI_API_KEY;
+ assert.equal((await h.call('/api/access/session',{cookie:h.adminCookie})).data.plan,'Admin Master');
+ pass('Ativação e sessão persistente do membro seguem funcionando; catálogo/download e IA rejeitam acesso anônimo antes de buscar arquivos ou chamar o provedor.');
+ h.env.STUDIO_PERSISTENT_SESSIONS='0';
+ const legacy=await h.db.accessCode.create({data:{code:'LEG-'+randomUUID().slice(0,12).toUpperCase(),clientType:'library',clientName:'Legacy member'}});
+ const legacyLogin=await h.call('/api/access/validate',{method:'POST',body:{code:legacy.code},headers:{'x-forwarded-for':'198.51.100.14'}});assert.ok(legacyLogin.data.sessionToken);assert.equal(legacyLogin.data.cookieSession,false);
+ let legacyCookies=mergeCookies(legacyLogin.cookies);assert.equal((await assets.GET(request('/api/creative-assets',{headers:{cookie:legacyCookies}}))).status,200);
+ const rotated=await h.call('/api/access/session',{method:'POST',cookie:legacyCookies,token:legacyLogin.data.sessionToken});assert.ok(rotated.data.sessionToken);assert.notEqual(rotated.data.sessionToken,legacyLogin.data.sessionToken);legacyCookies=mergeCookies(legacyCookies,rotated.cookies);
+ assert.equal((await assets.GET(request('/api/creative-assets',{headers:{cookie:legacyCookies}}))).status,200);
+ assert.ok(rotated.response.headers.getSetCookie().some(c=>c.startsWith('cg_studio_access=s.')&&!/Expires=|Max-Age=/i.test(c)));
+ await h.call('/api/access/session',{method:'DELETE',cookie:legacyCookies});assert.equal((await assets.GET(request('/api/creative-assets',{headers:{cookie:legacyCookies}}))).status,401);
+ pass('Modo antigo continua entregando e rotacionando bearer; imagens recebem cookie somente de sessão e logout revoga o acesso.');
+
+ const unpack=h.load('src/lib/creative/template-archive.ts').unpackTemplateArchive;
+ const png=await fs.readFile('tests/fixtures/mockup-preview/artwork.svg');const archive=zipSync({'manifest.json':strToU8(JSON.stringify({format:'clickgruda-smart-template',version:1,name:'QA',width:1080,height:1350})),'images/':new Uint8Array(),'images/a.png':new Uint8Array(png)});
+ const extracted=unpack(archive);assert.ok(extracted.has('manifest.json')&&extracted.has('images/a.png'));
+ assert.throws(()=>unpack(zipSync({'manifest.json':strToU8('{}'),'../evil.png':new Uint8Array([1])})),/limites/);
+ const bomb=zipSync({'manifest.json':strToU8('{}'),'bomb.png':new Uint8Array(13*1024*1024)});assert.throws(()=>unpack(bomb),/limites/);
+ // Lie about the expanded size in the central directory: actual output checks still reject it.
+ const lying=new Uint8Array(bomb),v=new DataView(lying.buffer);for(let i=0;i<lying.length-46;i++)if(v.getUint32(i,true)===0x02014b50){const n=v.getUint16(i+28,true),name=new TextDecoder().decode(lying.subarray(i+46,i+46+n));if(name==='bomb.png')v.setUint32(i+24,1,true);}
+ assert.throws(()=>unpack(lying),/limites/);const corrupt=new Uint8Array(archive);for(let i=0;i<corrupt.length-46;i++)if(new DataView(corrupt.buffer).getUint32(i,true)===0x02014b50){corrupt[i+16]^=255;break;}assert.throws(()=>unpack(corrupt),/limites/);
+ pass('Templates legítimos são extraídos; caminhos perigosos, ZIP-bomba, tamanho declarado falso e CRC adulterado são recusados.');
+ await fs.writeFile('/tmp/studio-security-results.json',JSON.stringify({passed:true,checks,isolatedDatabase:true,productionDatabaseTouched:false},null,2));console.log(JSON.stringify({passed:true,checks:checks.length}));
+}finally{await h.close();}

@@ -1,4 +1,5 @@
 import {NextResponse} from 'next/server';
+import {readJsonBody,RequestBodyError} from '@/lib/security/request-body';
 import {z} from 'zod';
 import {db} from '@/lib/db';
 import {resolvePremiumSession} from '@/lib/premium-session';
@@ -15,8 +16,7 @@ export async function POST(req:Request){
   const {access,identity}=await resolvePremiumSession(req);
   if(!access.ok)return NextResponse.json({ok:false},{status:401,headers});
   if(!identity)return NextResponse.json({ok:true},{headers}); // Never track the admin as a customer.
-  const raw=await req.text();if(raw.length>2048)return NextResponse.json({ok:false},{status:413,headers});
-  const parsed=input.safeParse(JSON.parse(raw));if(!parsed.success)return NextResponse.json({ok:false},{status:400,headers});
+  const parsed=input.safeParse(await readJsonBody(req,2048));if(!parsed.success)return NextResponse.json({ok:false},{status:400,headers});
   const now=new Date();
   const ok=await db.$transaction(async tx=>{
    await tx.$queryRaw`SELECT id FROM "AccessCode" WHERE id=${identity.codeId} FOR UPDATE`;
@@ -33,5 +33,5 @@ export async function POST(req:Request){
    await tx.studioPresence.upsert({where,create:{codeId:code.id,browserHash:identity.browserHash,...data},update:data});return true;
   });
   return NextResponse.json({ok},{status:ok?200:401,headers});
- }catch{return NextResponse.json({ok:false},{status:503,headers});}
+ }catch(error){return NextResponse.json({ok:false},{status:error instanceof RequestBodyError?error.status:503,headers});}
 }
