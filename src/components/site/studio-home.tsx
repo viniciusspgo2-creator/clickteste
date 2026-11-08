@@ -12,7 +12,6 @@ import {
 } from "lucide-react";
 import { Header } from "./header";
 import { Footer } from "./footer";
-import { StudioAudioIntroduction } from "./studio-audio";
 import {
   LIBRARY_URL, SUPPORT_URL, DISCOVERY_SUPPORT_URL, BONUS_TOOLS,
 } from "@/lib/studio-links";
@@ -150,7 +149,6 @@ export function StudioHome() {
               <Link href={studioHref} className="cg-button cg-button-primary"><WandSparkles size={19} /> Entrar no Studio <ArrowRight size={19} /></Link>
               <a href="#recursos-avancados" className="cg-button cg-button-outline"><BookOpen size={19} /> Conhecer os recursos <ArrowRight size={17} /></a>
             </div>
-            <StudioAudioIntroduction />
             <div className="cg-hero-proof"><span><ShieldCheck size={15} /> Código pessoal</span><span><InfinityIcon size={15} /> Biblioteca vitalícia</span><span><Coffee size={15} /> Studio incluso para assinantes</span></div>
           </Reveal></div>
         </div>

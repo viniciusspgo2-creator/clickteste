@@ -3,7 +3,7 @@
 import { Coffee } from "lucide-react";
 import { useMockupStore } from "../state/store";
 import { Section } from "./controls";
-import { HANDLE_STYLES } from "../lib/handle-styles";
+import { SELECTABLE_HANDLE_STYLES } from "../lib/handle-styles";
 import {usePlatformLanguage} from "@/components/platform/language-provider";
 
 export function HandleControls({ active }: { active: string }) {
@@ -14,7 +14,7 @@ export function HandleControls({ active }: { active: string }) {
   const style = piece.handleStyle ?? st.mug.handleStyle;
   return <Section title={t('Modelo da alça')} icon={Coffee} defaultOpen>
     <div className="cg-handle-choices" role="group" aria-label="Escolher modelo de alça">
-      {HANDLE_STYLES.map(({ id, label, description, path, color }) => <button type="button" key={id}
+      {SELECTABLE_HANDLE_STYLES.map(({ id, label, description, path, color }) => <button type="button" key={id}
         disabled={!!piece.locked} aria-pressed={style === id}
         onClick={() => {
           st.patchObject(active, { handleStyle: id, ...(id !== 'classic' && id !== 'rounded' ? { handleColor: color } : {}) });

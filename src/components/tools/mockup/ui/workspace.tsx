@@ -3,6 +3,7 @@ import {
   useEffect as ReactUseEffect,
   useState,
   useCallback,
+  useRef,
   type ReactNode,
 } from "react";
 import {
@@ -54,7 +55,6 @@ import {
   Facebook,
   Instagram,
   Search,
-  MoreHorizontal,
   BookOpen,
 } from "lucide-react";
 import { useMockupStore, type MugState, type ArtState } from "../state/store";
@@ -99,6 +99,8 @@ import { StudioConcierge } from "@/components/creative/studio-concierge";
 import {usePlatformLanguage} from "@/components/platform/language-provider";
 import { ArtAssistant } from "./art-assistant";
 import "./workspace.css";
+import "./studio-refinements.css";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 
 type Tab =
   | "arts"
@@ -185,10 +187,13 @@ export function Workspace({
     active === "hero"
       ? st.art
       : (st.companions.find((c) => c.id === active)?.art ?? st.art);
+  const noticeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const notify = useCallback((message: string) => {
+    clearTimeout(noticeTimer.current);
     setNotice(message);
-    window.setTimeout(() => setNotice(""), 4500);
+    noticeTimer.current = setTimeout(() => setNotice(""), 4500);
   }, []);
+  ReactUseEffect(() => () => clearTimeout(noticeTimer.current), []);
   ReactUseEffect(() => {
     const migrated = (e: Event) => notify((e as CustomEvent<string>).detail);
     window.addEventListener("cg-mockup-migrated", migrated);
@@ -299,147 +304,41 @@ export function Workspace({
             +
           </button>
         </div>
-        <a className="cg-toplink" href="/bonus">
-          Bônus grátis
-        </a>
-        <a
-          className="cg-toplink"
-          href="https://clickgruda.vercel.app/"
-          target="_blank"
-          rel="noopener noreferrer"
-          title="Biblioteca de artes"
-        >
-          Biblioteca
-        </a>
-        <a
-          className="cg-top-social"
-          href="https://instagram.com/clickgruda.digital"
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Instagram Click&Gruda"
-        >
-          <Instagram />
-        </a>
-        <a
-          className="cg-top-social"
-          href="https://www.facebook.com/artesparacanecasoficial"
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Facebook Click&Gruda"
-        >
-          <Facebook />
-        </a>
-        <div className="cg-header-actions">
-          <ToolButton label={t('Guia do Studio')} onClick={() => setGuideOpen(true)}><BookOpen /></ToolButton>
-          <ToolButton label={t('Assistente de sublimação')} onClick={() => setConciergeOpen(true)}><MessageCircle /></ToolButton>
-          <ToolButton
-            label="Buscar ajustes · Ctrl+K"
-            onClick={() => setSearchOpen(true)}
-          >
-            <Search />
-          </ToolButton>
-          <ToolButton
-            label={light ? "Tema escuro" : "Tema claro"}
-            onClick={() => setLight(!light)}
-          >
-            {light ? <Moon /> : <Sun />}
-          </ToolButton>
-          <ToolButton
-            label="Projetos salvos"
-            onClick={() => st.setProjectsOpen(true)}
-          >
-            <FolderOpen />
-          </ToolButton>
-          <ToolButton
-            label="Salvar projeto"
-            disabled={busy}
-            onClick={() =>
-              safe(async () => {
-                await saveCurrentProject("working-project", st.projectName);
-                notify("Projeto salvo neste dispositivo.");
-              })
-            }
-          >
-            <Save />
-          </ToolButton>
-          <button
-            className="cg-reset-btn"
-            onClick={() => setResetOpen(true)}
-            title={t('Resetar tudo')}
-          >
-            <RotateCcw /> <span>{t('Resetar tudo')}</span>
-          </button>
+        <div className="cg-studio-commands">
+          <DropdownMenu>
+            <DropdownMenuTrigger className="cg-command-trigger" aria-label="Projeto"><FolderOpen /><span>Projeto</span><ChevronDown /></DropdownMenuTrigger>
+            <DropdownMenuContent className="cg-studio-command-menu" align="end">
+              <DropdownMenuLabel>Seu trabalho</DropdownMenuLabel>
+              <DropdownMenuItem disabled={busy} onSelect={() => void safe(async () => { await saveCurrentProject("working-project", st.projectName); notify("Projeto salvo neste dispositivo."); })}><Save />Salvar neste navegador</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => st.setProjectsOpen(true)}><FolderOpen />Projetos salvos</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => setResetOpen(true)}><RotateCcw />Começar novo projeto</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <DropdownMenu>
+            <DropdownMenuTrigger className="cg-command-trigger" aria-label="Ajuda e recursos"><BookOpen /><span>Ajuda e recursos</span><ChevronDown /></DropdownMenuTrigger>
+            <DropdownMenuContent className="cg-studio-command-menu" align="end">
+              <DropdownMenuLabel>Conte com o Studio</DropdownMenuLabel>
+              <DropdownMenuItem onSelect={() => setGuideOpen(true)}><BookOpen />Guia do Studio</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setConciergeOpen(true)}><MessageCircle />Assistente de sublimação</DropdownMenuItem>
+              <DropdownMenuItem onSelect={onShortcuts}><Settings2 />Atalhos de teclado</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild><a href="https://www.clickgruda.com.br" target="_blank" rel="noopener noreferrer"><Images />Biblioteca de artes</a></DropdownMenuItem>
+              <DropdownMenuItem asChild><a href="/bonus"><Sparkles />Bônus gratuitos</a></DropdownMenuItem>
+              <DropdownMenuItem asChild><a href="https://instagram.com/clickgruda.digital" target="_blank" rel="noopener noreferrer"><Instagram />Instagram Click&Gruda</a></DropdownMenuItem>
+              <DropdownMenuItem asChild><a href="https://www.facebook.com/artesparacanecasoficial" target="_blank" rel="noopener noreferrer"><Facebook />Facebook Click&Gruda</a></DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <ToolButton label="Buscar ajustes · Ctrl+K" onClick={() => setSearchOpen(true)}><Search /></ToolButton>
+          <ToolButton label={light ? "Tema escuro" : "Tema claro"} onClick={() => setLight(!light)}>{light ? <Moon /> : <Sun />}</ToolButton>
         </div>
-        <details className="cg-mobile-menu">
-          <summary aria-label="Mais opções do estúdio">
-            <MoreHorizontal />
-          </summary>
-          <div>
-            <button type="button" onClick={(e) => { setGuideOpen(true); e.currentTarget.closest("details")?.removeAttribute("open"); }}><BookOpen />{t('Guia do Studio')}</button>
-            <button
-              type="button"
-              onClick={(e) => {
-                setSearchOpen(true);
-                e.currentTarget.closest("details")?.removeAttribute("open");
-              }}
-            >
-              <Search />
-              Buscar ajustes
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                st.setProjectsOpen(true);
-                e.currentTarget.closest("details")?.removeAttribute("open");
-              }}
-            >
-              <FolderOpen />
-              Projetos salvos
-            </button>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={(e) => {
-                e.currentTarget.closest("details")?.removeAttribute("open");
-                safe(async () => {
-                  await saveCurrentProject("working-project", st.projectName);
-                  notify("Projeto salvo neste dispositivo.");
-                });
-              }}
-            >
-              <Save />
-              Salvar projeto
-            </button>
-            <button type="button" onClick={() => setLight(!light)}>
-              {light ? <Moon /> : <Sun />}
-              {light ? "Tema escuro" : "Tema claro"}
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                setResetOpen(true);
-                e.currentTarget.closest("details")?.removeAttribute("open");
-              }}
-            >
-              <RotateCcw />
-              Resetar tudo
-            </button>
-          </div>
-        </details>
-        <button
-          className="cg-toplink"
-          onClick={onShortcuts}
-          title="Atalhos de teclado (?)"
-        >
-          Atalhos <kbd>?</kbd>
-        </button>
         <button
           className="cg-export"
-          aria-label="Exportar imagem"
+          aria-label="Exportar criação"
           onClick={() => st.setExportOpen(true)}
         >
           <Download />
-          <span>Exportar imagem</span>
+          <span>Exportar</span>
         </button>
       </header>
       <div className="cg-body">
@@ -459,8 +358,8 @@ export function Workspace({
               <span>{t(n.label)}</span>
             </button>
           ))}
-          <button type="button" className={`cg-advanced-toggle ${advanced ? "is-active" : ""}`} aria-expanded={advanced} title={advanced ? "Ocultar ferramentas avançadas" : "Mostrar ferramentas avançadas"} onClick={() => { setAdvanced(v => !v); if (advanced && NAV.find(n => n.id === tab && "advanced" in n)) setTab("arts"); setStageFocus(false); }}>
-            <SlidersHorizontal /><span>{t(advanced ? 'Menos' : 'Mais')}</span>
+          <button type="button" className={`cg-advanced-toggle ${advanced ? "is-active" : ""}`} aria-expanded={advanced} title={advanced ? "Recolher câmera, composição, efeitos e camadas" : "Câmera, composição, efeitos e camadas"} onClick={() => { setAdvanced(v => !v); if (advanced && NAV.find(n => n.id === tab && "advanced" in n)) setTab("arts"); setStageFocus(false); }}>
+            <SlidersHorizontal /><span>{t(advanced ? 'Recolher' : 'Ferramentas')}</span>
           </button>
           <div className="cg-rail-bottom">
             <ToolButton

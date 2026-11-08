@@ -54,3 +54,19 @@ body:has(.cg-studio-page) {
   min-height: 0;
   overflow-y: auto;
 }
+
+/* PremiumGate keeps the mounted scene in a wrapper when access is rechecked. */
+.cg-studio-page > div:has(> .cg-studio-root) {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.cg-studio-page > div:has(> .cg-studio-root) > .cg-access-bar { flex: none; }
+.cg-studio-page > div:has(> .cg-studio-root) > .cg-studio-root {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}

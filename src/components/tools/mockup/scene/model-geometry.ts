@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { MUG } from "../lib/config";
 import type { MugModel } from "../state/store";
-import { buildMugBodyGeometry, buildHandleGeometry, buildBasePrintGeometry, profileRadius, smoothBodyNormals } from "./mug-geometry";
+import { buildMugBodyGeometry, buildHandleGeometry, buildBasePrintGeometry, profileRadius, smoothBodyNormals, smoothHandleSeamNormals } from "./mug-geometry";
 import type { HandleStyle } from "./mug-geometry";
 export const MODELS: {
   id: MugModel;
@@ -96,7 +96,10 @@ export function buildModel(model: MugModel = "classic", handleStyle: HandleStyle
       p.setXYZ(i, x, y, z);
     }
     p.needsUpdate = true;
-    if (model !== "classic") g.computeVertexNormals();
+    if (model !== "classic") {
+      g.computeVertexNormals();
+      if (isHandle) smoothHandleSeamNormals(g);
+    }
     g.computeBoundingBox();
     g.computeBoundingSphere();
   }

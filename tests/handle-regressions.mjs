@@ -92,3 +92,26 @@ test("actual body and reference handle bounds fit lateral, top and perspective v
     dispose(model);
   }
 });
+
+test("the thin C stays loadable for saved projects and is absent from new selections", () => {
+  const {SELECTABLE_HANDLE_STYLES, normalizeHandleStyle} = require('../src/components/tools/mockup/lib/handle-styles.ts');
+  assert.equal(normalizeHandleStyle('livesub'), 'livesub');
+  assert.equal(SELECTABLE_HANDLE_STYLES.length, 6);
+  assert.equal(SELECTABLE_HANDLE_STYLES.some(style => style.id === 'livesub'), false);
+  for (const id of ['classic', 'rounded']) assert.ok(SELECTABLE_HANDLE_STYLES.some(style => style.id === id));
+  const model = buildModel('classic', normalizeHandleStyle('livesub'));
+  assert.ok(model.handle.boundingBox.max.y > 7);
+  dispose(model);
+});
+
+test("all handle styles keep a smooth angular seam after deformation to all six bodies", () => {
+  for (const {id} of MODELS) for (const {id: style} of HANDLE_STYLES) {
+    const model = buildModel(id, style), n = model.handle.getAttribute('normal');
+    for (let i=0;i<=144;i++) {
+      const a = new THREE.Vector3().fromBufferAttribute(n,i*41);
+      const b = new THREE.Vector3().fromBufferAttribute(n,i*41+40);
+      assert.ok(a.distanceTo(b)<1e-5, `${id}/${style}: highlight seam at ring ${i}`);
+    }
+    dispose(model);
+  }
+});
