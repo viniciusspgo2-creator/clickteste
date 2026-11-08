@@ -13,7 +13,7 @@ const require = createRequire(path.join(root, "package.json"));
 export const toolRequire = process.env.STUDIO_TEST_TOOLS
   ? createRequire(path.resolve(process.env.STUDIO_TEST_TOOLS, "package.json")) : require;
 
-export async function startStudioHarness({ noticesOnly = false } = {}) {
+export async function startStudioHarness({ noticesOnly = false, withEditor = false } = {}) {
   const output = process.env.STUDIO_TEST_OUTPUT || await fs.mkdtemp(path.join(os.tmpdir(), "clicktools-preview-"));
   await fs.mkdir(output, { recursive: true });
   const { build } = toolRequire("esbuild");
@@ -33,17 +33,19 @@ export async function startStudioHarness({ noticesOnly = false } = {}) {
     import * as portable from ${JSON.stringify(path.join(root, "src/components/tools/mockup/lib/portable-project.ts"))};
     import {StudioAnnouncements} from ${JSON.stringify(path.join(root, "src/components/tools/mockup/ui/studio-announcements.tsx"))};
     import {AnnouncementsPanel} from ${JSON.stringify(path.join(root, "src/components/admin/announcements-panel.tsx"))};
+    import * as handoff from ${JSON.stringify(path.join(root, "src/lib/creative/handoff.ts"))};
+    ${withEditor ? `import {CreativeEditor} from ${JSON.stringify(path.join(root, "src/components/creative/creative-editor.tsx"))};import {prepareMockupHandoff} from ${JSON.stringify(path.join(root, "src/lib/creative/mockup-handoff-document.ts"))};import * as creativeProjects from ${JSON.stringify(path.join(root, "src/lib/creative/browser-projects.ts"))};` : ""}
     let exporting=refs.exporting, captures=0;
     Object.defineProperty(refs,'exporting',{get:()=>exporting,set:v=>{if(v&&!exporting)captures++;exporting=v;},configurable:true});
     const urls=new Map(), created=URL.createObjectURL.bind(URL), revoked=URL.revokeObjectURL.bind(URL);
     URL.createObjectURL=b=>{const u=created(b);urls.set(u,b);return u;};
     URL.revokeObjectURL=u=>{urls.delete(u);revoked(u);};
-    window.studioTest={store,refs,art,images,video,backgrounds,frames,projects,portable,urls,get captures(){return captures;}};
-    createRoot(document.getElementById('root')).render(${noticesOnly ? "<><StudioAnnouncements/><AnnouncementsPanel refreshKey={0} onUnauthorized={()=>{window.noticeUnauthorized=true;}}/></>" : "<MockupStudio/>"});
+    window.studioTest={store,refs,art,images,video,backgrounds,frames,projects,portable,urls,handoff,${withEditor ? "prepareMockupHandoff,creativeProjects," : ""}get captures(){return captures;}};
+    createRoot(document.getElementById('root')).render(${noticesOnly ? "<><StudioAnnouncements/><AnnouncementsPanel refreshKey={0} onUnauthorized={()=>{window.noticeUnauthorized=true;}}/></>" : withEditor ? "window.location.pathname.startsWith('/editor-artes')?<CreativeEditor/>:<MockupStudio/>" : "<MockupStudio/>"});
   `;
   await build({ stdin: { contents: entry, resolveDir: root, loader: "tsx" }, absWorkingDir: root,
     tsconfig: path.join(root, "tsconfig.json"), nodePaths: [path.join(root, "node_modules")], bundle: true,
-    outfile: path.join(output, "bundle.js"), platform: "browser", format: "esm",
+    outfile: path.join(output, "bundle.js"), platform: "browser", format: "esm", external: ['/cg-editor/*'],
     define: { "process.env.NODE_ENV": '"development"' }, logLevel: "warning",
     plugins: [{name:"isolated-next-boundaries",setup(builder){
       builder.onResolve({filter:/^next\/(dynamic|navigation|link)$/},args=>({path:args.path,namespace:"isolated-next"}));
@@ -61,9 +63,10 @@ export async function startStudioHarness({ noticesOnly = false } = {}) {
   const server = http.createServer(async (req, res) => {
     try {
       const name = decodeURIComponent(new URL(req.url, "http://localhost").pathname);
+      if (name.startsWith('/api/')) {res.setHeader('Content-Type','application/json');res.end(JSON.stringify({ok:true,items:[],total:0}));return;}
       const fixtures = path.join(root, "tests/fixtures/mockup-preview");
-      const base = name.startsWith("/fixtures/") ? fixtures : name.startsWith("/mockup/") ? path.join(root, "public") : output;
-      const relative = name.startsWith("/fixtures/") ? name.slice("/fixtures".length) : name === "/" ? "/index.html" : name;
+      const base = name.startsWith("/fixtures/") ? fixtures : /^\/(mockup|cg-editor|creative-library|fonts)\//.test(name) ? path.join(root, "public") : output;
+      const relative = name.startsWith("/fixtures/") ? name.slice("/fixtures".length) : name === "/" || withEditor && name.startsWith('/editor-artes') ? "/index.html" : name;
       const file = path.resolve(base, "." + relative);
       if (!file.startsWith(base + path.sep)) { res.writeHead(403); res.end(); return; }
       const data = await fs.readFile(file);

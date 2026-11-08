@@ -28,6 +28,8 @@ export interface FrameOpts {
   transparent?: boolean;
   /** Only for export-to-editor: omit all floor/contact shadows while preserving ceramic shading. */
   hideGroundShadow?: boolean;
+  /** Render this visible mug alone for an independent Editor layer. */
+  objectId?: string;
   /** overrides do estado da caneca p/ render da folha (lote de variantes) */
   mugOverride?: Partial<MugState>;
   /** desliga o supersampling (gravação em tempo real precisa ser leve) */
@@ -59,6 +61,7 @@ export interface FrameSession {
   oldOverrideMaterial: THREE.Material | null;
   textureSwaps: { material: THREE.MeshPhysicalMaterial; original: THREE.Texture; temporary: THREE.CanvasTexture }[];
   ended: boolean;
+  objectId?: string;
   usingWhite: boolean;
   tex: THREE.CanvasTexture | null;
   previewCanvas: HTMLCanvasElement | null; // canvas original de preview (restaurado no fim)
@@ -219,6 +222,7 @@ export function beginFrames(
     oldOverrideMaterial: scene.overrideMaterial,
     textureSwaps: [],
     ended: false,
+    objectId: opts.objectId,
     tex: null,
     previewCanvas: null,
     artCanvas: null,
@@ -240,6 +244,20 @@ export function beginFrames(
   try {
     const st = useMockupStore.getState();
     const group = mugsGroup(scene);
+    if (opts.objectId) {
+      let found = false;
+      group?.traverse(o => {
+        if (o.name !== "mug-float") return;
+        if (o.userData.objectId === opts.objectId && o.visible) found = true;
+      });
+      if (!found) throw new ExportError("Esta caneca está oculta ou não está pronta. Mostre-a e tente novamente.");
+      group?.traverse(o => {
+        if (o.name === "mug-float" && o.userData.objectId !== opts.objectId && o.visible) {
+          o.visible = false;
+          session.hidden.push(o);
+        }
+      });
+    }
     const body = group?.getObjectByName("mug-body") as THREE.Mesh | undefined;
     const material = body?.material as THREE.MeshPhysicalMaterial | undefined;
     if (
@@ -411,6 +429,20 @@ export function fitCamera(session: FrameSession): THREE.PerspectiveCamera {
   const cam2 = refCam.clone();
   cam2.aspect = session.width / session.height;
   cam2.updateProjectionMatrix();
+  if (session.objectId) {
+    // Fit the complete isolated piece, including its handle, while retaining
+    // the original view direction. The user's close-up must not cut a layer.
+    const sphere = bounds.getBoundingSphere(new THREE.Sphere());
+    cam2.zoom = 1;
+    cam2.updateProjectionMatrix();
+    const vertical = THREE.MathUtils.degToRad(cam2.getEffectiveFOV()) / 2;
+    const horizontal = Math.atan(Math.tan(vertical) * cam2.aspect);
+    const distance = sphere.radius / Math.sin(Math.min(vertical, horizontal)) * 1.06;
+    const direction = refCam.getWorldDirection(new THREE.Vector3());
+    cam2.position.copy(sphere.center).addScaledVector(direction, -distance);
+    cam2.updateMatrixWorld();
+    return cam2;
+  }
   // The optional close-up preserves the user's zoom and composition. Automatic
   // framing stays the default and protects the entire group from cropping.
   if (useMockupStore.getState().exportSettings.framing === "current") {
@@ -444,6 +476,11 @@ export function sceneCenter(scene: THREE.Scene): THREE.Vector3 {
   let has = false;
   group.traverse((o) => {
     const m = o as THREE.Mesh;
+    let ancestor: THREE.Object3D | null = o;
+    while (ancestor) {
+      if (!ancestor.visible) return;
+      ancestor = ancestor.parent;
+    }
     if (
       m.isMesh &&
       m.parent?.visible !== false &&

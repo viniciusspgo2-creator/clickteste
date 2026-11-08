@@ -7,13 +7,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { writeHandoff } from "@/lib/creative/handoff";
+import { writeHandoff, writeLayeredHandoff, type MockupHandoffLayer } from "@/lib/creative/handoff";
 import { trimTransparentMockup } from "@/lib/creative/transparent-crop";
 import { FinalPreviewViewer } from "./final-preview-viewer";
 import "./export-dialog.css";
 import { MotionPreview } from "./motion-preview";
 import { SceneFraming } from "./scene-framing";
 import {
+  Layers,
   ImagePlus,
   Settings2,
   CupSoda,
@@ -1559,6 +1560,11 @@ function ImageTab() {
   const presentationZoom = useMockupStore(s=>s.zoom);
   const router = useRouter();
   const [sending, setSending] = useState(false);
+  const transferActive = useRef(false);
+  const transferMounted = useRef(true);
+  useEffect(() => { transferMounted.current = true; return () => { transferMounted.current = false; }; }, []);
+  const [sendingLabel, setSendingLabel] = useState("");
+  const visiblePieceCount = useMockupStore(s => Number(!s.mug.hidden) + s.companions.filter(c => !c.hidden).length);
   const es = useMockupStore((s) => s.exportSettings);
   const setExport = useMockupStore((s) => s.setExport);
   const art = useMockupStore((s) => s.art);
@@ -1639,6 +1645,7 @@ function ImageTab() {
   // allocating a full-resolution/supersampled export on every control change.
   useEffect(() => {
     let cancelled = false;
+    if (sending) { setDraftBusy(false); return; }
     setDraft(null);
     setDraftError("");
     if (!Number.isFinite(width) || !Number.isFinite(height) || width < 1 || height < 1 || width > MAX_EXPORT_PX || height > MAX_EXPORT_PX) {
@@ -1665,7 +1672,7 @@ function ImageTab() {
       });
     }, 350);
     return () => { cancelled = true; window.clearTimeout(timer); };
-  }, [width, height, es.format, es.quality, background, wm, sceneBackground, es.framing, presentationZoom, enqueueRender]);
+  }, [width, height, es.format, es.quality, background, wm, sceneBackground, es.framing, presentationZoom, sending, enqueueRender]);
 
   const estimate = useMemo(() => {
     const px = width * height;
@@ -1709,10 +1716,29 @@ function ImageTab() {
     }
   };
 
-  const sendToEditor = async () => {
-    if (busy || sending) return;
+  const sendToEditor = async (separate = false) => {
+    if (busy || transferActive.current) return;
+    transferActive.current = true;
     setSending(true);
     try {
+      if (separate) {
+        const state = useMockupStore.getState();
+        const pieces = [{ id: "hero", ...state.mug }, ...state.companions].filter(piece => !piece.hidden);
+        if (!pieces.length) throw new ExportError("Mostre pelo menos uma caneca antes de enviar ao Editor.");
+        if (pieces.length > 32) throw new ExportError("Envie até 32 canecas de cada vez.");
+        const items: MockupHandoffLayer[] = [];
+        for (const [index, piece] of pieces.entries()) {
+          if (!transferMounted.current) return;
+          setSendingLabel(`Preparando caneca ${index + 1} de ${pieces.length}…`);
+          const result = await enqueueRender({ width: 2000, height: 2000, format: "png", quality: 1,
+            transparent: true, background: "transparent", supersample: 2, hideGroundShadow: true, objectId: piece.id }, () => transferMounted.current);
+          const cropped = await trimTransparentMockup(result.blob);
+          items.push({ blob: cropped.blob, name: (piece.name || `Caneca ${index + 1}`).slice(0, 120) });
+        }
+        if (!transferMounted.current) return;
+        await writeLayeredHandoff(items);
+      } else {
+      setSendingLabel("Transferindo composição…");
       // Sem sombra de piso no PNG transferido: o editor permite refazê-la para cada fundo.
       // Iluminação/reflexos da cerâmica permanecem; arquivo só no browser/IndexedDB.
       const transferScale = Math.min(1, 2400 / Math.max(width, height));
@@ -1725,12 +1751,15 @@ function ImageTab() {
       // Remova apenas as margens alfa vazias. O Editor encaixa a caneca pelo
       // tamanho real do produto, não pelo quadro 16:9 da exportação.
       const handoff = await trimTransparentMockup(res.blob);
+      if (!transferMounted.current) return;
       await writeHandoff(handoff.blob);
+      }
+      if (!transferMounted.current) return;
       setOpen(false);
       router.push("/editor-artes?from=mockup");
     } catch (e) {
-      toast({ title: "Não foi possível enviar ao Editor", description: e instanceof Error ? e.message : "Tente novamente.", variant: "destructive" });
-    } finally { setSending(false); }
+      if (transferMounted.current) toast({ title: "Não foi possível enviar ao Editor", description: e instanceof Error ? e.message : "Tente novamente.", variant: "destructive" });
+    } finally { transferActive.current = false; if (transferMounted.current) { setSending(false); setSendingLabel(""); } }
   };
 
   const tooBig = !Number.isFinite(width) || !Number.isFinite(height) || width < 1 || height < 1 || width > MAX_EXPORT_PX || height > MAX_EXPORT_PX;
@@ -1935,11 +1964,18 @@ function ImageTab() {
 
       <details className="cg-export-editor-link">
         <summary>Continuar a criação no Editor de Artes</summary>
-        <p>Leve a composição em PNG transparente para montar uma apresentação. A transferência acontece neste navegador.</p>
+        <p>Para mostrar dois lados da estampa, prepare duas canecas no Studio e envie separadas.</p>
+        <button type="button" className="cg-editor-separate" onClick={() => void sendToEditor(true)} disabled={busy || sending || visiblePieceCount === 0}>
+          {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Layers className="h-4 w-4" />}
+          Enviar canecas separadas · {visiblePieceCount}
+        </button>
+        <p className="cg-editor-transfer-hint">Cada caneca vira uma camada: mova, redimensione e ajuste a sombra individualmente no Editor.</p>
         <button type="button" onClick={() => void sendToEditor()} disabled={busy || sending}>
           {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-          {sending ? "Transferindo composição..." : "Enviar mockup para o Editor de Artes"}
+          Enviar composição completa
         </button>
+        <p className="cg-editor-transfer-hint">Mantém todas as canecas juntas em uma imagem. A transferência dos dois modos acontece apenas neste navegador.</p>
+        {sending && <p role="status" aria-live="polite">{sendingLabel || "Preparando transferência…"}</p>}
       </details>
       {!art.imageId && <p className="cg-export-warning"><TriangleAlert size={15} />A caneca está sem arte. Você pode continuar ou adicionar sua estampa.</p>}
       {tooBig && <p className="cg-export-warning" role="alert"><TriangleAlert size={15} />Escolha medidas válidas, até {MAX_EXPORT_PX} px por lado.</p>}
