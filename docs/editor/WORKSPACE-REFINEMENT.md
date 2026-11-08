@@ -11,6 +11,7 @@ A interface mantém a estrutura de menu lateral, acervo, canvas e propriedades, 
 - **Visualização e guias**, junto ao canvas: réguas, faces, encaixe, área segura e guias livres em um grupo; tamanho e enquadramento em outro, com a indicação de que estes alteram a arte. Importar SVG editável fica em Uploads.
 - Ações de travar, duplicar e excluir ficam na barra contextual da seleção. O inspector evita repeti-las e mostra orientação simples quando não há seleção. Sombra passa a iniciar recolhida, com título visível. Texto novo recebe cor escura sobre fundo claro/transparente e branca sobre fundo escuro, sem recolorir textos existentes.
 - **Biblioteca**: seletor de conteúdo, favoritos e recentes próximos; capas maiores de coleção; caminho de volta explícito; filtros agrupados; pesquisa com filtro de coleção; cartões com nomes em duas linhas e qualidade do arquivo. A virtualização usa a mesma altura dos cartões. Carregamento do original, favoritos salvos e inserção de SVG/PNG foram mantidos.
+- O encaixe vertical da rota considera o wrapper de conteúdo do controle de acesso, reservando espaço para a faixa da conta e mantendo o rodapé de zoom dentro da tela no desktop. A autenticação permanece no componente existente.
 - Em telas pequenas, selecionar uma ferramenta abre o acervo e leva o usuário ao painel correspondente. Projeto permanece identificado por texto. A página de entrada e seus cards não foram alterados.
 
 ## Verificação

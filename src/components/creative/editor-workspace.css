@@ -167,6 +167,11 @@
 .cg-reference-v11 .cr-library-background-link {display:flex;align-items:center;justify-content:center;gap:6px;min-height:32px;margin:8px 0 0;border:1px solid #ffffff15;border-radius:5px;font-size:11px;color:#dab291;background:transparent}
 .cg-reference-v11 .cr-curated-footer {font-size:9px;color:#7e93ae;line-height:1.6;border-top:1px solid #ffffff12;margin-top:9px;padding-top:9px}
 @media(min-width:1100px) {
+ .cg-reference-v11 .cr-shell {grid-template-rows:minmax(0,1fr)}
+ .cg-reference-v11 .cr-rail {grid-column:1;grid-row:1}
+ .cg-reference-v11 .cr-left {grid-column:2;grid-row:1;max-height:none}
+ .cg-reference-v11 .cr-canvas-shell {grid-column:3;grid-row:1}
+ .cg-reference-v11 .cr-inspector {grid-column:4;grid-row:1;max-height:none}
  .cg-reference-v11 .cr-shell.cr-left-collapsed {grid-template-columns:76px 0 minmax(270px,1fr) 282px}
  .cg-reference-v11 .cr-shell.cr-right-collapsed {grid-template-columns:76px 292px minmax(270px,1fr) 0}
  .cg-reference-v11 .cr-shell.cr-left-collapsed.cr-right-collapsed {grid-template-columns:76px 0 minmax(270px,1fr) 0}
