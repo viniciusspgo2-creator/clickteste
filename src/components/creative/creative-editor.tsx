@@ -5,6 +5,7 @@ import { ArrowLeft, Undo2, Redo2, ImagePlus, Type, Shapes, Layers3, Trash2, Copy
 import { asDataUrl,blankDocument,clearDesignRenderCache,drawDesign,exportDesign,formats,imageFor,saveBlob,uid,type DesignDocument,type DesignNode,type ExportFormat } from '@/lib/creative/design';
 import { readEditorHandoff } from '@/lib/creative/handoff';
 import { prepareMockupHandoff } from '@/lib/creative/mockup-handoff-document';
+import {studioScenes,findStudioScene,composeStudioScene,type StudioScene} from '@/lib/creative/studio-scenes';
 import {detachAutomaticSmartMask,replaceFlatScene,canCommitAsyncTemplate} from '@/lib/creative/template-transition';
 import {validateProjectDocument} from '@/lib/creative/validate-project';
 import {canApplyLoadedProject,inspectProjectMedia} from '@/lib/creative/project-media-check';
@@ -296,6 +297,23 @@ export function CreativeEditor(){
   update(()=>result.document);setSelected(null);setPanel('layers');setNotice(result.warning);
   return true;
  };
+ const prepareStudioScene=async(scene:StudioScene,current:DesignDocument)=>{
+  const response=await fetch(scene.src);
+  if(!response.ok)throw new Error('Cenário indisponível. Tente novamente.');
+  const src=await asDataUrl(await response.blob());await imageFor(src);
+  return composeStudioScene(current,scene,src);
+ };
+ const applyStudioScene=async(scene:StudioScene)=>{
+  const captured=stateRef.current.history[stateRef.current.step],request=++templateRequestRef.current;
+  try{
+   const document=await prepareStudioScene(scene,captured);
+   if(!canCommitAsyncTemplate(request,templateRequestRef.current,captured,stateRef.current.history[stateRef.current.step])){
+    if(request===templateRequestRef.current)setNotice('A arte mudou enquanto o cenário carregava. Escolha-o novamente para preservar suas alterações.');return;
+   }
+   documentSessionRef.current.replace();update(()=>document);setSelected(null);setPanel('layers');
+   setNotice('Cenário aplicado. Ajuste seu mockup e adicione textos e logo em camadas separadas.');
+  }catch{if(request===templateRequestRef.current)setNotice('Não foi possível carregar o cenário. Sua arte foi preservada.');}
+ };
  const applyPreset=(preset:PresetId)=>{++templateRequestRef.current;documentSessionRef.current.replace();const base=makeBuiltInPreset(preset);update(d=>{
    // Preserva mockups e elementos do cliente quando ele escolhe uma estampa de caneca.
    const keep=detachAutomaticSmartMask(d).filter(n=>n.role!=='template'&&n.role!=='background'&&n.role!=='foreground');
@@ -429,6 +447,19 @@ export function CreativeEditor(){
     params.delete('from');const query=params.toString();
     window.history.replaceState(window.history.state,'',window.location.pathname+(query?'?'+query:'')+window.location.hash);
    }else if(mounted)setNotice('Seu trabalho foi preservado. Envie as canecas novamente para abrir uma nova composição.');}
+   const scene=findStudioScene(params.get('scene'));
+   if(scene&&mounted){
+    const captured=stateRef.current.history[stateRef.current.step],session=documentSessionRef.current.capture(),request=++templateRequestRef.current;
+    try{
+     const document=await prepareStudioScene(scene,captured);
+     if(mounted&&documentSessionRef.current.isCurrent(session)&&canCommitAsyncTemplate(request,templateRequestRef.current,captured,stateRef.current.history[stateRef.current.step])){
+      documentSessionRef.current.replace();update(()=>document);setSelected(null);setPanel('layers');
+      setNotice(document.nodes.some(n=>n.role==='mockup')?'Cenário e mockup prontos. Ajuste a caneca, escreva textos e insira sua logo.':'Cenário pronto. Importe seu mockup em PNG transparente pela aba Uploads e adicione textos e logo.');
+      params.delete('scene');params.delete('from');const query=params.toString();
+      window.history.replaceState(window.history.state,'',window.location.pathname+(query?'?'+query:'')+window.location.hash);
+     }
+    }catch{if(mounted&&request===templateRequestRef.current)setNotice('Não foi possível abrir o cenário. Sua arte foi preservada. Tente novamente no Studio Templates.');}
+   }
   }
   catch{if(mounted)setNotice('Não foi possível recuperar o mockup do Studio. Tente enviar novamente.');}
   const id=new URLSearchParams(window.location.search).get('asset');
@@ -876,6 +907,7 @@ export function CreativeEditor(){
       <button type="button" onClick={()=>{openPanel('texts');addText();}}><Type size={23}/><strong>Escrever um texto</strong><small>Nome, frase ou mensagem especial</small><span>Adicionar texto →</span></button>
      </div>
      <div className="cr-start-tip"><ShieldCheck size={17}/><p><strong>Pronta para sua caneca</strong><span>A arte começa em 21 × 9,5 cm. Na hora de exportar, confira as medidas e a resolução das suas imagens.</span></p></div>
+     <details className="cr-studio-scenes" open={templateFamily==='social'}><summary>Cenários do Studio Templates</summary><p className="cr-helper">Escolha um fundo para seu mockup. Depois, personalize com textos e logo.</p><div className="cr-scene-picker">{studioScenes.map(scene=><button type="button" key={scene.id} onClick={()=>void applyStudioScene(scene)} title={`Usar ${scene.name}`}><img src={scene.preview} alt="" loading="lazy" width={120} height={150}/><span>{scene.name}</span></button>)}</div></details>
      <details className="cr-optional-models" open={optionalModelsOpen} onToggle={event=>setOptionalModelsOpen(event.currentTarget.open)}><summary><Layers3 size={17}/><span>Modelos editáveis<small>Canecas, posts e stories · opcional</small></span><ChevronDown size={14}/></summary>
 
      <div className="cr-layout-family" role="group" aria-label="Tipo de modelo">

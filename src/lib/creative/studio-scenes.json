@@ -1,0 +1,1010 @@
+[
+  {
+    "id": "cenario-001",
+    "name": "Cenários cinematográficos 01",
+    "category": "Cenários cinematográficos",
+    "width": 1856,
+    "height": 2304,
+    "src": "/studio-templates/cenario-001.webp",
+    "preview": "/studio-templates/cenario-001-preview.webp"
+  },
+  {
+    "id": "cenario-002",
+    "name": "Interiores claros 01",
+    "category": "Interiores claros",
+    "width": 1856,
+    "height": 2304,
+    "src": "/studio-templates/cenario-002.webp",
+    "preview": "/studio-templates/cenario-002-preview.webp"
+  },
+  {
+    "id": "cenario-003",
+    "name": "Cenários cinematográficos 02",
+    "category": "Cenários cinematográficos",
+    "width": 1665,
+    "height": 2067,
+    "src": "/studio-templates/cenario-003.webp",
+    "preview": "/studio-templates/cenario-003-preview.webp"
+  },
+  {
+    "id": "cenario-004",
+    "name": "Universos e fantasia 01",
+    "category": "Universos e fantasia",
+    "width": 1339,
+    "height": 1662,
+    "src": "/studio-templates/cenario-004.webp",
+    "preview": "/studio-templates/cenario-004-preview.webp"
+  },
+  {
+    "id": "cenario-005",
+    "name": "Interiores claros 02",
+    "category": "Interiores claros",
+    "width": 928,
+    "height": 1152,
+    "src": "/studio-templates/cenario-005.webp",
+    "preview": "/studio-templates/cenario-005-preview.webp"
+  },
+  {
+    "id": "cenario-006",
+    "name": "Universos e fantasia 02",
+    "category": "Universos e fantasia",
+    "width": 1369,
+    "height": 1700,
+    "src": "/studio-templates/cenario-006.webp",
+    "preview": "/studio-templates/cenario-006-preview.webp"
+  },
+  {
+    "id": "cenario-007",
+    "name": "Campo e varandas 01",
+    "category": "Campo e varandas",
+    "width": 1092,
+    "height": 1440,
+    "src": "/studio-templates/cenario-007.webp",
+    "preview": "/studio-templates/cenario-007-preview.webp"
+  },
+  {
+    "id": "cenario-008",
+    "name": "Cafés e madeira 01",
+    "category": "Cafés e madeira",
+    "width": 1092,
+    "height": 1440,
+    "src": "/studio-templates/cenario-008.webp",
+    "preview": "/studio-templates/cenario-008-preview.webp"
+  },
+  {
+    "id": "cenario-009",
+    "name": "Cafés e madeira 02",
+    "category": "Cafés e madeira",
+    "width": 1092,
+    "height": 1440,
+    "src": "/studio-templates/cenario-009.webp",
+    "preview": "/studio-templates/cenario-009-preview.webp"
+  },
+  {
+    "id": "cenario-010",
+    "name": "Cafés e madeira 03",
+    "category": "Cafés e madeira",
+    "width": 1092,
+    "height": 1440,
+    "src": "/studio-templates/cenario-010.webp",
+    "preview": "/studio-templates/cenario-010-preview.webp"
+  },
+  {
+    "id": "cenario-011",
+    "name": "Campo e varandas 02",
+    "category": "Campo e varandas",
+    "width": 981,
+    "height": 1297,
+    "src": "/studio-templates/cenario-011.webp",
+    "preview": "/studio-templates/cenario-011-preview.webp"
+  },
+  {
+    "id": "cenario-012",
+    "name": "Cafés e madeira 04",
+    "category": "Cafés e madeira",
+    "width": 1092,
+    "height": 1440,
+    "src": "/studio-templates/cenario-012.webp",
+    "preview": "/studio-templates/cenario-012-preview.webp"
+  },
+  {
+    "id": "cenario-013",
+    "name": "Campo e varandas 03",
+    "category": "Campo e varandas",
+    "width": 944,
+    "height": 1245,
+    "src": "/studio-templates/cenario-013.webp",
+    "preview": "/studio-templates/cenario-013-preview.webp"
+  },
+  {
+    "id": "cenario-014",
+    "name": "Aniversário 01",
+    "category": "Aniversário",
+    "width": 1086,
+    "height": 1448,
+    "src": "/studio-templates/cenario-014.webp",
+    "preview": "/studio-templates/cenario-014-preview.webp"
+  },
+  {
+    "id": "cenario-015",
+    "name": "Aniversário 02",
+    "category": "Aniversário",
+    "width": 1092,
+    "height": 1440,
+    "src": "/studio-templates/cenario-015.webp",
+    "preview": "/studio-templates/cenario-015-preview.webp"
+  },
+  {
+    "id": "cenario-016",
+    "name": "Universos e fantasia 03",
+    "category": "Universos e fantasia",
+    "width": 1431,
+    "height": 1776,
+    "src": "/studio-templates/cenario-016.webp",
+    "preview": "/studio-templates/cenario-016-preview.webp"
+  },
+  {
+    "id": "cenario-017",
+    "name": "Universos e fantasia 04",
+    "category": "Universos e fantasia",
+    "width": 1369,
+    "height": 1699,
+    "src": "/studio-templates/cenario-017.webp",
+    "preview": "/studio-templates/cenario-017-preview.webp"
+  },
+  {
+    "id": "cenario-018",
+    "name": "Universos e fantasia 05",
+    "category": "Universos e fantasia",
+    "width": 1374,
+    "height": 1706,
+    "src": "/studio-templates/cenario-018.webp",
+    "preview": "/studio-templates/cenario-018-preview.webp"
+  },
+  {
+    "id": "cenario-019",
+    "name": "Cafés e madeira 05",
+    "category": "Cafés e madeira",
+    "width": 1371,
+    "height": 1702,
+    "src": "/studio-templates/cenario-019.webp",
+    "preview": "/studio-templates/cenario-019-preview.webp"
+  },
+  {
+    "id": "cenario-020",
+    "name": "Universos e fantasia 06",
+    "category": "Universos e fantasia",
+    "width": 1116,
+    "height": 1386,
+    "src": "/studio-templates/cenario-020.webp",
+    "preview": "/studio-templates/cenario-020-preview.webp"
+  },
+  {
+    "id": "cenario-021",
+    "name": "Universos e fantasia 07",
+    "category": "Universos e fantasia",
+    "width": 1292,
+    "height": 1603,
+    "src": "/studio-templates/cenario-021.webp",
+    "preview": "/studio-templates/cenario-021-preview.webp"
+  },
+  {
+    "id": "cenario-022",
+    "name": "Interiores claros 03",
+    "category": "Interiores claros",
+    "width": 928,
+    "height": 1152,
+    "src": "/studio-templates/cenario-022.webp",
+    "preview": "/studio-templates/cenario-022-preview.webp"
+  },
+  {
+    "id": "cenario-023",
+    "name": "Universos e fantasia 08",
+    "category": "Universos e fantasia",
+    "width": 1338,
+    "height": 1660,
+    "src": "/studio-templates/cenario-023.webp",
+    "preview": "/studio-templates/cenario-023-preview.webp"
+  },
+  {
+    "id": "cenario-024",
+    "name": "Aniversário 03",
+    "category": "Aniversário",
+    "width": 928,
+    "height": 1152,
+    "src": "/studio-templates/cenario-024.webp",
+    "preview": "/studio-templates/cenario-024-preview.webp"
+  },
+  {
+    "id": "cenario-025",
+    "name": "Pódios e neon 01",
+    "category": "Pódios e neon",
+    "width": 1091,
+    "height": 1442,
+    "src": "/studio-templates/cenario-025.webp",
+    "preview": "/studio-templates/cenario-025-preview.webp"
+  },
+  {
+    "id": "cenario-026",
+    "name": "Pódios e neon 02",
+    "category": "Pódios e neon",
+    "width": 1091,
+    "height": 1442,
+    "src": "/studio-templates/cenario-026.webp",
+    "preview": "/studio-templates/cenario-026-preview.webp"
+  },
+  {
+    "id": "cenario-027",
+    "name": "Pódios e neon 03",
+    "category": "Pódios e neon",
+    "width": 1092,
+    "height": 1440,
+    "src": "/studio-templates/cenario-027.webp",
+    "preview": "/studio-templates/cenario-027-preview.webp"
+  },
+  {
+    "id": "cenario-028",
+    "name": "Pódios e neon 04",
+    "category": "Pódios e neon",
+    "width": 1091,
+    "height": 1442,
+    "src": "/studio-templates/cenario-028.webp",
+    "preview": "/studio-templates/cenario-028-preview.webp"
+  },
+  {
+    "id": "cenario-029",
+    "name": "Pódios e neon 05",
+    "category": "Pódios e neon",
+    "width": 1092,
+    "height": 1440,
+    "src": "/studio-templates/cenario-029.webp",
+    "preview": "/studio-templates/cenario-029-preview.webp"
+  },
+  {
+    "id": "cenario-030",
+    "name": "Pódios e neon 06",
+    "category": "Pódios e neon",
+    "width": 1092,
+    "height": 1440,
+    "src": "/studio-templates/cenario-030.webp",
+    "preview": "/studio-templates/cenario-030-preview.webp"
+  },
+  {
+    "id": "cenario-031",
+    "name": "Cafés e madeira 06",
+    "category": "Cafés e madeira",
+    "width": 1092,
+    "height": 1440,
+    "src": "/studio-templates/cenario-031.webp",
+    "preview": "/studio-templates/cenario-031-preview.webp"
+  },
+  {
+    "id": "cenario-032",
+    "name": "Cafés e madeira 07",
+    "category": "Cafés e madeira",
+    "width": 1092,
+    "height": 1440,
+    "src": "/studio-templates/cenario-032.webp",
+    "preview": "/studio-templates/cenario-032-preview.webp"
+  },
+  {
+    "id": "cenario-033",
+    "name": "Cafés e madeira 08",
+    "category": "Cafés e madeira",
+    "width": 1092,
+    "height": 1440,
+    "src": "/studio-templates/cenario-033.webp",
+    "preview": "/studio-templates/cenario-033-preview.webp"
+  },
+  {
+    "id": "cenario-034",
+    "name": "Pódios e neon 07",
+    "category": "Pódios e neon",
+    "width": 1092,
+    "height": 1440,
+    "src": "/studio-templates/cenario-034.webp",
+    "preview": "/studio-templates/cenario-034-preview.webp"
+  },
+  {
+    "id": "cenario-035",
+    "name": "Universos e fantasia 09",
+    "category": "Universos e fantasia",
+    "width": 1141,
+    "height": 1416,
+    "src": "/studio-templates/cenario-035.webp",
+    "preview": "/studio-templates/cenario-035-preview.webp"
+  },
+  {
+    "id": "cenario-036",
+    "name": "Universos e fantasia 10",
+    "category": "Universos e fantasia",
+    "width": 1116,
+    "height": 1386,
+    "src": "/studio-templates/cenario-036.webp",
+    "preview": "/studio-templates/cenario-036-preview.webp"
+  },
+  {
+    "id": "cenario-037",
+    "name": "Aniversário 04",
+    "category": "Aniversário",
+    "width": 964,
+    "height": 1271,
+    "src": "/studio-templates/cenario-037.webp",
+    "preview": "/studio-templates/cenario-037-preview.webp"
+  },
+  {
+    "id": "cenario-038",
+    "name": "Aniversário 05",
+    "category": "Aniversário",
+    "width": 960,
+    "height": 1266,
+    "src": "/studio-templates/cenario-038.webp",
+    "preview": "/studio-templates/cenario-038-preview.webp"
+  },
+  {
+    "id": "cenario-039",
+    "name": "Aniversário 06",
+    "category": "Aniversário",
+    "width": 978,
+    "height": 1290,
+    "src": "/studio-templates/cenario-039.webp",
+    "preview": "/studio-templates/cenario-039-preview.webp"
+  },
+  {
+    "id": "cenario-040",
+    "name": "Aniversário 07",
+    "category": "Aniversário",
+    "width": 982,
+    "height": 1296,
+    "src": "/studio-templates/cenario-040.webp",
+    "preview": "/studio-templates/cenario-040-preview.webp"
+  },
+  {
+    "id": "cenario-041",
+    "name": "Aniversário 08",
+    "category": "Aniversário",
+    "width": 982,
+    "height": 1296,
+    "src": "/studio-templates/cenario-041.webp",
+    "preview": "/studio-templates/cenario-041-preview.webp"
+  },
+  {
+    "id": "cenario-042",
+    "name": "Cenários cinematográficos 03",
+    "category": "Cenários cinematográficos",
+    "width": 1274,
+    "height": 1582,
+    "src": "/studio-templates/cenario-042.webp",
+    "preview": "/studio-templates/cenario-042-preview.webp"
+  },
+  {
+    "id": "cenario-043",
+    "name": "Cenários cinematográficos 04",
+    "category": "Cenários cinematográficos",
+    "width": 928,
+    "height": 1152,
+    "src": "/studio-templates/cenario-043.webp",
+    "preview": "/studio-templates/cenario-043-preview.webp"
+  },
+  {
+    "id": "cenario-044",
+    "name": "Interiores claros 04",
+    "category": "Interiores claros",
+    "width": 992,
+    "height": 1240,
+    "src": "/studio-templates/cenario-044.webp",
+    "preview": "/studio-templates/cenario-044-preview.webp"
+  },
+  {
+    "id": "cenario-045",
+    "name": "Interiores claros 05",
+    "category": "Interiores claros",
+    "width": 854,
+    "height": 1067,
+    "src": "/studio-templates/cenario-045.webp",
+    "preview": "/studio-templates/cenario-045-preview.webp"
+  },
+  {
+    "id": "cenario-046",
+    "name": "Cafés e madeira 09",
+    "category": "Cafés e madeira",
+    "width": 806,
+    "height": 1007,
+    "src": "/studio-templates/cenario-046.webp",
+    "preview": "/studio-templates/cenario-046-preview.webp"
+  },
+  {
+    "id": "cenario-047",
+    "name": "Cafés e madeira 10",
+    "category": "Cafés e madeira",
+    "width": 848,
+    "height": 1060,
+    "src": "/studio-templates/cenario-047.webp",
+    "preview": "/studio-templates/cenario-047-preview.webp"
+  },
+  {
+    "id": "cenario-048",
+    "name": "Interiores claros 06",
+    "category": "Interiores claros",
+    "width": 890,
+    "height": 1112,
+    "src": "/studio-templates/cenario-048.webp",
+    "preview": "/studio-templates/cenario-048-preview.webp"
+  },
+  {
+    "id": "cenario-049",
+    "name": "Campo e varandas 04",
+    "category": "Campo e varandas",
+    "width": 504,
+    "height": 664,
+    "src": "/studio-templates/cenario-049.webp",
+    "preview": "/studio-templates/cenario-049-preview.webp"
+  },
+  {
+    "id": "cenario-050",
+    "name": "Cafés e madeira 11",
+    "category": "Cafés e madeira",
+    "width": 615,
+    "height": 811,
+    "src": "/studio-templates/cenario-050.webp",
+    "preview": "/studio-templates/cenario-050-preview.webp"
+  },
+  {
+    "id": "cenario-051",
+    "name": "Campo e varandas 05",
+    "category": "Campo e varandas",
+    "width": 539,
+    "height": 712,
+    "src": "/studio-templates/cenario-051.webp",
+    "preview": "/studio-templates/cenario-051-preview.webp"
+  },
+  {
+    "id": "cenario-052",
+    "name": "Cafés e madeira 12",
+    "category": "Cafés e madeira",
+    "width": 618,
+    "height": 825,
+    "src": "/studio-templates/cenario-052.webp",
+    "preview": "/studio-templates/cenario-052-preview.webp"
+  },
+  {
+    "id": "cenario-053",
+    "name": "Universos e fantasia 11",
+    "category": "Universos e fantasia",
+    "width": 687,
+    "height": 852,
+    "src": "/studio-templates/cenario-053.webp",
+    "preview": "/studio-templates/cenario-053-preview.webp"
+  },
+  {
+    "id": "cenario-054",
+    "name": "Interiores claros 07",
+    "category": "Interiores claros",
+    "width": 742,
+    "height": 921,
+    "src": "/studio-templates/cenario-054.webp",
+    "preview": "/studio-templates/cenario-054-preview.webp"
+  },
+  {
+    "id": "cenario-055",
+    "name": "Pódios e neon 08",
+    "category": "Pódios e neon",
+    "width": 639,
+    "height": 843,
+    "src": "/studio-templates/cenario-055.webp",
+    "preview": "/studio-templates/cenario-055-preview.webp"
+  },
+  {
+    "id": "cenario-056",
+    "name": "Pódios e neon 09",
+    "category": "Pódios e neon",
+    "width": 755,
+    "height": 995,
+    "src": "/studio-templates/cenario-056.webp",
+    "preview": "/studio-templates/cenario-056-preview.webp"
+  },
+  {
+    "id": "cenario-057",
+    "name": "Pódios e neon 10",
+    "category": "Pódios e neon",
+    "width": 723,
+    "height": 956,
+    "src": "/studio-templates/cenario-057.webp",
+    "preview": "/studio-templates/cenario-057-preview.webp"
+  },
+  {
+    "id": "cenario-058",
+    "name": "Pódios e neon 11",
+    "category": "Pódios e neon",
+    "width": 736,
+    "height": 971,
+    "src": "/studio-templates/cenario-058.webp",
+    "preview": "/studio-templates/cenario-058-preview.webp"
+  },
+  {
+    "id": "cenario-059",
+    "name": "Cafés e madeira 13",
+    "category": "Cafés e madeira",
+    "width": 634,
+    "height": 836,
+    "src": "/studio-templates/cenario-059.webp",
+    "preview": "/studio-templates/cenario-059-preview.webp"
+  },
+  {
+    "id": "cenario-060",
+    "name": "Cafés e madeira 14",
+    "category": "Cafés e madeira",
+    "width": 800,
+    "height": 1055,
+    "src": "/studio-templates/cenario-060.webp",
+    "preview": "/studio-templates/cenario-060-preview.webp"
+  },
+  {
+    "id": "cenario-061",
+    "name": "Cafés e madeira 15",
+    "category": "Cafés e madeira",
+    "width": 741,
+    "height": 977,
+    "src": "/studio-templates/cenario-061.webp",
+    "preview": "/studio-templates/cenario-061-preview.webp"
+  },
+  {
+    "id": "cenario-062",
+    "name": "Cafés e madeira 16",
+    "category": "Cafés e madeira",
+    "width": 748,
+    "height": 986,
+    "src": "/studio-templates/cenario-062.webp",
+    "preview": "/studio-templates/cenario-062-preview.webp"
+  },
+  {
+    "id": "cenario-063",
+    "name": "Pódios e neon 12",
+    "category": "Pódios e neon",
+    "width": 792,
+    "height": 1045,
+    "src": "/studio-templates/cenario-063.webp",
+    "preview": "/studio-templates/cenario-063-preview.webp"
+  },
+  {
+    "id": "cenario-064",
+    "name": "Pódios e neon 13",
+    "category": "Pódios e neon",
+    "width": 757,
+    "height": 998,
+    "src": "/studio-templates/cenario-064.webp",
+    "preview": "/studio-templates/cenario-064-preview.webp"
+  },
+  {
+    "id": "cenario-065",
+    "name": "Pódios e neon 14",
+    "category": "Pódios e neon",
+    "width": 756,
+    "height": 997,
+    "src": "/studio-templates/cenario-065.webp",
+    "preview": "/studio-templates/cenario-065-preview.webp"
+  },
+  {
+    "id": "cenario-066",
+    "name": "Pódios e neon 15",
+    "category": "Pódios e neon",
+    "width": 854,
+    "height": 1067,
+    "src": "/studio-templates/cenario-066.webp",
+    "preview": "/studio-templates/cenario-066-preview.webp"
+  },
+  {
+    "id": "cenario-067",
+    "name": "Pódios e neon 16",
+    "category": "Pódios e neon",
+    "width": 895,
+    "height": 1118,
+    "src": "/studio-templates/cenario-067.webp",
+    "preview": "/studio-templates/cenario-067-preview.webp"
+  },
+  {
+    "id": "cenario-068",
+    "name": "Pódios e neon 17",
+    "category": "Pódios e neon",
+    "width": 779,
+    "height": 1028,
+    "src": "/studio-templates/cenario-068.webp",
+    "preview": "/studio-templates/cenario-068-preview.webp"
+  },
+  {
+    "id": "cenario-069",
+    "name": "Pódios e neon 18",
+    "category": "Pódios e neon",
+    "width": 688,
+    "height": 910,
+    "src": "/studio-templates/cenario-069.webp",
+    "preview": "/studio-templates/cenario-069-preview.webp"
+  },
+  {
+    "id": "cenario-070",
+    "name": "Cenários cinematográficos 05",
+    "category": "Cenários cinematográficos",
+    "width": 745,
+    "height": 925,
+    "src": "/studio-templates/cenario-070.webp",
+    "preview": "/studio-templates/cenario-070-preview.webp"
+  },
+  {
+    "id": "cenario-071",
+    "name": "Universos e fantasia 12",
+    "category": "Universos e fantasia",
+    "width": 798,
+    "height": 990,
+    "src": "/studio-templates/cenario-071.webp",
+    "preview": "/studio-templates/cenario-071-preview.webp"
+  },
+  {
+    "id": "cenario-072",
+    "name": "Universos e fantasia 13",
+    "category": "Universos e fantasia",
+    "width": 648,
+    "height": 805,
+    "src": "/studio-templates/cenario-072.webp",
+    "preview": "/studio-templates/cenario-072-preview.webp"
+  },
+  {
+    "id": "cenario-073",
+    "name": "Universos e fantasia 14",
+    "category": "Universos e fantasia",
+    "width": 650,
+    "height": 807,
+    "src": "/studio-templates/cenario-073.webp",
+    "preview": "/studio-templates/cenario-073-preview.webp"
+  },
+  {
+    "id": "cenario-074",
+    "name": "Universos e fantasia 15",
+    "category": "Universos e fantasia",
+    "width": 655,
+    "height": 813,
+    "src": "/studio-templates/cenario-074.webp",
+    "preview": "/studio-templates/cenario-074-preview.webp"
+  },
+  {
+    "id": "cenario-075",
+    "name": "Aniversário 09",
+    "category": "Aniversário",
+    "width": 653,
+    "height": 810,
+    "src": "/studio-templates/cenario-075.webp",
+    "preview": "/studio-templates/cenario-075-preview.webp"
+  },
+  {
+    "id": "cenario-076",
+    "name": "Universos e fantasia 16",
+    "category": "Universos e fantasia",
+    "width": 699,
+    "height": 868,
+    "src": "/studio-templates/cenario-076.webp",
+    "preview": "/studio-templates/cenario-076-preview.webp"
+  },
+  {
+    "id": "cenario-077",
+    "name": "Cenários cinematográficos 06",
+    "category": "Cenários cinematográficos",
+    "width": 702,
+    "height": 872,
+    "src": "/studio-templates/cenario-077.webp",
+    "preview": "/studio-templates/cenario-077-preview.webp"
+  },
+  {
+    "id": "cenario-078",
+    "name": "Universos e fantasia 17",
+    "category": "Universos e fantasia",
+    "width": 954,
+    "height": 1185,
+    "src": "/studio-templates/cenario-078.webp",
+    "preview": "/studio-templates/cenario-078-preview.webp"
+  },
+  {
+    "id": "cenario-079",
+    "name": "Universos e fantasia 18",
+    "category": "Universos e fantasia",
+    "width": 753,
+    "height": 935,
+    "src": "/studio-templates/cenario-079.webp",
+    "preview": "/studio-templates/cenario-079-preview.webp"
+  },
+  {
+    "id": "cenario-080",
+    "name": "Interiores claros 08",
+    "category": "Interiores claros",
+    "width": 928,
+    "height": 1152,
+    "src": "/studio-templates/cenario-080.webp",
+    "preview": "/studio-templates/cenario-080-preview.webp"
+  },
+  {
+    "id": "cenario-081",
+    "name": "Universos e fantasia 19",
+    "category": "Universos e fantasia",
+    "width": 729,
+    "height": 905,
+    "src": "/studio-templates/cenario-081.webp",
+    "preview": "/studio-templates/cenario-081-preview.webp"
+  },
+  {
+    "id": "cenario-082",
+    "name": "Cenários cinematográficos 07",
+    "category": "Cenários cinematográficos",
+    "width": 652,
+    "height": 809,
+    "src": "/studio-templates/cenario-082.webp",
+    "preview": "/studio-templates/cenario-082-preview.webp"
+  },
+  {
+    "id": "cenario-083",
+    "name": "Interiores claros 09",
+    "category": "Interiores claros",
+    "width": 808,
+    "height": 1009,
+    "src": "/studio-templates/cenario-083.webp",
+    "preview": "/studio-templates/cenario-083-preview.webp"
+  },
+  {
+    "id": "cenario-084",
+    "name": "Universos e fantasia 20",
+    "category": "Universos e fantasia",
+    "width": 660,
+    "height": 820,
+    "src": "/studio-templates/cenario-084.webp",
+    "preview": "/studio-templates/cenario-084-preview.webp"
+  },
+  {
+    "id": "cenario-085",
+    "name": "Campo e varandas 06",
+    "category": "Campo e varandas",
+    "width": 511,
+    "height": 674,
+    "src": "/studio-templates/cenario-085.webp",
+    "preview": "/studio-templates/cenario-085-preview.webp"
+  },
+  {
+    "id": "cenario-086",
+    "name": "Campo e varandas 07",
+    "category": "Campo e varandas",
+    "width": 543,
+    "height": 719,
+    "src": "/studio-templates/cenario-086.webp",
+    "preview": "/studio-templates/cenario-086-preview.webp"
+  },
+  {
+    "id": "cenario-087",
+    "name": "Campo e varandas 08",
+    "category": "Campo e varandas",
+    "width": 556,
+    "height": 733,
+    "src": "/studio-templates/cenario-087.webp",
+    "preview": "/studio-templates/cenario-087-preview.webp"
+  },
+  {
+    "id": "cenario-088",
+    "name": "Campo e varandas 09",
+    "category": "Campo e varandas",
+    "width": 537,
+    "height": 708,
+    "src": "/studio-templates/cenario-088.webp",
+    "preview": "/studio-templates/cenario-088-preview.webp"
+  },
+  {
+    "id": "cenario-089",
+    "name": "Universos e fantasia 21",
+    "category": "Universos e fantasia",
+    "width": 738,
+    "height": 917,
+    "src": "/studio-templates/cenario-089.webp",
+    "preview": "/studio-templates/cenario-089-preview.webp"
+  },
+  {
+    "id": "cenario-090",
+    "name": "Universos e fantasia 22",
+    "category": "Universos e fantasia",
+    "width": 756,
+    "height": 939,
+    "src": "/studio-templates/cenario-090.webp",
+    "preview": "/studio-templates/cenario-090-preview.webp"
+  },
+  {
+    "id": "cenario-091",
+    "name": "Universos e fantasia 23",
+    "category": "Universos e fantasia",
+    "width": 716,
+    "height": 889,
+    "src": "/studio-templates/cenario-091.webp",
+    "preview": "/studio-templates/cenario-091-preview.webp"
+  },
+  {
+    "id": "cenario-092",
+    "name": "Cenários cinematográficos 08",
+    "category": "Cenários cinematográficos",
+    "width": 699,
+    "height": 867,
+    "src": "/studio-templates/cenario-092.webp",
+    "preview": "/studio-templates/cenario-092-preview.webp"
+  },
+  {
+    "id": "cenario-093",
+    "name": "Universos e fantasia 24",
+    "category": "Universos e fantasia",
+    "width": 667,
+    "height": 828,
+    "src": "/studio-templates/cenario-093.webp",
+    "preview": "/studio-templates/cenario-093-preview.webp"
+  },
+  {
+    "id": "cenario-094",
+    "name": "Interiores claros 10",
+    "category": "Interiores claros",
+    "width": 819,
+    "height": 1017,
+    "src": "/studio-templates/cenario-094.webp",
+    "preview": "/studio-templates/cenario-094-preview.webp"
+  },
+  {
+    "id": "cenario-095",
+    "name": "Interiores claros 11",
+    "category": "Interiores claros",
+    "width": 929,
+    "height": 1152,
+    "src": "/studio-templates/cenario-095.webp",
+    "preview": "/studio-templates/cenario-095-preview.webp"
+  },
+  {
+    "id": "cenario-096",
+    "name": "Universos e fantasia 25",
+    "category": "Universos e fantasia",
+    "width": 661,
+    "height": 821,
+    "src": "/studio-templates/cenario-096.webp",
+    "preview": "/studio-templates/cenario-096-preview.webp"
+  },
+  {
+    "id": "cenario-097",
+    "name": "Universos e fantasia 26",
+    "category": "Universos e fantasia",
+    "width": 650,
+    "height": 808,
+    "src": "/studio-templates/cenario-097.webp",
+    "preview": "/studio-templates/cenario-097-preview.webp"
+  },
+  {
+    "id": "cenario-098",
+    "name": "Cenários cinematográficos 09",
+    "category": "Cenários cinematográficos",
+    "width": 728,
+    "height": 904,
+    "src": "/studio-templates/cenario-098.webp",
+    "preview": "/studio-templates/cenario-098-preview.webp"
+  },
+  {
+    "id": "cenario-099",
+    "name": "Aniversário 10",
+    "category": "Aniversário",
+    "width": 713,
+    "height": 885,
+    "src": "/studio-templates/cenario-099.webp",
+    "preview": "/studio-templates/cenario-099-preview.webp"
+  },
+  {
+    "id": "cenario-100",
+    "name": "Universos e fantasia 27",
+    "category": "Universos e fantasia",
+    "width": 681,
+    "height": 845,
+    "src": "/studio-templates/cenario-100.webp",
+    "preview": "/studio-templates/cenario-100-preview.webp"
+  },
+  {
+    "id": "cenario-101",
+    "name": "Aniversário 11",
+    "category": "Aniversário",
+    "width": 634,
+    "height": 787,
+    "src": "/studio-templates/cenario-101.webp",
+    "preview": "/studio-templates/cenario-101-preview.webp"
+  },
+  {
+    "id": "cenario-102",
+    "name": "Cenários cinematográficos 10",
+    "category": "Cenários cinematográficos",
+    "width": 928,
+    "height": 1152,
+    "src": "/studio-templates/cenario-102.webp",
+    "preview": "/studio-templates/cenario-102-preview.webp"
+  },
+  {
+    "id": "cenario-103",
+    "name": "Cenários cinematográficos 11",
+    "category": "Cenários cinematográficos",
+    "width": 928,
+    "height": 1152,
+    "src": "/studio-templates/cenario-103.webp",
+    "preview": "/studio-templates/cenario-103-preview.webp"
+  },
+  {
+    "id": "cenario-104",
+    "name": "Cenários cinematográficos 12",
+    "category": "Cenários cinematográficos",
+    "width": 928,
+    "height": 1152,
+    "src": "/studio-templates/cenario-104.webp",
+    "preview": "/studio-templates/cenario-104-preview.webp"
+  },
+  {
+    "id": "cenario-105",
+    "name": "Cenários cinematográficos 13",
+    "category": "Cenários cinematográficos",
+    "width": 928,
+    "height": 1152,
+    "src": "/studio-templates/cenario-105.webp",
+    "preview": "/studio-templates/cenario-105-preview.webp"
+  },
+  {
+    "id": "cenario-106",
+    "name": "Cenários cinematográficos 14",
+    "category": "Cenários cinematográficos",
+    "width": 928,
+    "height": 1152,
+    "src": "/studio-templates/cenario-106.webp",
+    "preview": "/studio-templates/cenario-106-preview.webp"
+  },
+  {
+    "id": "cenario-107",
+    "name": "Cenários cinematográficos 15",
+    "category": "Cenários cinematográficos",
+    "width": 928,
+    "height": 1152,
+    "src": "/studio-templates/cenario-107.webp",
+    "preview": "/studio-templates/cenario-107-preview.webp"
+  },
+  {
+    "id": "cenario-108",
+    "name": "Cenários cinematográficos 16",
+    "category": "Cenários cinematográficos",
+    "width": 688,
+    "height": 855,
+    "src": "/studio-templates/cenario-108.webp",
+    "preview": "/studio-templates/cenario-108-preview.webp"
+  },
+  {
+    "id": "cenario-109",
+    "name": "Cenários cinematográficos 17",
+    "category": "Cenários cinematográficos",
+    "width": 782,
+    "height": 971,
+    "src": "/studio-templates/cenario-109.webp",
+    "preview": "/studio-templates/cenario-109-preview.webp"
+  },
+  {
+    "id": "cenario-110",
+    "name": "Cenários cinematográficos 18",
+    "category": "Cenários cinematográficos",
+    "width": 707,
+    "height": 878,
+    "src": "/studio-templates/cenario-110.webp",
+    "preview": "/studio-templates/cenario-110-preview.webp"
+  },
+  {
+    "id": "cenario-111",
+    "name": "Cenários cinematográficos 19",
+    "category": "Cenários cinematográficos",
+    "width": 737,
+    "height": 914,
+    "src": "/studio-templates/cenario-111.webp",
+    "preview": "/studio-templates/cenario-111-preview.webp"
+  },
+  {
+    "id": "cenario-112",
+    "name": "Cenários cinematográficos 20",
+    "category": "Cenários cinematográficos",
+    "width": 705,
+    "height": 875,
+    "src": "/studio-templates/cenario-112.webp",
+    "preview": "/studio-templates/cenario-112-preview.webp"
+  }
+]

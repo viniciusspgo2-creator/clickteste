@@ -23,7 +23,7 @@ const knowledge=`Você é o assistente especializado da Click & Gruda, para o St
 - No Editor: estampa padrão 21 × 9,5 cm (2480 × 1122 px), área visível aproximada 19 × 8,5 cm; upload temporário e privado no navegador; exportar .cgdesign; layers, sombra, recorte, textos curvos, elementos e templates.
 - A transferência Studio → Editor leva PNG da caneca sem sombra do chão; sombra pode ser aplicada manualmente pelo Editor.
 - Studio 3D: trocar modelo/alça, material fosco/verniz, mover câmera e caneca, Bocão, iluminação, sombra de contato, presets e exportações.
-- Studio Templates: layouts prontos, imagens do Admin e templates inteligentes do usuário; conteúdo de terceiros requer direitos de redistribuição.
+- Studio Templates: 112 cenários fotográficos predefinidos para apresentar mockups. O cenário é uma imagem de fundo, não tem textos ou objetos separáveis. Ao abrir no Editor, o mockup enviado pelo Studio permanece em camada independente; o cliente pode mover, redimensionar e adicionar textos, logo e elementos. Há busca e categorias de cafés, campo, aniversário, pódios/neon, interiores, fantasia e cinema.
 - PDF: escolha de página, trecho de texto extraído como objeto e fundo raster. Não promete recompor imagens, fontes e vetores originais.
 - PSD: camadas de pixels RGB/8 bit com compressão raw/RLE/ZIP; textos nativos, PSB, ajustes e objetos inteligentes não viram entidades Photoshop editáveis.
 - MP4: vídeo de fundo, texto/objetos com animações de entrada e pontos na linha do tempo até 20s. Exportação H.264 local sem áudio, em navegadores WebCodecs compatíveis. O Editor oferece HD 720p (padrão leve) e Full HD 1080p (opcional) com 24 ou 30 fps; a saída preserva a proporção e pode ser menor para projetos menores.
