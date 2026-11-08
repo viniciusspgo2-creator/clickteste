@@ -30,6 +30,32 @@ export function pinGroundedDocument(doc:DesignDocument):DesignDocument{
  return nodes.every((n,i)=>n===doc.nodes[i])?doc:{...doc,nodes};
 }
 type Footprint={left:number;right:number;bottom:number};
+/** Optional pinning must capture the current foot, never guess a table from a template rectangle. */
+export function groundingAtCurrentPosition(node:DesignNode,height:number,contact:Footprint,pin=false):Grounding{
+ const settings={...(node.grounding||naturalGrounding),pin:undefined} as Grounding;
+ if(pin){
+  const contactX=(contact.left+contact.right)/2,contactY=contact.bottom;
+  const dx=(contactX-.5)*node.w*(node.flipX?-1:1),dy=(contactY-.5+settings.offset)*node.h*(node.flipY?-1:1);
+  const a=node.angle*Math.PI/180,skew=Math.tan(Math.max(-40,Math.min(40,node.skew||0))*Math.PI/180);
+  const surface=(node.y+node.h/2+(dx+skew*dy)*Math.sin(a)+dy*Math.cos(a))/height;
+  if(surface<0||surface>1)throw new Error('Posicione a base dentro da arte antes de prender à mesa.');
+  settings.pin={surface,contactX,contactY};
+ }
+ return settings;
+}
+/** A narrow band follows the real alpha contour instead of inventing an oval base. */
+export function contactContour(data:Uint8ClampedArray,width:number,height:number,base:Footprint):Uint8ClampedArray{
+ const output=new Uint8ClampedArray(data.length),minimum=Math.max(0,Math.floor((base.bottom-.14)*height));
+ for(let x=0;x<width;x++){
+  let bottom=-1;
+  for(let y=Math.min(height-1,Math.ceil(base.bottom*height));y>=minimum;y--)if(data[(y*width+x)*4+3]>=96){bottom=y;break;}
+  if(bottom<0)continue;
+  for(let y=Math.max(minimum,bottom-2);y<=bottom;y++){
+   const i=(y*width+x)*4;output[i]=14;output[i+1]=10;output[i+2]=8;output[i+3]=data[i+3];
+  }
+ }
+ return output;
+}
 /** Ignore transparent PNG margins and faint capture shadows when locating the base. */
 export function findContactFootprint(data:Uint8ClampedArray,width:number,height:number):Footprint|null{
  let bottom=-1;
@@ -44,7 +70,7 @@ export function findContactFootprint(data:Uint8ClampedArray,width:number,height:
  }
  return {left:left/width,right:(right+1)/width,bottom:(bottom+1)/height};
 }
-type Silhouette={mask:HTMLCanvasElement;footprint:Footprint|null};
+type Silhouette={mask:HTMLCanvasElement;contact:HTMLCanvasElement;footprint:Footprint|null};
 const cache=new PixelBoundedCache<Silhouette>(1_000_000,24);
 export function clearGroundingCache(){cache.clear();}
 /** Called in the same local transform as the image, before drawing the mug.
@@ -56,15 +82,18 @@ export function drawGrounding(ctx:CanvasRenderingContext2D,node:DesignNode,sourc
   const mask=document.createElement('canvas');mask.width=192;mask.height=192;
   const mc=mask.getContext('2d',{willReadFrequently:true});if(!mc)return;
   mc.drawImage(source,rect.sx,rect.sy,rect.sw,rect.sh,0,0,192,192);
-  const footprint=findContactFootprint(mc.getImageData(0,0,192,192).data,192,192);
+  const pixels=mc.getImageData(0,0,192,192),footprint=findContactFootprint(pixels.data,192,192);
+  const contact=document.createElement('canvas');contact.width=192;contact.height=192;
+  const cc=contact.getContext('2d');if(!cc)return;
+  if(footprint){const band=cc.createImageData(192,192);band.data.set(contactContour(pixels.data,192,192,footprint));cc.putImageData(band,0,0);}
   mc.globalCompositeOperation='source-in';mc.fillStyle='#17120f';mc.fillRect(0,0,192,192);
-  silhouette={mask,footprint};cache.put(key,silhouette,192*192);
+  silhouette={mask,contact,footprint};cache.put(key,silhouette,2*192*192);
  }
  const base=silhouette.footprint;if(!base)return;
  const clamp=(v:number,min:number,max:number)=>Math.max(min,Math.min(max,v));
  const strength=clamp(settings.strength,0,1),softness=clamp(settings.softness,0,1);
  const baseY=(base.bottom-.5+clamp(settings.offset,-.2,.2))*node.h;
- const centerX=((base.left+base.right)/2-.5)*node.w,baseW=(base.right-base.left)*node.w;
+ const centerX=((base.left+base.right)/2-.5)*node.w;
  ctx.save();ctx.filter='none';ctx.shadowBlur=0;ctx.shadowOffsetX=0;ctx.shadowOffsetY=0;ctx.shadowColor='transparent';
  // The foot follows the mug transform, while contact shadows stay flat on the table.
  const matrix=ctx.getTransform();
@@ -72,18 +101,14 @@ export function drawGrounding(ctx:CanvasRenderingContext2D,node:DesignNode,sourc
  // A flattened silhouette falls away from the contact point across the table.
  ctx.save();ctx.globalAlpha*=strength*.28;
  ctx.filter=`blur(${node.w*(.008+softness*.025)}px)`;
- ctx.transform(1,0,-clamp(settings.direction,-1,1)*.65,clamp(settings.length,.05,.5),0,0);
+ const length=clamp(settings.length,.05,.5);
+ ctx.transform(1,0,-clamp(settings.direction,-1,1)*length*.85,length,0,0);
  ctx.rotate(node.angle*Math.PI/180);ctx.scale(node.flipX?-1:1,node.flipY?-1:1);
  if(node.skew)ctx.transform(1,0,Math.tan(clamp(node.skew,-40,40)*Math.PI/180),1,0,0);
  ctx.drawImage(silhouette.mask,-node.w/2-centerX,-node.h/2-baseY,node.w,node.h);ctx.restore();
- // Two soft ellipses give a broad ambient shadow and a tight contact core.
- const ellipse=(rx:number,ry:number,opacity:number)=>{
-  ctx.save();ctx.scale(Math.max(1,rx),Math.max(1,ry));
-  const gradient=ctx.createRadialGradient(0,0,0,0,0,1);
-  gradient.addColorStop(0,`rgba(14,10,8,${opacity*strength})`);gradient.addColorStop(.4,`rgba(14,10,8,${opacity*strength*.65})`);gradient.addColorStop(1,'rgba(14,10,8,0)');
-  ctx.fillStyle=gradient;ctx.beginPath();ctx.arc(0,0,1,0,Math.PI*2);ctx.fill();ctx.restore();
- };
- ellipse(baseW*.65,baseW*(.06+softness*.045),.32);
- ellipse(baseW*.51,baseW*(.018+softness*.012),.85);
+ // Restore the mug's transform for a thin contour shadow, hidden beneath its actual pixels.
+ ctx.setTransform(matrix);ctx.globalAlpha*=strength*.8;
+ ctx.filter=`blur(${Math.max(.6,node.w*(.003+softness*.006))}px)`;
+ ctx.drawImage(silhouette.contact,-node.w/2,-node.h/2+node.h*(.002+softness*.002),node.w,node.h);
  ctx.restore();
 }

@@ -3,10 +3,10 @@ import { useCallback,useEffect,useMemo,useRef,useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Undo2, Redo2, ImagePlus, Type, Shapes, Layers3, Trash2, Copy, ChevronUp, ChevronDown, Download, SlidersHorizontal, Search, Upload, RectangleHorizontal, Circle, Sparkles, FolderOpen, Save, WandSparkles, X, Plus, Maximize, FlipHorizontal2, FlipVertical2, Crop, LockKeyhole, Users, Eye, EyeOff, Lock, Unlock, Layers2, RotateCcw, BookOpen, Sticker, Shapes as ObjectsIcon, Paintbrush, Pipette, RotateCw, ShieldCheck, History, AlertTriangle, CheckCircle2, Scissors, ClipboardPaste, Eraser, PenTool, Ruler, Magnet, Keyboard, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal, Minus, Palette } from 'lucide-react';
 import { asDataUrl,blankDocument,clearDesignRenderCache,drawDesign,exportDesign,formats,imageFor,saveBlob,uid,type DesignDocument,type DesignNode,type ExportFormat } from '@/lib/creative/design';
-import {naturalGrounding,groundingPresets,groundingTargets,canGround,findContactFootprint,pinGroundedDocument,type Grounding} from '@/lib/creative/grounding';
+import {naturalGrounding,groundingPresets,groundingTargets,canGround,findContactFootprint,groundingAtCurrentPosition,pinGroundedDocument,type Grounding} from '@/lib/creative/grounding';
 import { readEditorHandoff } from '@/lib/creative/handoff';
 import { prepareMockupHandoff } from '@/lib/creative/mockup-handoff-document';
-import {studioScenes,findStudioScene,composeStudioScene,type StudioScene} from '@/lib/creative/studio-scenes';
+import {studioScenes,findStudioScene,composeStudioScene,isStudioSceneDocument,type StudioScene} from '@/lib/creative/studio-scenes';
 import {detachAutomaticSmartMask,replaceFlatScene,canCommitAsyncTemplate} from '@/lib/creative/template-transition';
 import {validateProjectDocument} from '@/lib/creative/validate-project';
 import {canApplyLoadedProject,inspectProjectMedia} from '@/lib/creative/project-media-check';
@@ -206,7 +206,7 @@ export function CreativeEditor(){
   setHistory(next);setStep(next.length-1);
  },[]);
  const patch=useCallback((id:string,p:Partial<DesignNode>)=>update(d=>({...d,nodes:d.nodes.map(n=>n.id===id&&!n.locked?{...n,...p}:n)})),[update]);
- const integrateWithTable=async()=>{
+ const integrateWithTable=async(pinToTable=false)=>{
   const captured=stateRef.current.history[stateRef.current.step],targets=groundingTargets(captured.nodes,selected);
   if(!targets.length)return;
   const request=++templateRequestRef.current;setGroundingBusy(true);
@@ -219,17 +219,14 @@ export function CreativeEditor(){
     const ctx=canvas.getContext('2d');if(!ctx)throw Error('Canvas indisponível');
     const contact=findContactFootprint(ctx.getImageData(0,0,width,height).data,width,height);
     if(!contact)throw Error('A imagem não tem uma base visível para apoiar.');
-    const old=node.grounding;
-    // Curated backgrounds have a suggested table plane. Other scenes retain the current foot height.
-    const surface=old?.pin?.surface??(captured.smartTemplate?.slot?Math.min(.96,(captured.smartTemplate.slot.y+captured.smartTemplate.slot.h*.85)/captured.height):clamp((node.y+contact.bottom*node.h)/captured.height,0,1));
-    return {id:node.id,grounding:{...(old||naturalGrounding),pin:{surface,contactX:(contact.left+contact.right)/2,contactY:contact.bottom}}};
+    return {id:node.id,grounding:groundingAtCurrentPosition(node,captured.height,contact,pinToTable)};
    }));
    if(!canCommitAsyncTemplate(request,templateRequestRef.current,captured,stateRef.current.history[stateRef.current.step])){
     setNotice('A arte mudou durante o encaixe. Clique em Integrar à mesa novamente.');return;
    }
    update(d=>({...d,nodes:d.nodes.map(node=>{const found=prepared.find(item=>item.id===node.id);return found?{...node,grounding:found.grounding,shadow:0,shadowX:0,shadowY:0}:node;})}));
-   setSelected(targets[0].id);setRightCollapsed(false);setShowGroundLine(true);
-   setNotice(`${targets.length===1?'Caneca apoiada':'Canecas apoiadas'} com sombra de contato. Arraste para os lados; para subir ou descer, ajuste a linha da mesa ou solte o apoio.`);
+   setSelected(targets[0].id);setRightCollapsed(false);setShowGroundLine(pinToTable);
+   setNotice(pinToTable?'Apoio preso na posição atual. Ajuste a linha apenas se precisar.':'Sombra aplicada sem mover ou redimensionar suas canecas. O apoio na mesa é opcional.');
   }catch(e){setNotice(e instanceof Error?e.message:'Não foi possível encaixar a caneca. Sua arte foi preservada.');}
   finally{setGroundingBusy(false);}
  };
@@ -918,7 +915,7 @@ export function CreativeEditor(){
   </nav>
   </div>
   {doc.nodes.some(n=>n.role==='mockup')||active&&canGround(active)?<section className="cr-table-bar" aria-label="Integração da caneca ao cenário">
-   <div><Sparkles size={22}/><span><strong>Faça a caneca pertencer ao cenário</strong><small>Sombra de contato e apoio na mesa · grátis, no seu navegador</small></span></div>
+   <div><Sparkles size={22}/><span><strong>Faça a caneca pertencer ao cenário</strong><small>Sombra sem mover a caneca · apoio opcional · grátis</small></span></div>
    <button type="button" className="cr-table-primary" disabled={groundingBusy||!groundTargets.length} onClick={()=>void integrateWithTable()}><WandSparkles size={19}/>{groundingBusy?'Encaixando…':'Integrar à mesa'}{groundTargets.length>1?` (${groundTargets.length} canecas)`:''}</button>
    <button type="button" disabled={!groundTargets.length} onClick={()=>{setSelected(groundTargets[0].id);setRightCollapsed(false);setShowGroundLine(true);requestAnimationFrame(()=>document.querySelector('.cr-table-controls')?.scrollIntoView({behavior:'smooth',block:'start'}));}}>Ajustar sombra e apoio</button>
   </section>:null}
@@ -1045,9 +1042,9 @@ export function CreativeEditor(){
   {!active?<div className="cr-inspector-empty"><span className="cr-section-eyebrow">COMO PERSONALIZAR</span><WandSparkles size={25}/><h3>Um detalhe por vez</h3><p>Clique em um texto, imagem ou forma na arte. Os ajustes desse item aparecem aqui.</p><ol><li><span>1</span>Adicione pela barra da esquerda.</li><li><span>2</span>Clique no item para selecionar.</li><li><span>3</span>Ajuste tamanho, posição e estilo.</li></ol><small><Keyboard size={15}/> Use Ctrl + Z para desfazer quando precisar.</small></div>:<div className="cr-properties">
    <div className="cr-edit-actions"><button onClick={copySelected} title="Copiar elemento selecionado para outra aba"><Copy size={14}/> Copiar</button><button onClick={cutSelected} disabled={!!active.locked} title="Recortar camada para colar"><Scissors size={14}/> Recortar</button><button onClick={pasteSelected} disabled={!clipboardReady} title="Colar camada copiada"><ClipboardPaste size={14}/> Colar</button></div><div className="cr-selected-bar"><span>{active.kind==='text'?'Texto':active.kind==='image'?'Imagem':'Forma'}</span><small>{active.locked?'Camada bloqueada':'Editando este item'}</small></div>
    {canGround(active)&&<section className="cr-table-controls" aria-label="Sombra e apoio na mesa">
-    <div className="cr-table-control-title"><Sparkles size={21}/><div><strong>Realismo na mesa</strong><small>{active.grounding?.pin?'Presa à mesa · move para os lados':'Sombra de contato + sombra projetada'}</small></div></div>
+    <div className="cr-table-control-title"><Sparkles size={21}/><div><strong>Realismo na mesa</strong><small>{active.grounding?.pin?'Presa à mesa · move para os lados':'Sombra do contorno real da base'}</small></div></div>
     <button type="button" className="cr-table-primary" disabled={!!active.locked||groundingBusy} onClick={()=>void integrateWithTable()}>{groundingBusy?'Encaixando…':'Integrar à mesa em 1 clique'}</button>
-    <p>O encaixe usa a base visível do PNG. Ajuste a linha de apoio para coincidir com a mesa do cenário.</p>
+    <p>Aplicar a sombra mantém sua composição. Prender à mesa é opcional e usa a posição atual da caneca.</p>
     <fieldset disabled={!!active.locked||groundingBusy}><legend>Acabamento da sombra</legend>
      <div className="cr-table-presets">{([['soft','Suave'],['natural','Natural'],['strong','Marcada']] as const).map(([key,label])=><button type="button" key={key} onClick={()=>changeGrounding({...groundingPresets[key],pin:active.grounding?.pin})}>{label}</button>)}</div>
      {active.grounding&&<>
@@ -1059,12 +1056,12 @@ export function CreativeEditor(){
        <label className="cr-table-guide-toggle"><input type="checkbox" checked={showGroundLine} onChange={e=>setShowGroundLine(e.target.checked)}/> Mostrar linha da mesa</label>
        <Range label="Linha da mesa" value={Math.round(active.grounding.pin.surface*1000)/10} min={0} max={100} unit="%" change={v=>changeGrounding({pin:{...active.grounding!.pin!,surface:v/100}})}/>
        <button type="button" className="cr-table-release" onClick={()=>changeGrounding({pin:undefined})}>Soltar da mesa</button>
-      </>:<button type="button" className="cr-table-release" onClick={()=>void integrateWithTable()}>Prender à mesa</button>}
+      </>:<button type="button" className="cr-table-release" onClick={()=>void integrateWithTable(true)}>Prender nesta posição</button>}
       <button type="button" className="cr-table-release" onClick={()=>patch(active.id,{grounding:undefined})}>Remover integração</button>
      </>}
     </fieldset>
    </section>}
-   {active.role==='mockup'&&doc.smartTemplate?.slot&&<div className="cr-feature" role="group" aria-label="Encaixe inteligente da caneca"><div><strong>{t('Encaixe inteligente')}</strong><p>{t('Recupere a posição e a proporção da caneca neste cenário, mantendo a máscara de primeiro plano.')}</p><button type="button" className="cr-primary" disabled={!!active.locked} onClick={()=>{if(!doc.smartTemplate?.slot)return;const fitted=fitMockupIntoSlot(active,doc.smartTemplate.slot,doc.smartTemplate.maskSrc,1,doc.smartTemplate.maskMode,doc.smartTemplate.maskInvert);patch(active.id,fitted);setNotice(t('Caneca reenquadrada no template.'));}}><Maximize size={15}/>{t('Reencaixar caneca')}</button><div className="cr-fit-scale-options" role="group" aria-label="Escala da caneca no encaixe">{([0.9,1,1.1] as const).map(f=><button key={f} type="button" disabled={!!active.locked} title="Ajustar a caneca proporcionalmente" onClick={()=>{if(!doc.smartTemplate?.slot)return;const fitted=fitMockupIntoSlot(active,doc.smartTemplate.slot,doc.smartTemplate.maskSrc,f,doc.smartTemplate.maskMode,doc.smartTemplate.maskInvert);patch(active.id,fitted);setNotice(`Caneca enquadrada em ${Math.round(f*100)}%, sem achatar.`);}}>{Math.round(f*100)}%</button>)}</div></div></div>}
+   {active.role==='mockup'&&doc.smartTemplate?.slot&&!isStudioSceneDocument(doc)&&<div className="cr-feature" role="group" aria-label="Encaixe inteligente da caneca"><div><strong>{t('Encaixe inteligente')}</strong><p>{t('Recupere a posição e a proporção da caneca neste cenário, mantendo a máscara de primeiro plano.')}</p><button type="button" className="cr-primary" disabled={!!active.locked} onClick={()=>{if(!doc.smartTemplate?.slot)return;const fitted=fitMockupIntoSlot(active,doc.smartTemplate.slot,doc.smartTemplate.maskSrc,1,doc.smartTemplate.maskMode,doc.smartTemplate.maskInvert);patch(active.id,fitted);setNotice(t('Caneca reenquadrada no template.'));}}><Maximize size={15}/>{t('Reencaixar caneca')}</button><div className="cr-fit-scale-options" role="group" aria-label="Escala da caneca no encaixe">{([0.9,1,1.1] as const).map(f=><button key={f} type="button" disabled={!!active.locked} title="Ajustar a caneca proporcionalmente" onClick={()=>{if(!doc.smartTemplate?.slot)return;const fitted=fitMockupIntoSlot(active,doc.smartTemplate.slot,doc.smartTemplate.maskSrc,f,doc.smartTemplate.maskMode,doc.smartTemplate.maskInvert);patch(active.id,fitted);setNotice(`Caneca enquadrada em ${Math.round(f*100)}%, sem achatar.`);}}>{Math.round(f*100)}%</button>)}</div></div></div>}
    {active.locked&&<div className="cr-layer-lock-notice"><Lock size={15}/> Camada protegida. Desbloqueie pelo cadeado acima ou na aba Camadas.</div>}
    <fieldset className="cr-properties-fields" disabled={!!active.locked}>
    {active.kind==='image'&&active.src&&svgSource(active.src)&&<button type="button" className="cr-outlined" disabled={busy||active.locked} onClick={()=>void ungroupActiveSvg()}>Desagrupar SVG</button>}

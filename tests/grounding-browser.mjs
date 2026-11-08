@@ -17,8 +17,16 @@ test('One-click support, visible controls, pinning and exported contact shadow w
   });
   await page.locator('.cr-gallery-thumbnail').first().click();
   await page.getByText('Cenário e mockup prontos.',{exact:false}).waitFor();
+  await page.locator('.cr-layer-select').filter({hasText:'Caneca frente'}).click();
+  const original=await page.locator('.cr-selection').evaluate(el=>({x:el.style.left,y:el.style.top,w:el.style.width,h:el.style.height}));
+  await page.locator('.cr-layer-select').filter({hasText:'Cenários cinematográficos'}).click();
   await page.getByRole('button',{name:'Integrar à mesa (2 canecas)',exact:true}).click();
-  await page.getByText('Canecas apoiadas com sombra de contato.',{exact:false}).waitFor();
+  await page.getByText('Sombra aplicada sem mover', {exact:false}).waitFor();
+  const unchanged=await page.locator('.cr-selection').evaluate(el=>({x:el.style.left,y:el.style.top,w:el.style.width,h:el.style.height}));
+  assert.deepEqual(unchanged,original);
+  await page.getByRole('button',{name:'Prender nesta posição',exact:true}).click();
+  await page.getByText('Apoio preso na posição atual.',{exact:false}).waitFor();
+  assert.deepEqual(await page.locator('.cr-selection').evaluate(el=>({x:el.style.left,y:el.style.top,w:el.style.width,h:el.style.height})),original);
   await page.getByText('Presa à mesa · move para os lados',{exact:true}).waitFor();
   assert.ok(await page.getByRole('slider',{name:'Intensidade da sombra',exact:true}).isVisible());
   const selection=()=>page.locator('.cr-selection').evaluate(el=>({x:parseFloat(el.style.left),y:parseFloat(el.style.top),w:parseFloat(el.style.width),h:parseFloat(el.style.height)}));
@@ -43,18 +51,18 @@ test('One-click support, visible controls, pinning and exported contact shadow w
    const doc={width:500,height:400,background:'#ffffff',nodes:[node]},output=document.createElement('canvas');
    await window.svgTest.drawDesign(output,doc);
    const sample=(x,y)=>Array.from(output.getContext('2d').getImageData(x,y,1,1).data);
-   const off=sample(250,314);
+   const off=sample(250,311);
    node.grounding={strength:.8,softness:.55,direction:.45,length:.22,offset:0};
    window.svgTest.validateProjectDocument(doc);
    for(const bad of [{...node.grounding,strength:NaN},{...node.grounding,pin:{surface:3,contactX:.5,contactY:.9}}]){
     let rejected=false;try{window.svgTest.validateProjectDocument({...doc,nodes:[{...node,grounding:bad}]});}catch{rejected=true;}if(!rejected)throw Error('Unsafe grounding accepted');
    }
-   await window.svgTest.drawDesign(output,doc);const on=sample(250,314);
+   await window.svgTest.drawDesign(output,doc);const on=sample(250,311);
    const blob=await window.svgTest.exportDesign(doc,'png',1),image=await createImageBitmap(blob);
    output.getContext('2d').clearRect(0,0,500,400);output.getContext('2d').drawImage(image,0,0);
-   const exported=sample(250,314);image.close();
+   const exported=sample(250,311);image.close();
    node.x+=80;await window.svgTest.drawDesign(output,doc);
-   return {off,on,exported,moved:sample(330,314),old:sample(250,314),type:blob.type};
+   return {off,on,exported,moved:sample(330,311),old:sample(250,311),type:blob.type};
   });
   assert.equal(pixels.off[0],255);assert.ok(pixels.on[0]<245);assert.deepEqual(pixels.exported,pixels.on);assert.ok(pixels.moved[0]<245);assert.ok(pixels.old[0]>pixels.on[0]);assert.equal(pixels.type,'image/png');
   await page.setViewportSize({width:390,height:844});

@@ -39,3 +39,25 @@ test('One click targets the selected image or all available mugs and respects hi
  assert.equal(doc.nodes[0].y,100);assert.equal(result.nodes.length,5);assert.equal(result.nodes[0].id,n.id);
  assert.ok(Math.abs(contactY(result.nodes[0])-800)<1e-8);
 });
+
+test('Applying shadows or pinning at the current position never guesses a template height',()=>{
+ const {groundingAtCurrentPosition}=load('grounding'),contact={left:.18,right:.72,bottom:.88};
+ for(const angle of [0,30,-40])for(const flipX of [false,true]){
+  const source={...n,angle,flipX,skew:10,y:170};
+  const copy=JSON.stringify(source),shadow=groundingAtCurrentPosition(source,1000,contact);
+  assert.equal(shadow.pin,undefined);assert.equal(pinGroundedNode({...source,grounding:shadow},1000).y,source.y);
+  const pin=groundingAtCurrentPosition(source,1000,contact,true);
+  assert.ok(Math.abs(pinGroundedNode({...source,grounding:pin},1000).y-source.y)<1e-8);
+  assert.equal(JSON.stringify(source),copy);
+ }
+});
+test('Contact shading follows a curved alpha edge instead of a broad oval footprint',()=>{
+ const {contactContour}=load('grounding'),w=100,h=100,pixels=new Uint8ClampedArray(w*h*4);
+ for(let x=20;x<80;x++)for(let y=20;y<=80-Math.round(Math.pow((x-50)/30,2)*8);y++)pixels[(y*w+x)*4+3]=255;
+ const base=findContactFootprint(pixels,w,h),band=contactContour(pixels,w,h,base);
+ for(let x=0;x<w;x++){
+  let count=0;for(let y=0;y<h;y++)if(band[(y*w+x)*4+3]){count++;assert.ok(pixels[(y*w+x)*4+3]>0);}
+  assert.ok(count<=3);if(x<20||x>=80)assert.equal(count,0);
+ }
+ assert.ok(band[(80*w+50)*4+3]>0);assert.equal(band[(82*w+50)*4+3],0);
+});

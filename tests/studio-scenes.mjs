@@ -47,3 +47,12 @@ test('An empty scene keeps an insertion slot for a later mug and uses native ima
  const result=composeStudioScene({...original,nodes:[]},catalog[2],'scene');
  assert.equal(result.nodes.length,1);assert.ok(result.smartTemplate.slot.w>0);assert.equal(result.nodes[0].w/result.nodes[0].h,catalog[2].width/catalog[2].height);
 });
+
+test('Changing photographic scenes preserves arrangement and drops an old table pin',()=>{
+ const grounding={strength:.8,softness:.5,direction:.4,length:.2,offset:0,pin:{surface:.99,contactX:.5,contactY:.9}};
+ const prior={width:1000,height:1250,background:'#fff',smartTemplate:{sceneId:'cenario-001',slot:{x:120,y:700,w:760,h:475}},nodes:[{...mug('one',140),y:450,grounding},{...mug('two',470),y:550,grounding}]};
+ const scene={...catalog[1],width:1000,height:1250};
+ const result=composeStudioScene(prior,scene,'new-scene');
+ for(const old of prior.nodes){const next=result.nodes.find(n=>n.id===old.id);assert.equal(next.x,old.x);assert.equal(next.y,old.y);assert.equal(next.w,old.w);assert.equal(next.h,old.h);assert.equal(next.grounding.pin,undefined);assert.equal(old.grounding.pin.surface,.99);}
+ assert.equal(result.smartTemplate.sceneId,scene.id);
+});
