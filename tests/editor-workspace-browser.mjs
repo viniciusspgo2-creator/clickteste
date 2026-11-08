@@ -16,6 +16,11 @@ try {
  await page.getByRole('heading',{name:'Comece sua arte',exact:true}).waitFor();
  assert.ok(await page.getByRole('button',{name:/Explorar biblioteca/}).isVisible());
  assert.equal(await page.locator('.cr-head button').count(),5);
+ await page.addStyleTag({content:await fs.readFile('src/app/editor-artes/editor/editor-route.css','utf8')});
+ await page.evaluate(()=>{const editor=window.document.querySelector('.cg-creative'),route=window.document.createElement('div'),content=window.document.createElement('div'),bar=window.document.createElement('div');route.className='cr-editor-route';bar.className='cg-access-bar';bar.style.height='32px';bar.textContent='Conta de teste';editor.parentElement.append(route);route.append(content);content.append(bar,editor);});
+ await page.waitForTimeout(200);
+ const fitsAccountViewport=()=>page.evaluate(()=>{const editor=window.document.querySelector('.cg-creative').getBoundingClientRect(),bottom=window.document.querySelector('.cr-bottom').getBoundingClientRect();return editor.top>=32&&editor.bottom<=innerHeight+.5&&bottom.bottom<=innerHeight+.5;});
+ assert.equal(await fitsAccountViewport(),true,'Account wrapper must leave all zoom controls inside the viewport');
  await page.screenshot({path:h.output+'/workspace-desktop.png'});
  await projectButton.focus();await page.keyboard.press('Enter');
  const menu=page.getByRole('menu');await menu.waitFor();
@@ -68,6 +73,7 @@ try {
  for(const size of [{width:1440,height:900},{width:1280,height:800},{width:1024,height:768},{width:390,height:844}]){
   await page.setViewportSize(size);await page.waitForTimeout(200);
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,JSON.stringify(size));
+  if(size.width>=1100)assert.equal(await fitsAccountViewport(),true,'Footer fits at '+size.width);
   await page.screenshot({path:h.output+`/workspace-${size.width}.png`,fullPage:size.width<1100});
  }
  await rail.getByRole('button',{name:'Biblioteca',exact:true}).click();await page.getByLabel('Tipo de conteúdo',{exact:true}).waitFor();
