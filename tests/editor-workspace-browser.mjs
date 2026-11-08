@@ -70,10 +70,10 @@ try {
  await rail.getByRole('button',{name:'Uploads',exact:true}).click();await page.getByRole('button',{name:'Importar SVG editável',exact:true}).waitFor();
  await rail.getByRole('button',{name:'Começar',exact:true}).click();await page.locator('.cr-optional-models>summary').click();await page.getByRole('button',{name:/Artes para Canecas/}).waitFor();
  await page.locator('.cr-optional-models>summary').click();
- for(const size of [{width:1440,height:900},{width:1280,height:800},{width:1024,height:768},{width:390,height:844}]){
+ for(const size of [{width:1440,height:900},{width:1280,height:800},{width:1100,height:800},{width:1024,height:768},{width:390,height:844}]){
   await page.setViewportSize(size);await page.waitForTimeout(200);
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,JSON.stringify(size));
-  if(size.width>=1100)assert.equal(await fitsAccountViewport(),true,'Footer fits at '+size.width);
+  if(size.width>=1100){assert.equal(await fitsAccountViewport(),true,'Footer fits at '+size.width);const positions=await page.evaluate(()=>['.cr-left','.cr-canvas-shell','.cr-inspector'].map(selector=>{const b=window.document.querySelector(selector).getBoundingClientRect();return {x:b.x,y:b.y};}));assert.ok(positions[0].x<positions[1].x&&positions[1].x<positions[2].x);assert.ok(Math.abs(positions[0].y-positions[2].y)<1);}
   await page.screenshot({path:h.output+`/workspace-${size.width}.png`,fullPage:size.width<1100});
  }
  await rail.getByRole('button',{name:'Biblioteca',exact:true}).click();await page.getByLabel('Tipo de conteúdo',{exact:true}).waitFor();
