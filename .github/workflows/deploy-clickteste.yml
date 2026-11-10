@@ -1,0 +1,42 @@
+# Deploy automático do clickteste (Studio Mockup 3D) na VPS Contabo.
+#
+# RASCUNHO — preparado 2026-11-09, ainda NÃO copiado para o repositório.
+# Só copiar para .github/workflows/ do repo clickteste quando a VPS estiver
+# de volta e o primeiro deploy manual já tiver sido validado.
+#
+# Fluxo que o Vinicius pediu (igual à Vercel): ele edita, sobe pelo
+# GitHub Desktop (push na main) e o deploy acontece sozinho, sem entrar
+# no servidor nem rodar comando.
+#
+# Secrets necessários no repo (Settings → Secrets → Actions):
+#   VPS_HOST     — IP ou hostname da VPS
+#   VPS_USER     — usuário SSH (ex.: root)
+#   VPS_SSH_KEY  — chave privada SSH (nunca senha)
+#   VPS_PORT     — porta SSH (22 por padrão)
+#
+# O deploy em si mora em vps/deploy.sh na VPS (/srv/clickteste/deploy.sh).
+# Se o build falhar, o script aborta ANTES do pm2 reload: o site antigo
+# continua no ar. Rollback de um deploy ruim = git revert + novo push.
+
+name: Deploy clickteste na VPS
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          script: /srv/clickteste/deploy.sh
