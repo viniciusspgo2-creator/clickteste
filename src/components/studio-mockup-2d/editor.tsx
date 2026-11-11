@@ -74,6 +74,41 @@ function Slider({
   );
 }
 
+/** Slider em pixels (para o ajuste fino da geometria da caneca). */
+function PxSlider({
+  label,
+  value,
+  min,
+  max,
+  step = 1,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <label className="block">
+      <span className="flex justify-between text-xs text-neutral-300">
+        <span>{label}</span>
+        <span className="font-semibold text-white">{value} px</span>
+      </span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="mt-1 w-full accent-orange-500"
+      />
+    </label>
+  );
+}
+
 /**
  * Máscara arrastável da calibração manual: o retângulo da área da caneca
  * (xLeft/xRight/topC/botC) com 8 alças. Arrastar uma alça ajusta a área
@@ -395,7 +430,9 @@ export function StudioMockup2DEditor() {
       if (dragHandle.includes("r")) xRight = Math.min(template.refW, Math.max(startLeft + 40, startRight + dx));
       if (dragHandle.includes("t")) topC = Math.max(0, Math.min(m.botC - 40, m.topC + dy));
       if (dragHandle.includes("b")) botC = Math.min(template.refH, Math.max(m.topC + 40, m.botC + dy));
-      // Recomputa cx/R a partir das bordas e mantém a elipse proporcional.
+      // Recomputa cx/R a partir das bordas. A curvatura do topo/base (topRy/
+      // botRy) e o lábio/pé são PRESERVADOS — são o ajuste fino que o usuário
+      // afinou nos sliders; recalcular aqui desfaria esse ajuste.
       const cx = (xLeft + xRight) / 2;
       const R = Math.max(10, (xRight - xLeft) / 2);
       const next: MugCalibration = {
@@ -403,9 +440,7 @@ export function StudioMockup2DEditor() {
         cx: Math.round(cx),
         R: Math.round(R),
         topC: Math.round(topC),
-        topRy: Math.max(4, Math.round(R * 0.06)),
         botC: Math.round(botC),
-        botRy: Math.max(5, Math.round(R * 0.07)),
         xLeft: Math.round(xLeft),
         xRight: Math.round(xRight),
       };
@@ -666,6 +701,40 @@ export function StudioMockup2DEditor() {
                   {calibMug.nome}: esquerda {Math.round(mugLeft(calibMug))} · direita {Math.round(mugRight(calibMug))} · topo{" "}
                   {Math.round(calibMug.topC)} · base {Math.round(calibMug.botC)} · R {Math.round(calibMug.R)}
                 </p>
+              )}
+              {calibrating && calibMug && (
+                <div className="mt-3 space-y-3 border-t border-neutral-800 pt-3">
+                  <p className="text-xs font-semibold text-neutral-300">Ajuste fino da geometria (o que o autor do HTML afinava à mão)</p>
+                  <PxSlider
+                    label="Curva do topo (elipse do aro)"
+                    value={Math.round(calibMug.topRy)}
+                    min={0}
+                    max={40}
+                    onChange={(v) => updateCalibMug({ ...calibMug, topRy: v })}
+                  />
+                  <PxSlider
+                    label="Curva da base (elipse do pé)"
+                    value={Math.round(calibMug.botRy)}
+                    min={0}
+                    max={40}
+                    onChange={(v) => updateCalibMug({ ...calibMug, botRy: v })}
+                  />
+                  <PxSlider
+                    label="Lábio (arte começa abaixo da borda)"
+                    value={Math.round(calibMug.lip ?? 6)}
+                    min={0}
+                    max={20}
+                    onChange={(v) => updateCalibMug({ ...calibMug, lip: v })}
+                  />
+                  <PxSlider
+                    label="Pé (arte termina acima da base)"
+                    value={Math.round((calibMug.foot ?? 1.5) * 2) / 2}
+                    min={0}
+                    max={10}
+                    step={0.5}
+                    onChange={(v) => updateCalibMug({ ...calibMug, foot: v })}
+                  />
+                </div>
               )}
               <div className="mt-3 flex flex-wrap gap-2">
                 <button

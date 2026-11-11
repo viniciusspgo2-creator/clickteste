@@ -109,9 +109,9 @@ export interface RenderState {
    */
   realismo: number;
   /**
-   * Curva (0–100, padrão 100): queda de luz nas bordas do cilindro — a arte
+   * Curva (0–100, padrão 0): queda de luz nas bordas do cilindro — a arte
    * escurece ao se aproximar das laterais da caneca, como envolve o cilindro.
-   * 100 = queda total. 0 = sem queda extra (mais chapado).
+   * 0 = igual ao Wrap V2 original (sem queda extra). 100 = queda total.
    * Ideia do stallkit (MIT).
    */
   curva: number;
@@ -131,7 +131,7 @@ export const DEFAULT_RENDER_STATE: RenderState = {
   showMasks: false,
   compare: false,
   realismo: 100,
-  curva: 100,
+  curva: 0,
 };
 
 /** Arte carregada, amostrada em pixels (máx. 4096x2048). */
