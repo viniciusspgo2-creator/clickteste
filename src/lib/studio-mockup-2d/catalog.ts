@@ -1289,9 +1289,9 @@ export const STUDIO_MOCKUP_2D_TEMPLATES: MockupTemplate[] = [
     refH: 1350,
     mugs: [
       {
-        id: 2,
-        nome: "Caneca 2",
-        cor: "#00e5ff",
+        id: 1,
+        nome: "Caneca 1",
+        cor: "#ff3b30",
         cx: 400,
         R: 167,
         topC: 260,
@@ -1304,9 +1304,9 @@ export const STUDIO_MOCKUP_2D_TEMPLATES: MockupTemplate[] = [
         foot: 1.5, confidence: 0.5
       },
       {
-        id: 3,
-        nome: "Caneca 3",
-        cor: "#ff3b30",
+        id: 2,
+        nome: "Caneca 2",
+        cor: "#00e5ff",
         cx: 829,
         R: 170,
         topC: 336,
@@ -1990,9 +1990,9 @@ export const STUDIO_MOCKUP_2D_TEMPLATES: MockupTemplate[] = [
     refH: 1350,
     mugs: [
       {
-        id: 2,
-        nome: "Caneca 2",
-        cor: "#00e5ff",
+        id: 1,
+        nome: "Caneca 1",
+        cor: "#ff3b30",
         cx: 375,
         R: 133,
         topC: 592,
@@ -2005,9 +2005,9 @@ export const STUDIO_MOCKUP_2D_TEMPLATES: MockupTemplate[] = [
         foot: 1.5, confidence: 0.73
       },
       {
-        id: 3,
-        nome: "Caneca 3",
-        cor: "#ff3b30",
+        id: 2,
+        nome: "Caneca 2",
+        cor: "#00e5ff",
         cx: 732,
         R: 163,
         topC: 612,
