@@ -6,7 +6,7 @@ import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import {
   ArrowRight, ArrowUpRight, BadgeCheck, BookOpen, Check, ChevronDown,
-  CircleHelp, Coffee, Download, Gift, Infinity as InfinityIcon, Layers3,
+  CircleHelp, Coffee, Download, Frame, Gift, Infinity as InfinityIcon, Layers3,
   Lightbulb, LockKeyhole, MessageCircle, Move, Palette, ShieldCheck,
   Sparkles, Star, WandSparkles,
 } from "lucide-react";
@@ -159,11 +159,12 @@ export function StudioHome() {
       <div className="cg-marquee" aria-label="Recursos do Studio"><div className="cg-marquee-track">{[0, 1].map(i => <div key={i} className="cg-marquee-items" aria-hidden={i === 1}>{["STUDIO MOCKUP 3D", "CERÂMICA & REFLEXOS", "LUZ DE ESTÚDIO", "SUA ARTE EM DESTAQUE", "COMPOSIÇÃO CRIATIVA", "BIBLIOTECA VITALÍCIA"].map(item => <span key={item}><Star size={12} fill="currentColor" />{item}</span>)}</div>)}</div></div>
 
       <section id="ferramentas" className="cg-creative-hub cg-container" aria-labelledby="cg-hub-heading">
-        <div className="cg-creative-hub-top"><div><span className="cg-eyebrow"><Sparkles size={16}/> CENTRAL CRIATIVA</span><h2 id="cg-hub-heading" className="cg-display">Escolha o seu <em>próximo passo.</em></h2></div><p>Três ambientes independentes, feitos para trabalhar juntos. Entre apenas na ferramenta que precisa.</p></div>
+        <div className="cg-creative-hub-top"><div><span className="cg-eyebrow"><Sparkles size={16}/> CENTRAL CRIATIVA</span><h2 id="cg-hub-heading" className="cg-display">Escolha o seu <em>próximo passo.</em></h2></div><p>Quatro ambientes independentes, feitos para trabalhar juntos. Entre apenas na ferramenta que precisa.</p></div>
         <div className="cg-creative-hub-grid">
           <Link href="/mockup-caneca-3d/studio" className="cg-hub-card"><span className="cg-hub-card-index">01 / REALISMO 3D</span><Coffee size={33}/><strong>Studio Mockup</strong><p>Estampe, gire, ilumine e apresente sua caneca com todos os controles do Studio.</p><span className="cg-hub-card-link">Entrar no Studio <ArrowUpRight size={17}/></span></Link>
           <Link href="/studio-templates" className="cg-hub-card"><span className="cg-hub-card-index">02 / COMPOSIÇÕES</span><Layers3 size={33}/><strong>Studio Templates</strong><p>Escolha cenários prontos para apresentar seus mockups e personalize no editor.</p><span className="cg-hub-card-link">Explorar templates <ArrowUpRight size={17}/></span></Link>
           <Link href="/editor-artes" className="cg-hub-card"><span className="cg-hub-card-index">03 / LIBERDADE CRIATIVA</span><Palette size={33}/><strong>Editor de Artes</strong><p>Componha artes com imagens, textos, formas, filtros e exportação em alta resolução.</p><span className="cg-hub-card-link">Criar uma arte <ArrowUpRight size={17}/></span></Link>
+          <Link href="/studio-mockup-2d" className="cg-hub-card"><span className="cg-hub-card-index">04 / MOCKUP 2D</span><Frame size={33}/><strong>Studio Mockup 2D</strong><p>Aplique sua arte em 96 cenas prontas, com detecção automática da área da caneca e exportação em alta resolução.</p><span className="cg-hub-card-link">Criar mockup 2D <ArrowUpRight size={17}/></span></Link>
         </div>
       </section>
 

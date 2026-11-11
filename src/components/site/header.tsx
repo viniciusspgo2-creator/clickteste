@@ -11,6 +11,7 @@ const nav = [
   { href: "/#inicio", label: "Início" },
   { href: "/#biblioteca", label: "Biblioteca de Artes" },
   { href: "/#studio", label: "Studio 3D" },
+  { href: "/studio-mockup-2d", label: "Mockup 2D" },
   ...(MOCKUP_SCENES_ENABLED ? [{ href: "/mockup-cenarios", label: "Mockup de Cenários" }] : []),
   { href: "/blog", label: "Blog" },
   { href: "/bonus", label: "Bônus grátis" },
