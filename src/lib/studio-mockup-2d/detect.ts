@@ -1,5 +1,5 @@
 /**
- * Studio Click Mockup 2D — detecção automática de área (v1, sem dependências).
+ * Studio Click Mockup 2D — detecção automática de área (v5, sem dependências).
  * Encontra o corpo da caneca numa foto de cena e sugere a calibração inicial.
  *
  * Método (leve, 100% no navegador, sem WASM):
@@ -7,8 +7,11 @@
  * 2. Detecta bordas verticais fortes (gradiente horizontal de Sobel) — as
  *    laterais da caneca são as bordas verticais mais fortes e mais longas.
  * 3. Encontra o par de bordas verticais que forma o corpo da caneca e deriva
- *    xLeft, xRight, cx, R, topC, botC e as elipses do topo/base.
- * 4. Devolve também um score de confiança (0–1). Score baixo = pedir
+ *    xLeft, xRight, cx, R.
+ * 4. Topo/base (v5): pela EXTENSÃO DAS BORDAS VERTICAIS das paredes — não
+ *    por brilho (o fundo claro estendia a caneca até o pé da imagem).
+ *    Trava de proporção altura/largura em [0,85, 1,45].
+ * 5. Devolve também um score de confiança (0–1). Score baixo = pedir
  *    calibração manual.
  *
  * Upgrade previsto (ver REFERENCIAS-PESQUISA.md): OpenCV.js + jscanify
@@ -104,21 +107,97 @@ export function detectMugArea(
   if (left < 0 || right < 0 || confidence < 0.15) {
     return luminanceBlobFallback(img, lum, W, H, mugId, mugName, refW, refH);
   }
-  // Faixa vertical do corpo: onde a luminância entre as bordas é alta e estável.
-  const midX = Math.floor((left + right) / 2);
-  let top = y0;
-  let bottom = y1;
-  // Topo: primeira linha (de cima) onde a coluna central fica clara.
+  // Topo/base (v5): pela EXTENSÃO DAS BORDAS VERTICAIS das paredes da
+  // caneca — não por brilho. O fundo claro (mármore, prateleira) estendia
+  // a "corrida clara" até o pé da imagem e deixava a caneca 2,5x mais
+  // alta que larga. A parede lateral só existe na altura do corpo.
+  const wallProfile = new Float32Array(H);
   for (let y = 0; y < H; y++) {
-    if (lum[y * W + midX] > 90) {
-      top = y;
-      break;
+    let s = 0;
+    let n = 0;
+    for (const cc of [left, right]) {
+      for (let dx = -2; dx <= 2; dx++) {
+        const xx = cc + dx;
+        if (xx >= 0 && xx < W) {
+          s += edge[y * W + xx];
+          n++;
+        }
+      }
+    }
+    wallProfile[y] = n > 0 ? s / n : 0;
+  }
+  // Suaviza (média móvel de 5).
+  const wallS = new Float32Array(H);
+  for (let y = 0; y < H; y++) {
+    let s = 0;
+    let n = 0;
+    for (let k = -2; k <= 2; k++) {
+      const yy = y + k;
+      if (yy >= 0 && yy < H) {
+        s += wallProfile[yy];
+        n++;
+      }
+    }
+    wallS[y] = n > 0 ? s / n : 0;
+  }
+  // Corrida mais longa acima do limiar, só na faixa plausível da caneca
+  // (25%–98% da altura). Permite buracos de até 3 linhas.
+  const wy0 = Math.floor(H * 0.25);
+  const wy1 = Math.floor(H * 0.98);
+  let wmax = 0;
+  for (let y = wy0; y < wy1; y++) if (wallS[y] > wmax) wmax = wallS[y];
+  let top = -1;
+  let bottom = -1;
+  if (wmax > 0) {
+    const thresh = wmax * 0.3;
+    let bestStart = -1;
+    let bestEnd = -1;
+    let y = wy0;
+    while (y < wy1) {
+      if (wallS[y] > thresh) {
+        let end = y;
+        let gap = 0;
+        let lastTrue = y;
+        let k = y + 1;
+        while (k < wy1) {
+          if (wallS[k] > thresh) {
+            lastTrue = k;
+            gap = 0;
+          } else {
+            gap++;
+            if (gap > 3) break;
+          }
+          k++;
+        }
+        end = lastTrue;
+        if (end - y > bestEnd - bestStart) {
+          bestStart = y;
+          bestEnd = end;
+        }
+        y = end + 1;
+      } else {
+        y++;
+      }
+    }
+    if (bestStart >= 0) {
+      top = bestStart;
+      bottom = bestEnd;
     }
   }
-  for (let y = H - 1; y >= 0; y--) {
-    if (lum[y * W + midX] > 90) {
-      bottom = y;
-      break;
+  // Trava de proporção: altura/largura de caneca real fica em [0,85, 1,45].
+  const widthPx = right - left;
+  if (top < 0 || bottom < 0 || bottom - top < 5) {
+    const cy = Math.floor(H * 0.55);
+    const hEst = Math.round(widthPx * 1.15);
+    top = Math.max(wy0, cy - Math.floor(hEst / 2));
+    bottom = Math.min(wy1 - 1, cy + Math.floor(hEst / 2));
+  } else {
+    const aspect = (bottom - top) / Math.max(1, widthPx);
+    if (aspect < 0.85 || aspect > 1.45) {
+      const cy = Math.floor((top + bottom) / 2);
+      const hEst = Math.round(widthPx * 1.15);
+      top = Math.max(wy0, cy - Math.floor(hEst / 2));
+      bottom = Math.min(wy1 - 1, cy + Math.floor(hEst / 2));
     }
   }
   const sx = refW / W;
@@ -129,7 +208,6 @@ export function detectMugArea(
   const R = Math.round(((right - left) / 2) * sx);
   const topC = Math.round(top * sy);
   const botC = Math.round(bottom * sy);
-  const height = Math.max(1, botC - topC);
   const calibration: MugCalibration = {
     id: mugId,
     nome: mugName,
@@ -137,9 +215,9 @@ export function detectMugArea(
     cx,
     R,
     topC,
-    topRy: Math.round(height * 0.035),
+    topRy: Math.max(4, Math.round(R * 0.06)),
     botC,
-    botRy: Math.round(height * 0.04),
+    botRy: Math.max(5, Math.round(R * 0.07)),
     xLeft,
     xRight,
     lip: 6,

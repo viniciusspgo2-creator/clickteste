@@ -49,6 +49,38 @@ Limitações honestas:
   do gamer (o motor é agnóstico ao formato — usa `W / refW`); a verificação
   visual do render retrato fica para a revisão do Draft PR.
 
+## 1c. Recalibração v5 + calibrador manual (2026-11-11 ~18:00) — correção do reporte "tudo descalibrado"
+
+**Reporte do usuário (17:37, no ar):** todos os templates 100% descalibrados.
+Causa raiz (confirmada nos dados): o v4 achava topo/base por BRILHO
+(lum>170). O fundo claro (mármore, prateleira, parede) estendia a "corrida
+clara" até o pé da imagem — ex.: TEMPLATE_93 botC=1348 (fundo da imagem),
+caneca 2,5x mais alta que larga, arte esticada/desalinhada.
+
+**Correção v5 (scripts `calibrate-templates-v5.py` + `postprocess-v5.py`):**
+- Topo/base pela EXTENSÃO DAS BORDAS VERTICAIS das paredes da caneca
+  (o fundo claro não gera borda vertical), restrito à faixa 25%–98% da altura.
+- Trava de proporção altura/largura em [0,85, 1,45] (caneca real ~1,15).
+- Pós-processo impõe a coerência do PAR (R e top/bot parecidos); par
+  incoerente → a pior é substituída pelo espelho da mais PLAUSÍVEL
+  (geometria, não confiança — a confiança não indica acerto).
+- Resultado: 94 cenas × 2 canecas = 188; 84 com 2 detectadas, 32 espelhadas,
+  25 pares corrigidos por espelho, 10 `needsManual` (3 estimativa padrão +
+  7 espelho sem confirmação na imagem).
+- Verificação por overlay (v5): TEMPLATE_8, 50 e TEMPALTE_80 enquadram o
+  corpo da caneca corretamente; TEMPLATE_93 corrigido (era o pior caso do v4).
+  Limite honesto: cenas de fundo claro com bordas verticais fortes
+  (armários/prateleiras) ainda podem confundir o detector — é para isso que
+  existe o calibrador manual abaixo.
+
+**Calibrador manual (novo, no editor):** botão "Calibrar área (arrastar a
+máscara)" — retângulo arrastável com 8 alças sobre a caneca selecionada
+(Caneca 1/2), ajuste em tempo real com a arte, "Salvar calibração desta
+cena" (persiste no navegador por cena, em localStorage), "Restaurar
+original" e "Exportar calibrações" (JSON para commitar no repo).
+**Detecção no navegador atualizada para v5** (`detect.ts`): mesmo método de
+bordas verticais + trava de proporção.
+
 ## 2. Classificação por critério (seção 6 do handoff)
 
 Legenda: ✅ IMPLEMENTADO E TESTADO · 🟡 IMPLEMENTADO MAS NÃO TESTADO ·
