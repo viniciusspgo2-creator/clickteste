@@ -203,10 +203,11 @@ export const STUDIO_MOCKUP_2D_TEMPLATES: MockupTemplate[] = [
 
         cx: 352,
         R: 146,
-        topC: 661,
-        topRy: 9,
-        botC: 1034,
-        botRy: 10,
+
+        topC: 664,
+        topRy: 12,
+        botC: 1025,
+        botRy: 19,
         xLeft: 207,
         xRight: 498,
         lip: 6,
@@ -219,10 +220,11 @@ export const STUDIO_MOCKUP_2D_TEMPLATES: MockupTemplate[] = [
 
         cx: 728,
         R: 146,
-        topC: 662,
-        topRy: 9,
-        botC: 1035,
-        botRy: 10,
+
+        topC: 666,
+        topRy: 13,
+        botC: 1026,
+        botRy: 19,
         xLeft: 582,
         xRight: 874,
         lip: 6,
@@ -1032,10 +1034,11 @@ export const STUDIO_MOCKUP_2D_TEMPLATES: MockupTemplate[] = [
 
         cx: 354,
         R: 150,
-        topC: 797,
-        topRy: 9,
-        botC: 1162,
-        botRy: 11,
+
+        topC: 802,
+        topRy: 14,
+        botC: 1147,
+        botRy: 26,
         xLeft: 205,
         xRight: 504,
         lip: 6,
@@ -1048,10 +1051,11 @@ export const STUDIO_MOCKUP_2D_TEMPLATES: MockupTemplate[] = [
 
         cx: 721,
         R: 158,
-        topC: 799,
-        topRy: 9,
-        botC: 1162,
-        botRy: 11,
+
+        topC: 804,
+        topRy: 14,
+        botC: 1146,
+        botRy: 27,
         xLeft: 563,
         xRight: 879,
         lip: 6,
