@@ -1,23 +1,26 @@
 /**
- * Studio Click Mockup 2D — detecção automática de área (v5, sem dependências).
+ * Studio Click Mockup 2D — detecção automática de área (v5.1, sem dependências).
  * Encontra o corpo da caneca numa foto de cena e sugere a calibração inicial.
  *
  * Método (leve, 100% no navegador, sem WASM):
  * 1. Reduz a cena para ~512 px de largura e calcula a luminância.
  * 2. Detecta bordas verticais fortes (gradiente horizontal de Sobel) — as
  *    laterais da caneca são as bordas verticais mais fortes e mais longas.
- * 3. Encontra o par de bordas verticais que forma o corpo da caneca e deriva
- *    xLeft, xRight, cx, R.
+ * 3. Seleção do par de paredes — MESMA lógica do pipeline v5 Python:
+ *    picos locais no perfil suavizado + largura em [12%, 42%] da imagem +
+ *    score = força × brilho médio interno (a caneca é branca). Sem o teto
+ *    de largura e sem o brilho, o detector achava as bordas da imagem.
  * 4. Topo/base (v5): pela EXTENSÃO DAS BORDAS VERTICAIS das paredes — não
  *    por brilho (o fundo claro estendia a caneca até o pé da imagem).
  *    Trava de proporção altura/largura em [0,85, 1,45].
  * 5. Devolve também um score de confiança (0–1). Score baixo = pedir
  *    calibração manual.
  *
- * Upgrade previsto (ver REFERENCIAS-PESQUISA.md): OpenCV.js + jscanify
- * (Canny → contornos → approxPolyDP → quadrilátero), carregado sob demanda.
- * A interface desta função é a mesma — trocar a implementação interna não
- * muda quem chama.
+ * v6 (JSFeat Canny) foi TESTADO e REJEITADO (2026-11-11, protótipo em
+ * scripts/detect-v6-prototype.mjs): o Canny puro e o híbrido Sobel×Canny
+ * pioraram o detector — em 18 templates, o híbrido achou 0 canecas em 8
+ * (incluindo 4 controles que o v5 acerta) e os "acertos" eram falsos
+ * positivos no fundo (prateleiras, armários). O Sobel + seleção v5 fica.
  */
 import type { MugCalibration } from "./types";
 import { REF_W, REF_H } from "./types";
@@ -78,7 +81,7 @@ export function detectMugArea(
       edge[i] = Math.abs(gx);
     }
   }
-  // Para cada coluna, soma a força de borda na faixa vertical central (onde a caneca está).
+  // Força de borda por coluna (faixa vertical central).
   const y0 = Math.floor(H * 0.15);
   const y1 = Math.floor(H * 0.85);
   const colStrength = new Float32Array(W);
@@ -87,23 +90,85 @@ export function detectMugArea(
     for (let y = y0; y < y1; y++) s += edge[y * W + x];
     colStrength[x] = s / (y1 - y0);
   }
-  // As duas bordas verticais mais fortes, com separação mínima (a caneca tem largura).
-  const minGap = Math.floor(W * 0.12);
+  // Seleção do par de paredes — MESMA lógica do pipeline v5 Python
+  // (calibrate-templates-v5.py), não "melhor par por força bruta":
+  // 1. Suaviza o perfil e acha PICOS locais (>= 35% do máximo).
+  // 2. Agrupa picos próximos (distância mínima 3% da largura).
+  // 3. Pares candidatos com largura em [12%, 42%] da imagem — sem esse
+  //    teto, o detector achava as BORDAS DA IMAGEM (left=1, right=510).
+  // 4. Score = força × brilho médio INTERNO (a caneca é branca; um par
+  //    que abrange o fundo escuro perde mesmo com bordas fortes).
+  // 5. Ganha o par de maior score.
+  const smooth = new Float32Array(W);
+  for (let x = 0; x < W; x++) {
+    let s = 0;
+    let n = 0;
+    for (let k = -2; k <= 2; k++) {
+      const xx = x + k;
+      if (xx >= 0 && xx < W) {
+        s += colStrength[xx];
+        n++;
+      }
+    }
+    smooth[x] = n > 0 ? s / n : 0;
+  }
+  let maxS = 0;
+  for (let x = 0; x < W; x++) if (smooth[x] > maxS) maxS = smooth[x];
+  if (maxS <= 0) return luminanceBlobFallback(img, lum, W, H, mugId, mugName, refW, refH);
+  const peaks: number[] = [];
+  for (let x = 1; x < W - 1; x++) {
+    if (smooth[x] >= smooth[x - 1] && smooth[x] >= smooth[x + 1] && smooth[x] >= maxS * 0.35) {
+      peaks.push(x);
+    }
+  }
+  const minDist = Math.max(2, Math.floor(W * 0.03));
+  const clustered: number[] = [];
+  if (peaks.length > 0) {
+    let group = [peaks[0]];
+    for (const p of peaks.slice(1)) {
+      if (p - group[group.length - 1] <= minDist) group.push(p);
+      else {
+        clustered.push(group.reduce((a, b) => (smooth[a] >= smooth[b] ? a : b)));
+        group = [p];
+      }
+    }
+    clustered.push(group.reduce((a, b) => (smooth[a] >= smooth[b] ? a : b)));
+  }
+  const minW = Math.floor(W * 0.12);
+  const maxW = Math.floor(W * 0.42);
+  const cy0 = Math.floor(H * 0.25);
+  const cy1 = Math.floor(H * 0.75);
   let left = -1;
   let right = -1;
-  let best = -1;
-  for (let a = 0; a < W - minGap; a++) {
-    for (let b = a + minGap; b < W; b++) {
-      const score = colStrength[a] + colStrength[b];
-      if (score > best) {
-        best = score;
+  let bestScore = -1;
+  for (let i = 0; i < clustered.length; i++) {
+    for (let j = i + 1; j < clustered.length; j++) {
+      const a = clustered[i];
+      const b = clustered[j];
+      const width = b - a;
+      if (width < minW || width > maxW) continue;
+      let sumLum = 0;
+      let nLum = 0;
+      for (let y = cy0; y < cy1; y++) {
+        for (let x = a; x <= b; x++) {
+          sumLum += lum[y * W + x];
+          nLum++;
+        }
+      }
+      const meanLum = nLum > 0 ? sumLum / nLum : 0;
+      const score = (smooth[a] + smooth[b]) * (meanLum / 255);
+      if (score > bestScore) {
+        bestScore = score;
         left = a;
         right = b;
       }
     }
   }
-  const maxStrength = Math.max(...colStrength);
-  const confidence = maxStrength > 0 ? Math.min(1, best / (2 * maxStrength)) : 0;
+  const maxStrength = maxS;
+  const confidence =
+    left >= 0 && maxStrength > 0
+      ? Math.min(1, ((smooth[left] + smooth[right]) / (2 * maxStrength)) * 1.15)
+      : 0;
   if (left < 0 || right < 0 || confidence < 0.15) {
     return luminanceBlobFallback(img, lum, W, H, mugId, mugName, refW, refH);
   }
