@@ -19,6 +19,7 @@ import { renderMockup, exportMockupBlob } from "@/lib/studio-mockup-2d/render";
 import { detectMugArea, loadImage, type DetectedArea } from "@/lib/studio-mockup-2d/detect";
 import { autoFitArt } from "@/lib/studio-mockup-2d/autofit";
 import { mugLeft, mugRight } from "@/lib/studio-mockup-2d/geometry";
+import { makeTestArt, TEST_ART_LABELS, type TestArtKind } from "@/lib/studio-mockup-2d/testart";
 
 const EMPTY_MAPS: SceneMaps = { lumMap: null, specMap: null, edgeColors: [], grainPattern: null, ready: false };
 
@@ -288,6 +289,20 @@ export function StudioMockup2DEditor() {
   const loadDemoArt = useCallback(() => {
     loadArtFromSrc(STUDIO_MOCKUP_2D_DEMO_ART, STUDIO_MOCKUP_2D_DEMO_ART_NAME);
   }, [loadArtFromSrc]);
+
+  // Artes de teste (grade, xadrez, texto grande): revelam distorção na hora.
+  const loadTestArt = useCallback(
+    (kind: TestArtKind) => {
+      try {
+        const url = makeTestArt(kind);
+        loadArtFromSrc(url, `teste-${kind}.png (21 × 9,5 cm)`);
+        setStatus(`Arte de teste aplicada: ${TEST_ART_LABELS[kind]}.`);
+      } catch {
+        setStatus("Não foi possível gerar a arte de teste.");
+      }
+    },
+    [loadArtFromSrc],
+  );
 
   // Carrega a arte de demonstração na primeira abertura.
   useEffect(() => {
@@ -600,6 +615,31 @@ export function StudioMockup2DEditor() {
               className="rounded-lg border border-neutral-700 px-4 py-2 text-sm font-semibold text-neutral-200 hover:bg-neutral-800"
             >
               Segurar p/ comparar (sem arte)
+            </button>
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold text-neutral-300">Artes de teste (revelam distorção):</span>
+            <button
+              type="button"
+              onClick={() => loadTestArt("grid")}
+              className="rounded-lg border border-neutral-700 px-3 py-1.5 text-xs font-semibold text-neutral-200 hover:bg-neutral-800"
+            >
+              Grade técnica
+            </button>
+            <button
+              type="button"
+              onClick={() => loadTestArt("checker")}
+              className="rounded-lg border border-neutral-700 px-3 py-1.5 text-xs font-semibold text-neutral-200 hover:bg-neutral-800"
+            >
+              Xadrez
+            </button>
+            <button
+              type="button"
+              onClick={() => loadTestArt("text")}
+              className="rounded-lg border border-neutral-700 px-3 py-1.5 text-xs font-semibold text-neutral-200 hover:bg-neutral-800"
+            >
+              Texto grande
             </button>
           </div>
 
