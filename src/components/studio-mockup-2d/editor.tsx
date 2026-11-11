@@ -3,10 +3,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   DEFAULT_RENDER_STATE,
   EXPORT_SIZES_16_9,
+  EXPORT_SIZES_4_5,
   EXPORT_SIZES_SOCIAL,
-  REF_H,
-  REF_W,
   type ArtPixels,
+  type ExportSize,
   type MockupTemplate,
   type RenderState,
   type SceneMaps,
@@ -62,7 +62,7 @@ export function StudioMockup2DEditor() {
   const [baseLoaded, setBaseLoaded] = useState(false);
   const [status, setStatus] = useState("Carregando template…");
   const [exporting, setExporting] = useState(false);
-  const [exportSize, setExportSize] = useState("1920");
+  const [exportSize, setExportSize] = useState("1920x1080");
   const [detecting, setDetecting] = useState(false);
   const [detection, setDetection] = useState<DetectedArea | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -80,8 +80,24 @@ export function StudioMockup2DEditor() {
     if (!canvas || !baseImg) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    renderMockup(ctx, REF_W, REF_H, template, baseImg, artPixels, maps, state);
+    renderMockup(ctx, template.refW, template.refH, template, baseImg, artPixels, maps, state);
   }, [template, artPixels, maps, state]);
+
+  // Tamanhos de exportação válidos para o template ativo: só os que têm a
+  // mesma proporção da cena (senão a imagem estica). Retrato 4:5 usa a lista
+  // 4:5; 16:9 usa a lista 16:9 + os sociais que batem com 16:9.
+  const exportSizesForTemplate = useCallback((t: MockupTemplate): ExportSize[] => {
+    const aspect = t.refW / t.refH;
+    const all = [...EXPORT_SIZES_16_9, ...EXPORT_SIZES_4_5, ...EXPORT_SIZES_SOCIAL];
+    const matching = all.filter((s) => Math.abs(s.w / s.h - aspect) < 0.01);
+    const seen = new Set<string>();
+    return matching.filter((s) => {
+      const key = `${s.w}x${s.h}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, []);
 
   const scheduleRender = useCallback(() => {
     if (renderScheduledRef.current) return;
@@ -107,7 +123,7 @@ export function StudioMockup2DEditor() {
     img.onload = () => {
       if (cancelled) return;
       baseImgRef.current = img;
-      setMaps(computeMaps(img, template.mugs));
+      setMaps(computeMaps(img, template.mugs, template.refW, template.refH));
       setBaseLoaded(true);
       setStatus(`Template: ${template.nome}`);
     };
@@ -182,7 +198,9 @@ export function StudioMockup2DEditor() {
     setDetecting(true);
     setStatus("Detectando a área da caneca…");
     try {
-      const result = await Promise.resolve(detectMugArea(baseImg, 1, "Caneca 1"));
+      const result = await Promise.resolve(
+        detectMugArea(baseImg, 1, "Caneca 1", template.refW, template.refH),
+      );
       setDetection(result);
       setStatus(
         `Detecção: confiança ${Math.round(result.confidence * 100)}% (${result.method}). Clique em "Aplicar área" para usar.`,
@@ -192,7 +210,7 @@ export function StudioMockup2DEditor() {
     } finally {
       setDetecting(false);
     }
-  }, []);
+  }, [template]);
 
   const applyDetection = useCallback(() => {
     if (!detection) return;
@@ -206,9 +224,11 @@ export function StudioMockup2DEditor() {
   const handleExport = useCallback(async () => {
     const baseImg = baseImgRef.current;
     if (!baseImg || !art) return;
-    const size = [...EXPORT_SIZES_16_9, ...EXPORT_SIZES_SOCIAL].find((s) => String(s.w) === exportSize);
-    const W = size ? size.w : 1920;
-    const H = size ? size.h : 1080;
+    const sizes = exportSizesForTemplate(template);
+    const size = sizes.find((s) => `${s.w}x${s.h}` === exportSize) ?? sizes[0];
+    if (!size) return;
+    const W = size.w;
+    const H = size.h;
     setExporting(true);
     try {
       // Exportação em 16:9 usa o render direto; formatos sociais usam o mesmo
@@ -232,13 +252,21 @@ export function StudioMockup2DEditor() {
     } finally {
       setExporting(false);
     }
-  }, [template, artPixels, maps, state, art, exportSize]);
+  }, [template, artPixels, maps, state, art, exportSize, exportSizesForTemplate]);
 
-  const setTemplateIdx = useCallback((idx: number) => {
-    setActiveTemplateIdx(idx);
-    setTemplate(STUDIO_MOCKUP_2D_TEMPLATES[idx]);
-    setState(DEFAULT_RENDER_STATE);
-  }, []);
+  const setTemplateIdx = useCallback(
+    (idx: number) => {
+      setActiveTemplateIdx(idx);
+      const t = STUDIO_MOCKUP_2D_TEMPLATES[idx];
+      setTemplate(t);
+      setState(DEFAULT_RENDER_STATE);
+      // A resolução de exportação volta para a primeira válida da proporção
+      // da nova cena (16:9 ou 4:5), para o select nunca ficar sem opção.
+      const sizes = exportSizesForTemplate(t);
+      if (sizes[0]) setExportSize(`${sizes[0].w}x${sizes[0].h}`);
+    },
+    [exportSizesForTemplate],
+  );
 
   return (
     <div className="min-h-screen bg-[#101014] text-neutral-100">
@@ -265,11 +293,20 @@ export function StudioMockup2DEditor() {
               if (f) readFile(f);
             }}
           >
-            <canvas ref={canvasRef} width={REF_W} height={REF_H} className="block h-auto w-full" aria-label="Prévia do mockup" />
+            <canvas
+              ref={canvasRef}
+              width={template.refW}
+              height={template.refH}
+              className="block h-auto w-full"
+              aria-label="Prévia do mockup"
+            />
           </div>
           <p className="mt-2 text-xs text-neutral-400" role="status">
             {status}
             {art ? ` · Arte: ${artName} (${art.naturalWidth} × ${art.naturalHeight} px)` : " · nenhuma arte carregada"}
+            {template.calibration?.avgConfidence !== undefined &&
+              ` · Calibração: ${Math.round((template.calibration.avgConfidence ?? 0) * 100)}%`}
+            {template.calibration?.needsManual && " · ⚠️ precisa de revisão manual no calibrador"}
           </p>
 
           <div className="mt-4 flex flex-wrap gap-2">
@@ -320,22 +357,30 @@ export function StudioMockup2DEditor() {
 
           <div className="mt-6">
             <h2 className="mb-2 text-sm font-semibold text-white">Cena</h2>
-            <div className="flex flex-wrap gap-2">
-              {STUDIO_MOCKUP_2D_TEMPLATES.map((t, i) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => setTemplateIdx(i)}
-                  className={`rounded-lg border px-4 py-2 text-sm font-semibold ${
-                    i === activeTemplateIdx
-                      ? "border-orange-500 bg-orange-500/15 text-orange-300"
-                      : "border-neutral-700 text-neutral-200 hover:bg-neutral-800"
-                  }`}
-                >
-                  {t.nome}
-                </button>
-              ))}
-            </div>
+            <label className="block text-xs text-neutral-400">
+              Template ({STUDIO_MOCKUP_2D_TEMPLATES.length} cenas)
+              <select
+                value={String(activeTemplateIdx)}
+                onChange={(e) => setTemplateIdx(Number(e.target.value))}
+                className="mt-1 w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-white"
+              >
+                <optgroup label="Gamer · 16:9">
+                  {STUDIO_MOCKUP_2D_TEMPLATES.slice(0, 2).map((t, i) => (
+                    <option key={t.id} value={String(i)}>
+                      {t.nome}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Retrato 4:5 · par de canecas">
+                  {STUDIO_MOCKUP_2D_TEMPLATES.slice(2).map((t, i) => (
+                    <option key={t.id} value={String(i + 2)}>
+                      {t.nome}
+                      {t.calibration?.needsManual ? " — ⚠️ revisar calibração" : ""}
+                    </option>
+                  ))}
+                </optgroup>
+              </select>
+            </label>
           </div>
 
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -444,26 +489,17 @@ export function StudioMockup2DEditor() {
           <div className="rounded-xl border border-neutral-800 p-4">
             <h2 className="mb-3 text-sm font-semibold text-white">Exportar</h2>
             <label className="block text-xs text-neutral-400">
-              Resolução
+              Resolução ({template.refW} × {template.refH} · mesma proporção da cena)
               <select
                 value={exportSize}
                 onChange={(e) => setExportSize(e.target.value)}
                 className="mt-1 w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-white"
               >
-                <optgroup label="16:9">
-                  {EXPORT_SIZES_16_9.map((s) => (
-                    <option key={s.w} value={String(s.w)}>
-                      {s.label}
-                    </option>
-                  ))}
-                </optgroup>
-                <optgroup label="Social">
-                  {EXPORT_SIZES_SOCIAL.map((s) => (
-                    <option key={`${s.w}x${s.h}`} value={String(s.w)}>
-                      {s.label}
-                    </option>
-                  ))}
-                </optgroup>
+                {exportSizesForTemplate(template).map((s) => (
+                  <option key={`${s.w}x${s.h}`} value={`${s.w}x${s.h}`}>
+                    {s.label}
+                  </option>
+                ))}
               </select>
             </label>
             <button

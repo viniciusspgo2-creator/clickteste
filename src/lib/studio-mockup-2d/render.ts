@@ -8,7 +8,6 @@
  * 5. grão da porcelana (overlay, alpha 0.05)
  * Máscaras (debug): contorno + nome da caneca.
  */
-import { REF_W } from "./types";
 import type { ArtPixels, MockupTemplate, RenderState, SceneMaps } from "./types";
 import { bodyPath, mugLeft, mugRight } from "./geometry";
 import { drawWarped } from "./warp";
@@ -23,7 +22,10 @@ export function renderMockup(
   maps: SceneMaps,
   state: RenderState,
 ): void {
-  const s = W / REF_W;
+  // O fator de escala usa o espaço de referência DESTE template (2048x1152
+  // nas cenas gamer, 1080x1350 nas retrato). O canvas tem a mesma proporção
+  // do espaço de referência, então um único fator serve aos dois eixos.
+  const s = W / template.refW;
   ctx.clearRect(0, 0, W, H);
   ctx.drawImage(baseImg, 0, 0, W, H);
   if (artPixels && !state.compare) {

@@ -33,6 +33,12 @@ export interface MugCalibration {
   lip?: number;
   /** Deslocamento da linha inferior para cima do pé (px). Padrão 1.5. */
   foot?: number;
+  /** Confiança da detecção automática desta caneca (0–1). */
+  confidence?: number;
+  /** Esta caneca foi recuperada por espelhamento da outra do par. */
+  mirrored?: boolean;
+  /** Esta caneca usa a estimativa padrão (mediana do catálogo). */
+  defaultEstimate?: boolean;
 }
 
 /** Uma cena (template): foto base + canecas calibradas. */
@@ -43,7 +49,30 @@ export interface MockupTemplate {
   base: string;
   /** Nome base do arquivo exportado (sem resolução). */
   exportName: string;
+  /**
+   * Espaço de referência da calibração desta cena (px). As cenas gamer
+   * usam 2048x1152 (16:9); as cenas retrato usam 1080x1350 (4:5).
+   * O render escala por W / refW; o canvas da prévia tem a mesma
+   * proporção de refW/refH, então um único fator de escala serve aos dois eixos.
+   */
+  refW: number;
+  refH: number;
   mugs: MugCalibration[];
+  /**
+   * Metadados da calibração (opcional): confiança média da detecção
+   * automática (0–1), se alguma caneca veio de estimativa/espelho e se
+   * a cena precisa de revisão manual no calibrador.
+   */
+  calibration?: {
+    /** Confiança média da detecção automática (0–1). */
+    avgConfidence?: number;
+    /** Alguma caneca foi recuperada por espelhamento do par. */
+    mirrored?: boolean;
+    /** Alguma caneca usa a estimativa padrão (mediana do catálogo). */
+    defaultEstimate?: boolean;
+    /** A calibração precisa de revisão manual antes de confiar nela. */
+    needsManual?: boolean;
+  };
 }
 
 /** Estado dos controles de renderização. */
@@ -139,4 +168,11 @@ export const EXPORT_SIZES_SOCIAL: ExportSize[] = [
   { label: "Story / Reels · 1080 × 1920", w: 1080, h: 1920 },
   { label: "Paisagem · 1920 × 1080", w: 1920, h: 1080 },
   { label: "Quadrado · 1080 × 1080", w: 1080, h: 1080 },
+];
+
+/** Tamanhos de exportação para cenas retrato 4:5 (mesma proporção da cena). */
+export const EXPORT_SIZES_4_5: ExportSize[] = [
+  { label: "Retrato 2x · 2160 × 2700", w: 2160, h: 2700 },
+  { label: "Retrato · 1080 × 1350", w: 1080, h: 1350 },
+  { label: "Retrato leve · 864 × 1080", w: 864, h: 1080 },
 ];

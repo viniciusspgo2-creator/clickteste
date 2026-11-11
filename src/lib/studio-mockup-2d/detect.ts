@@ -18,7 +18,6 @@
  */
 import type { MugCalibration } from "./types";
 import { REF_W, REF_H } from "./types";
-
 export interface DetectedArea {
   calibration: MugCalibration;
   /** Confiança da detecção (0–1). < 0,5 = confirmar manualmente. */
@@ -40,9 +39,17 @@ export function loadImage(src: string): Promise<HTMLImageElement> {
 
 /**
  * Detecta a área da caneca numa imagem de cena.
- * Devolve a calibração em coordenadas do espaço de referência (2048x1152).
+ * Devolve a calibração em coordenadas do espaço de referência do template
+ * (refW x refH; padrão 2048x1152 das cenas gamer). Para cenas retrato,
+ * passe 1080 e 1350.
  */
-export function detectMugArea(img: HTMLImageElement, mugId = 1, mugName = "Caneca 1"): DetectedArea {
+export function detectMugArea(
+  img: HTMLImageElement,
+  mugId = 1,
+  mugName = "Caneca 1",
+  refW: number = REF_W,
+  refH: number = REF_H,
+): DetectedArea {
   const W = 512;
   const scale = W / img.naturalWidth;
   const H = Math.max(2, Math.round(img.naturalHeight * scale));
@@ -50,7 +57,7 @@ export function detectMugArea(img: HTMLImageElement, mugId = 1, mugName = "Canec
   c.width = W;
   c.height = H;
   const g = c.getContext("2d", { willReadFrequently: true });
-  if (!g) return fallbackArea(mugId, mugName);
+  if (!g) return fallbackArea(mugId, mugName, refW, refH);
   g.drawImage(img, 0, 0, W, H);
   const { data } = g.getImageData(0, 0, W, H);
   const lum = new Float32Array(W * H);
@@ -95,7 +102,7 @@ export function detectMugArea(img: HTMLImageElement, mugId = 1, mugName = "Canec
   const maxStrength = Math.max(...colStrength);
   const confidence = maxStrength > 0 ? Math.min(1, best / (2 * maxStrength)) : 0;
   if (left < 0 || right < 0 || confidence < 0.15) {
-    return luminanceBlobFallback(img, lum, W, H, mugId, mugName);
+    return luminanceBlobFallback(img, lum, W, H, mugId, mugName, refW, refH);
   }
   // Faixa vertical do corpo: onde a luminância entre as bordas é alta e estável.
   const midX = Math.floor((left + right) / 2);
@@ -114,8 +121,8 @@ export function detectMugArea(img: HTMLImageElement, mugId = 1, mugName = "Canec
       break;
     }
   }
-  const sx = REF_W / W;
-  const sy = REF_H / H;
+  const sx = refW / W;
+  const sy = refH / H;
   const xLeft = Math.round(left * sx);
   const xRight = Math.round(right * sx);
   const cx = Math.round(((left + right) / 2) * sx);
@@ -149,6 +156,8 @@ function luminanceBlobFallback(
   H: number,
   mugId: number,
   mugName: string,
+  refW: number,
+  refH: number,
 ): DetectedArea {
   let minX = W;
   let maxX = -1;
@@ -166,9 +175,9 @@ function luminanceBlobFallback(
       }
     }
   }
-  if (count < W * H * 0.02 || maxX < 0) return fallbackArea(mugId, mugName);
-  const sx = REF_W / W;
-  const sy = REF_H / H;
+  if (count < W * H * 0.02 || maxX < 0) return fallbackArea(mugId, mugName, refW, refH);
+  const sx = refW / W;
+  const sy = refH / H;
   const xLeft = Math.round(minX * sx);
   const xRight = Math.round(maxX * sx);
   const cx = Math.round(((minX + maxX) / 2) * sx);
@@ -195,19 +204,19 @@ function luminanceBlobFallback(
 }
 
 /** Último recurso: área central padrão (o usuário calibra manualmente). */
-function fallbackArea(mugId: number, mugName: string): DetectedArea {
+function fallbackArea(mugId: number, mugName: string, refW: number = REF_W, refH: number = REF_H): DetectedArea {
   const calibration: MugCalibration = {
     id: mugId,
     nome: mugName,
     cor: "#ff3b30",
-    cx: Math.round(REF_W * 0.35),
-    R: Math.round(REF_W * 0.1),
-    topC: Math.round(REF_H * 0.35),
-    topRy: Math.round(REF_H * 0.03),
-    botC: Math.round(REF_H * 0.8),
-    botRy: Math.round(REF_H * 0.035),
-    xLeft: Math.round(REF_W * 0.25),
-    xRight: Math.round(REF_W * 0.45),
+    cx: Math.round(refW * 0.35),
+    R: Math.round(refW * 0.1),
+    topC: Math.round(refH * 0.35),
+    topRy: Math.round(refH * 0.03),
+    botC: Math.round(refH * 0.8),
+    botRy: Math.round(refH * 0.035),
+    xLeft: Math.round(refW * 0.25),
+    xRight: Math.round(refW * 0.45),
     lip: 6,
     foot: 1.5,
   };
