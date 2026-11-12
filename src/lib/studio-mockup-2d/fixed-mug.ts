@@ -10,10 +10,15 @@
  * template sair desalinhado.
  *
  * Geometria medida no recorte 410×363 (1x), depois ×2 para o par:
- * - corpo: x 5..282, topo do aro y 5..14, base botC 314 / botRy 43
- *   (o botRy é maior que o topRy porque o pé da caneca é arredondado;
- *   a base sobe ~43 px nas laterais — medido por ajuste de elipse,
- *   resíduo máx. 3,3 px).
+ * - corpo: x 5..282, topo do aro y 5..14, base botC 314
+ * - topRy = botRy = 4,5 (1x): o aro e a base são o MESMO círculo visto
+ *   do mesmo ângulo, então têm o mesmo raio — as linhas horizontais da
+ *   arte ficam retas e paralelas (o arco que se vê é o da elipse, igual
+ *   em todas as alturas). O botRy=43 medido antes era a SILHUETA do pé
+ *   arredondado, não a elipse da base — usar 43 arqueava as linhas.
+ * - a arte é recortada pela SILHUETA real da caneca (destination-in),
+ *   então ela cobre o corpo até a borda exata sem vazar, mesmo onde a
+ *   elipse da base é mais rasa que a silhueta do pé.
  * - par 1644×726 (2x): corpos com gap de 24 px entre eles.
  */
 import type { MockupTemplate, RenderState, SceneMaps } from "./types";
@@ -41,8 +46,8 @@ export const FIXED_MUG_TEMPLATE: MockupTemplate = {
       R: 277,
       topC: 19,
       topRy: 9,
-      botC: 628,
-      botRy: 86,
+      botC: 705,
+      botRy: 9,
       xLeft: 256,
       xRight: 810,
       lip: 6,
@@ -56,8 +61,8 @@ export const FIXED_MUG_TEMPLATE: MockupTemplate = {
       R: 277,
       topC: 19,
       topRy: 9,
-      botC: 628,
-      botRy: 86,
+      botC: 705,
+      botRy: 9,
       xLeft: 834,
       xRight: 1388,
       lip: 6,
@@ -107,6 +112,13 @@ export function fixedMugPlacement(W: number, H: number, offsetY: number) {
  * o motor Wrap V2 — a mesma geometria da prévia e da exportação.
  * O offscreen tem o tamanho do par (1644×726); a transparência fora das
  * canecas é preservada.
+ *
+ * Depois do render, a composição é recortada pela SILHUETA real do par
+ * (destination-in com o próprio PNG): como a elipse da base é mais rasa
+ * que a silhueta do pé arredondado, o warp pode estender a arte um pouco
+ * além da borda nas laterais — o recorte pela silhueta remove esse excesso
+ * e a arte termina exatamente na borda da caneca, sem vazar e sem faixa
+ * branca. As linhas horizontais ficam retas porque topRy = botRy.
  */
 export function renderFixedPairOffscreen(
   pairImg: HTMLImageElement,
@@ -122,6 +134,10 @@ export function renderFixedPairOffscreen(
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
     renderMockup(ctx, FIXED_MUG_REF_W, FIXED_MUG_REF_H, FIXED_MUG_TEMPLATE, pairImg, artPixels, maps, state);
+    // Recorta pela silhueta real do par (a arte não vaza para fora da caneca).
+    ctx.globalCompositeOperation = "destination-in";
+    ctx.drawImage(pairImg, 0, 0, FIXED_MUG_REF_W, FIXED_MUG_REF_H);
+    ctx.globalCompositeOperation = "source-over";
   }
   return c;
 }

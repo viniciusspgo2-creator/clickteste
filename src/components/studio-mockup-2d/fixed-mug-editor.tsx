@@ -170,6 +170,7 @@ export default function FixedMugEditor() {
 
   const loadDemoArt = useCallback(() => {
     loadArtFromSrc(STUDIO_MOCKUP_2D_DEMO_ART, STUDIO_MOCKUP_2D_DEMO_ART_NAME);
+    setStatus(`Arte de demonstração aplicada: ${STUDIO_MOCKUP_2D_DEMO_ART_NAME}.`);
   }, [loadArtFromSrc]);
 
   const loadTestArt = useCallback(
@@ -482,7 +483,13 @@ export default function FixedMugEditor() {
               )}
               <button
                 type="button"
-                onClick={() => setState(DEFAULT_RENDER_STATE)}
+                onClick={() => {
+                  setState(DEFAULT_RENDER_STATE);
+                  setOffsetY(0);
+                  setBg(FIXED_BG_COLORS[0]);
+                  setBgImg(null);
+                  setStatus("Controles redefinidos (arte, altura e fundo).");
+                }}
                 className="rounded-lg border border-neutral-700 px-3 py-1.5 text-xs font-semibold text-neutral-200 hover:bg-neutral-800"
               >
                 Redefinir controles
