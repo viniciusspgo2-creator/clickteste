@@ -530,6 +530,12 @@ export function StudioMockup2DEditor() {
           <span className="rounded-full bg-orange-500/15 px-3 py-1 text-xs font-semibold text-orange-400">
             Desenvolvimento — não publicado
           </span>
+          <a
+            href="/studio-mockup-2d/caneca-fixa"
+            className="rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/25"
+          >
+            Caneca Fixa — uma caneca só, sempre perfeita →
+          </a>
         </div>
       </header>
 
