@@ -1731,7 +1731,7 @@ function ImageTab() {
           if (!transferMounted.current) return;
           setSendingLabel(`Preparando caneca ${index + 1} de ${pieces.length}…`);
           const result = await enqueueRender({ width: 2000, height: 2000, format: "png", quality: 1,
-            transparent: true, background: "transparent", supersample: 2, hideGroundShadow: true, objectId: piece.id }, () => transferMounted.current);
+            transparent: true, background: "transparent", supersample: 2, hideGroundShadow: false, objectId: piece.id }, () => transferMounted.current);
           const cropped = await trimTransparentMockup(result.blob);
           items.push({ blob: cropped.blob, name: (piece.name || `Caneca ${index + 1}`).slice(0, 120) });
         }
@@ -1739,14 +1739,14 @@ function ImageTab() {
         await writeLayeredHandoff(items);
       } else {
       setSendingLabel("Transferindo composição…");
-      // Sem sombra de piso no PNG transferido: o editor permite refazê-la para cada fundo.
-      // Iluminação/reflexos da cerâmica permanecem; arquivo só no browser/IndexedDB.
+      // A sombra de contato vai junto no PNG: a caneca chega no Editor já
+      // com a sombra projetada embaixo, para não parecer flutuando.
       const transferScale = Math.min(1, 2400 / Math.max(width, height));
       const res = await enqueueRender({
         width: Math.round(width * transferScale),
         height: Math.round(height * transferScale),
         format: "png", quality: 1, transparent: true,
-        background: "transparent", supersample: 2, hideGroundShadow: true,
+        background: "transparent", supersample: 2, hideGroundShadow: false,
       });
       // Remova apenas as margens alfa vazias. O Editor encaixa a caneca pelo
       // tamanho real do produto, não pelo quadro 16:9 da exportação.
