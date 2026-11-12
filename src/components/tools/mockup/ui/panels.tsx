@@ -1756,7 +1756,7 @@ function ImageTab() {
       }
       if (!transferMounted.current) return;
       setOpen(false);
-      router.push("/editor-artes?from=mockup");
+      router.push("/studio-mockup-2d?from=mockup");
     } catch (e) {
       if (transferMounted.current) toast({ title: "Não foi possível enviar ao Editor", description: e instanceof Error ? e.message : "Tente novamente.", variant: "destructive" });
     } finally { transferActive.current = false; if (transferMounted.current) { setSending(false); setSendingLabel(""); } }

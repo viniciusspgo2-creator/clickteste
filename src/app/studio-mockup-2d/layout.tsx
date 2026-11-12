@@ -5,7 +5,7 @@ import { STUDIO_MOCKUP_2D_ENABLED } from "@/lib/features";
 export const metadata: Metadata = {
   title: { absolute: "Studio Click Mockup 2D | Click & Gruda" },
   description:
-    "Projete sua arte 21 × 9,5 cm em canecas com warp cilíndrico, detecção de área e exportação em alta resolução.",
+    "Receba a caneca perfeita do Studio 3D, escolha um cenário na galeria visual e componha seu mockup arrastando cada caneca — exportação em alta resolução.",
 };
 
 export default function StudioMockup2DLayout({ children }: { children: React.ReactNode }) {
