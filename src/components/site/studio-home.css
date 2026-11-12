@@ -8,7 +8,7 @@
 .cg-section-heading h2{font-size:clamp(36px,4.4vw,60px);max-width:800px;margin:20px auto 0}
 .cg-section-heading>p{max-width:680px;margin:22px auto 0;line-height:1.8;color:#aaa4a0;font-size:16px}
 .cg-heading-center{text-align:center;margin-bottom:49px}
-.cg-button{min-height:55px;display:inline-flex;align-items:center;justify-content:center;gap:12px;padding:16px 24px;border-radius:14px;font-size:14px;font-weight:800;line-height:1.25;text-align:center;text-decoration:none;transition:transform .22s,background .22s,border-color .22s,box-shadow .22s;white-space:normal}
+.cg-button{min-height:66px;display:inline-flex;align-items:center;justify-content:center;gap:12px;padding:20px 32px;border-radius:16px;font-size:16px;font-weight:800;line-height:1.25;text-align:center;text-decoration:none;transition:transform .22s,background .22s,border-color .22s,box-shadow .22s;white-space:normal}
 .cg-button:hover{transform:translateY(-3px)}
 .cg-button:focus-visible,.cg-header a:focus-visible,.cg-header button:focus-visible,.cg-bonus-card-link:focus-visible,.cg-faq-item summary:focus-visible{outline:3px solid #ffae74;outline-offset:4px}
 .cg-button-primary{background:linear-gradient(110deg,#ff821e,#ff6a00 65%,#f65c00);color:#120902!important;box-shadow:0 14px 40px rgba(255,106,0,.22)}
