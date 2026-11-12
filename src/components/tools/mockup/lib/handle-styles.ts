@@ -58,6 +58,5 @@ export function normalizeHandleStyle(value: unknown): HandleStyle {
     : "classic";
 }
 
-/** Retired symmetric heart stays loadable in existing projects. A alça C da
- * caneca 325 ml (livesub) é o modelo de referência — fica selecionável. */
-export const SELECTABLE_HANDLE_STYLES = HANDLE_STYLES.filter(style => style.id !== "heart");
+/** Retired thin C and symmetric heart stay loadable in existing projects. */
+export const SELECTABLE_HANDLE_STYLES = HANDLE_STYLES.filter(style => style.id !== "livesub" && style.id !== "heart");
