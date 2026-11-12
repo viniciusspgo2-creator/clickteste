@@ -436,7 +436,7 @@ const initialArt: ArtState = {
 
 const initialMug: MugState = {
   model: "classic",
-  handleStyle: "classic",
+  handleStyle: "livesub",
   bodyColor: "#ffffff",
   interiorColor: "#ffffff",
   handleColor: "#ffffff",
