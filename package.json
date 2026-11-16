@@ -1,9 +1,9 @@
 {
-  "name": "nextjs_tailwind_shadcn_ts",
+  "name": "@clickgruda/studio",
   "version": "0.2.1",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3000 2>&1 | tee dev.log",
+    "dev": "next dev -p 3001",
     "build": "node scripts/verify-source.mjs && prisma generate && next build",
     "build:studio-safe": "prisma generate && next build",
     "verify:studio": "node scripts/verify-studio-before-deploy.mjs",

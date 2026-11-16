@@ -65,7 +65,7 @@ export function PremiumGate({children,title='Studio Mockup 3D',backHref='/'}:{ch
  if(status==='checking'&&!hasOpened)return <div className="cg-access-status grid min-h-screen place-items-center"><p className="flex items-center gap-3"><Loader2 className="animate-spin"/>Verificando seu acesso…</p></div>;
  return <>
   {hasOpened&&<div inert={status!=='open'||networkBlocked} aria-hidden={status!=='open'||networkBlocked||undefined}>
-   <div className="cg-access-bar flex flex-wrap items-center justify-between gap-2 bg-[#171411] px-4 py-2 text-xs text-white"><span><Crown className="mr-2 inline h-3 w-3 text-amber-400"/>{plan}{name&&` · ${name}`}{expiry&&` · até ${new Date(expiry).toLocaleDateString('pt-BR',{timeZone:'America/Sao_Paulo'})}`}</span><span className="flex gap-4"><Link href="/bonus">Bônus gratuitos</Link><button onClick={()=>void logout()}>Sair</button></span></div>
+   <div className="cg-access-bar flex flex-wrap items-center justify-between gap-2 bg-[#171411] px-4 py-2 text-xs text-white"><span><Crown className="mr-2 inline h-3 w-3 text-amber-400"/>{plan}{name&&` · ${name}`}{expiry&&` · até ${new Date(expiry).toLocaleDateString('pt-BR',{timeZone:'America/Sao_Paulo'})}`}</span><span className="flex gap-4"><Link href="/bonus">Área Bônus</Link><button onClick={()=>void logout()}>Sair</button></span></div>
    <StudioPresence enabled={monitoring&&status==='open'&&!networkBlocked&&plan!=='Admin Master'}/>{children}
   </div>}
   {status!=='open'&&(hasOpened?<div role="dialog" aria-modal="true" aria-label="Verificar acesso" className="fixed inset-0 z-[1000] overflow-auto bg-black/80" onKeyDownCapture={e=>e.stopPropagation()}>{login}</div>:login)}

@@ -1,0 +1,12 @@
+'use client'
+import {useState} from 'react'
+import {ExternalLink,FolderOpen,ImageIcon,Layers,UsersRound,X} from 'lucide-react'
+const DRIVE='https://drive.google.com/drive/folders/1X0di7y6xJThbGtVvfdk0jqMeP2qd062B'
+/** Disponível somente dentro do PremiumGate do Studio, nunca no modo visitante. */
+export function Studio3DResourcesDock(){
+ const [open,setOpen]=useState(false)
+ return <aside className="fixed bottom-5 right-5 z-[70] max-w-[min(360px,calc(100vw-24px))] text-left" aria-label="Acervo de recursos do Studio 3D">
+  {open&&<div className="mb-3 rounded-[22px] border border-orange-400/30 bg-[#17171e]/95 p-5 text-white shadow-[0_24px_60px_rgba(0,0,0,.5)] backdrop-blur-xl"><div className="flex items-start justify-between gap-3"><span className="grid h-12 w-12 place-items-center rounded-xl bg-orange-500/15"><FolderOpen className="text-orange-400" size={24}/></span><button type="button" onClick={()=>setOpen(false)} aria-label="Fechar acervo" className="rounded-lg border border-white/15 p-2 text-zinc-300"><X size={18}/></button></div><h2 className="mt-3 text-lg font-black">Recursos para suas artes</h2><p className="mt-2 text-xs leading-5 text-zinc-300">Baixe fundos prontos, personagens, PNGs e elementos visuais para preparar sua estampa antes de criar o mockup.</p><div className="mt-4 grid grid-cols-3 gap-2 text-center text-[10px] font-bold text-zinc-300"><span className="rounded-xl bg-white/5 p-2"><ImageIcon className="mx-auto mb-2 text-orange-400" size={19}/>Fundos</span><span className="rounded-xl bg-white/5 p-2"><UsersRound className="mx-auto mb-2 text-orange-400" size={19}/>Personagens</span><span className="rounded-xl bg-white/5 p-2"><Layers className="mx-auto mb-2 text-orange-400" size={19}/>PNGs</span></div><a href={DRIVE} target="_blank" rel="noopener noreferrer" className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-3 text-xs font-black text-black hover:bg-orange-400">Abrir coleção no Drive <ExternalLink size={16}/></a><p className="mt-2 text-[10px] leading-4 text-zinc-400">Os arquivos abrem em outra guia. Verifique as licenças de cada recurso.</p></div>}
+  <button type="button" onClick={()=>setOpen(p=>!p)} aria-expanded={open} className="ml-auto flex items-center gap-2 rounded-full border border-orange-500/60 bg-[#17151b]/95 px-5 py-3 text-xs font-black text-white shadow-[0_10px_40px_rgba(0,0,0,.45)] hover:border-orange-300"><FolderOpen size={19} className="text-orange-400"/> Recursos de criação</button>
+ </aside>
+}

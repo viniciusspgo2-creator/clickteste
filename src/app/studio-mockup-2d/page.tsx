@@ -1,5 +1,6 @@
 "use client";
 import dynamic from "next/dynamic";
+import { PremiumGate } from "@/components/site/premium-gate";
 
 const CompositionEditor = dynamic(
   () => import("@/components/studio-mockup-2d/composition-editor").then((m) => m.default),
@@ -14,5 +15,5 @@ const CompositionEditor = dynamic(
 );
 
 export default function StudioMockup2DPage() {
-  return <CompositionEditor />;
+  return <PremiumGate title="Studio Mockup 2D" backHref="/"><CompositionEditor /></PremiumGate>;
 }
