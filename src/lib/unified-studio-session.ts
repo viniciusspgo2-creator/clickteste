@@ -6,9 +6,11 @@ import {sessionDeadline} from '@/lib/studio-access-options'
 
 type Identity = {id:string;name:string;registeredAt:string;tool:'3d'|'2d'|'editor';kind:string;expiresAt:string|null;override:string}
 /** Cria o vínculo automaticamente, mantendo o código antigo no banco para compatibilidade. */
+/** Teste do Studio/Editor/2D: 3 dias desde o cadastro (conta grátis). */
+const STUDIO_TRIAL_MS = 3 * 86400000
 export async function establishUnifiedStudioSession(user:Identity,browser:string){
  const now=new Date(),browserHash=hashToken(browser),sessionToken=newToken()
- const trialDeadline=new Date(Date.parse(user.registeredAt)+7*86400000)
+ const trialDeadline=new Date(Date.parse(user.registeredAt)+STUDIO_TRIAL_MS)
  const endsAt=user.expiresAt?new Date(user.expiresAt):null
  if(endsAt&&endsAt<=now)throw Error('expired')
  const result=await db.$transaction(async tx=>{

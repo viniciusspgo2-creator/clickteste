@@ -1,7 +1,7 @@
 import {z} from 'zod';
 import {createHash,createHmac,timingSafeEqual} from 'node:crypto';
 export const LIBRARY_PATH='/api/integrations/library/entitlements';
-export const TRIAL_MS=7*86400000;
+export const TRIAL_MS=3*86400000;
 export class LibraryRequestError extends Error{constructor(message:string,public status=400){super(message);}}
 const input=z.object({eventId:z.string().uuid(),version:z.number().int().positive().max(2147483647),libraryUserId:z.string().min(1).max(100).regex(/^[a-zA-Z0-9_-]+$/),name:z.string().trim().min(1).max(120),entitlement:z.enum(['TRIAL','MEMBER','REVOKED']),revocationReason:z.enum(['ADMIN_REVOKED','ACCOUNT_BLOCKED','REFUND','CHARGEBACK']).optional(),registeredAt:z.string().datetime({offset:true}),trialEndsAt:z.string().datetime({offset:true}).optional()}).strict();
 export function parseLibraryEvent(raw:string,now=Date.now()){
@@ -13,7 +13,7 @@ export function parseLibraryEvent(raw:string,now=Date.now()){
  const registeredAt=new Date(event.registeredAt),trialEndsAt=new Date(registeredAt.getTime()+TRIAL_MS);
  if(registeredAt.getTime()>now+300000)throw new LibraryRequestError('Data de cadastro futura.');
  if(event.entitlement==='TRIAL'&&!event.trialEndsAt)throw new LibraryRequestError('Informe o fim do teste.');
- if(event.trialEndsAt&&Date.parse(event.trialEndsAt)!==trialEndsAt.getTime())throw new LibraryRequestError('O teste termina sete dias após o cadastro.');
+ if(event.trialEndsAt&&Date.parse(event.trialEndsAt)!==trialEndsAt.getTime())throw new LibraryRequestError('O teste termina três dias após o cadastro.');
  const canonical={...event,registeredAt:registeredAt.toISOString(),trialEndsAt:trialEndsAt.toISOString()};
  return {...canonical,bodyHash:createHash('sha256').update(JSON.stringify(canonical)).digest('hex')};
 }
