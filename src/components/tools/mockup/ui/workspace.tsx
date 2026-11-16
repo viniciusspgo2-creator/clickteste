@@ -56,7 +56,9 @@ import {
   Instagram,
   Search,
   BookOpen,
+  LayoutDashboard,
 } from "lucide-react";
+import { LIBRARY_URL } from "@/lib/studio-links";
 import { useMockupStore, type MugState, type ArtState } from "../state/store";
 import { useToolsStore } from "@/lib/tools-store";
 import {
@@ -259,6 +261,13 @@ export function Workspace({
           href="/mockup-caneca-3d/studio"
         >
           <ArrowLeft />
+        </a>
+        <a
+          className="cg-command-trigger"
+          aria-label="Voltar à Central"
+          href={LIBRARY_URL}
+        >
+          <LayoutDashboard size={16} /><span>Central</span>
         </a>
         <div className="cg-brand">
           <span className="cg-logo">
