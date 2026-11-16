@@ -4,7 +4,7 @@ import {BROWSER_COOKIE,browserToken} from '@/lib/premium-session'
 import {establishUnifiedStudioSession} from '@/lib/unified-studio-session'
 import {writeStudioCookie} from '@/lib/studio-session-cookie'
 export const runtime='nodejs'
-const destinations={ '3d':'/mockup-caneca-3d/studio', '2d':'/mockup-cenarios/editor',editor:'/editor-artes/editor' } as const
+const destinations={ '3d':'/mockup-caneca-3d/studio', '2d':'/studio-mockup-2d',editor:'/editor-artes/editor' } as const
 export async function GET(req:Request){
  const secret=process.env.UNIFIED_SSO_SECRET,portal=process.env.PORTAL_SSO_ORIGIN||process.env.NEXT_PUBLIC_PORTAL_URL
  if(!secret||secret.length<32||!portal)return Response.json({error:'SSO não configurado.'},{status:503})

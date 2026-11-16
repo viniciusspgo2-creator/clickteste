@@ -98,7 +98,7 @@ export default async function BlogIndex({
           <p className="mt-5 inline-flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-neutral-400">
             <span className="rounded-full border border-primary/25 bg-primary/10 px-3 py-1.5 font-semibold text-primary">{NEW_SUBLIMATION_ARTICLES.length} novos guias de sublimação</span>
             <span>{ALL_ARTICLES.length} artigos disponíveis</span>
-            <Link href="/mockup-caneca-3d" className="inline-flex items-center gap-1 text-neutral-200 transition-colors hover:text-primary">Conheça o Studio <ArrowUpRight className="h-3 w-3" /></Link>
+            <Link href="/mockup-caneca-3d/studio" className="inline-flex items-center gap-1 text-neutral-200 transition-colors hover:text-primary">Conheça o Studio <ArrowUpRight className="h-3 w-3" /></Link>
           </p>
         </div>
 

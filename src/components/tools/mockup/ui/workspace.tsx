@@ -256,7 +256,7 @@ export function Workspace({
         <a
           className="cg-icon"
           aria-label="Voltar ao guia"
-          href="/mockup-caneca-3d"
+          href="/mockup-caneca-3d/studio"
         >
           <ArrowLeft />
         </a>

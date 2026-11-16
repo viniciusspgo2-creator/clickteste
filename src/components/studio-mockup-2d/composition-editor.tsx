@@ -948,7 +948,7 @@ export default function CompositionEditor() {
       <header className={styles.header}>
         <div className={styles.identity}><span className={styles.brand}>c<span>&</span>g</span><div><span className={styles.eyebrow}>CLICK & GRUDA / STUDIO</span><h1>Editor Mockup <span>2D</span></h1></div><span className={styles.badge}>COMPOSIÇÃO</span></div>
         <nav className={styles.headerActions} aria-label="Navegação do editor">
-          <a href="/mockup-caneca-3d"><ArrowLeft size={16}/> Voltar ao Studio 3D</a>
+          <a href="/mockup-caneca-3d/studio"><ArrowLeft size={16}/> Voltar ao Studio 3D</a>
           <button className={styles.primary} onClick={handleExport} disabled={exporting || !layers.length}><Download size={16}/>{exporting ? "Exportando…" : "Exportar PNG"}</button>
         </nav>
       </header>

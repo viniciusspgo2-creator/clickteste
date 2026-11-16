@@ -24,7 +24,6 @@ const nextConfig: NextConfig = {
   reactStrictMode: false,
   async redirects() {
     return [
-      { source: "/mockup-caneca-3d", destination: "/", permanent: true },
       ...(!MOCKUP_SCENES_ENABLED ? [{source:"/mockup-cenarios/:path*",destination:"/",permanent:false}] : []),
     ];
   },
