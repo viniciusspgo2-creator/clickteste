@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import styles from "./composition-editor.module.css";
 import { ArrowLeft, Download, Upload, ImagePlus, Layers, SlidersHorizontal, Undo2, Redo2, Maximize, Ruler, Sparkles, RotateCcw, MousePointer2, Plus, Trash2, LayoutDashboard } from "lucide-react";
-import Image from "next/image";
+import NextImage from "next/image";
 import { LIBRARY_URL } from "@/lib/studio-links";
 import { readEditorHandoff } from "@/lib/creative/handoff";
 import studioScenes from "@/lib/creative/studio-scenes.json";
@@ -948,7 +948,7 @@ export default function CompositionEditor() {
   return (
     <div className={styles.editor}>
       <header className={styles.header}>
-        <div className={styles.identity}><span className={styles.brand}><Image src="/cg-home/mascote-logo-quadrado.webp" alt="Click & Gruda" width={52} height={52} priority /></span><div><span className={styles.eyebrow}>CLICK & GRUDA / STUDIO</span><h1>Editor Mockup <span>2D</span></h1></div><span className={styles.badge}>COMPOSIÇÃO</span></div>
+        <div className={styles.identity}><span className={styles.brand}><NextImage src="/cg-home/mascote-logo-quadrado.webp" alt="Click & Gruda" width={52} height={52} priority /></span><div><span className={styles.eyebrow}>CLICK & GRUDA / STUDIO</span><h1>Editor Mockup <span>2D</span></h1></div><span className={styles.badge}>COMPOSIÇÃO</span></div>
         <nav className={styles.headerActions} aria-label="Navegação do editor">
           <a href={LIBRARY_URL}><LayoutDashboard size={16}/> Voltar à Central</a>
           <a href="/mockup-caneca-3d/studio"><ArrowLeft size={16}/> Voltar ao Studio 3D</a>
