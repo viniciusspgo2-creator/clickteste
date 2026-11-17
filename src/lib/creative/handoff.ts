@@ -8,7 +8,7 @@ const MAX_HANDOFF_BYTES=80*1024*1024;
 function validLayers(items:unknown):items is MockupHandoffLayer[]{
  if(!Array.isArray(items)||!items.length||items.length>32)return false;
  let bytes=0;
- return items.every(item=>item&&item.blob instanceof Blob&&(item.blob.type==='image/png'||item.blob.type==='video/webm')&&
+ return items.every(item=>item&&item.blob instanceof Blob&&(item.blob.type==='image/png'||item.blob.type.startsWith('video/webm'))&&
   item.blob.size>0&&typeof item.name==='string'&&item.name.length>0&&item.name.length<=120&&
   (item.kind===undefined||item.kind==='image'||item.kind==='video')&&
   (bytes+=item.blob.size)<=MAX_HANDOFF_BYTES);

@@ -40,18 +40,25 @@ interface MugLayer {
   y: number;
   w: number;
   h: number;
-  kind?: "mug" | "logo";
+  kind?: "mug" | "logo" | "video";
   finish?: Finish;
+  /** Caneca girando (WebM com alfa do Studio 3D): o vídeo toca em loop e
+   *  cada quadro é desenhado no canvas; `img` é o 1º quadro (pôster) e
+   *  mantém o resto do editor funcionando sem tocar em mais nada. */
+  video?: HTMLVideoElement;
+  videoUrl?: string;
 }
 
 type Finish = { brightness: number; contrast: number; saturation: number; opacity: number; shadow: number; spread: number; softness: number; offsetX: number; offsetY: number };
 const DEFAULT_FINISH: Finish = { brightness: 100, contrast: 100, saturation: 100, opacity: 100, shadow: 35, spread: 88, softness: 55, offsetX: 0, offsetY: 0 };
 function drawProduct(ctx: CanvasRenderingContext2D, layer: MugLayer, scale = 1) {
   const f = layer.finish ?? DEFAULT_FINISH;
+  // Vídeo girando: desenha o quadro atual; antes do 1º quadro, cai no pôster.
+  const source: CanvasImageSource = layer.video && layer.video.readyState >= 2 ? layer.video : layer.img;
   ctx.save();
   ctx.globalAlpha = f.opacity / 100;
   ctx.filter = `brightness(${f.brightness}%) contrast(${f.contrast}%) saturate(${f.saturation}%)`;
-  ctx.drawImage(layer.img, layer.x * scale, layer.y * scale, layer.w * scale, layer.h * scale);
+  ctx.drawImage(source, layer.x * scale, layer.y * scale, layer.w * scale, layer.h * scale);
   ctx.restore();
 }
 const SOLID_COLORS = [
@@ -138,6 +145,40 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 async function loadBlob(blob: Blob): Promise<HTMLImageElement> {
   const url = URL.createObjectURL(blob);
   try { return await loadImage(url); } finally { URL.revokeObjectURL(url); }
+}
+
+/** Carrega um WebM (caneca girando) como camada de vídeo em loop + pôster
+ *  com o 1º quadro. A URL do objeto fica viva enquanto a camada existir
+ *  (só é liberada ao sair do editor) para desfazer/restaurar não matarem
+ *  o vídeo. */
+async function loadVideoBlob(blob: Blob): Promise<{ video: HTMLVideoElement; poster: HTMLImageElement; url: string }> {
+  const url = URL.createObjectURL(blob);
+  const video = document.createElement("video");
+  video.loop = true;
+  video.muted = true;
+  video.playsInline = true;
+  video.preload = "auto";
+  video.src = url;
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error("Tempo limite ao carregar o vídeo.")), 20000);
+      video.onloadeddata = () => { clearTimeout(timer); resolve(); };
+      video.onerror = () => { clearTimeout(timer); reject(new Error("Não foi possível carregar o vídeo.")); };
+    });
+    await video.play().catch(() => {});
+    const c = document.createElement("canvas");
+    c.width = video.videoWidth;
+    c.height = video.videoHeight;
+    const vctx = c.getContext("2d");
+    if (!vctx || !c.width || !c.height) throw new Error("Vídeo sem dimensões.");
+    vctx.drawImage(video, 0, 0);
+    const poster = await loadImage(c.toDataURL("image/png"));
+    return { video, poster, url };
+  } catch (e) {
+    video.pause();
+    URL.revokeObjectURL(url);
+    throw e;
+  }
 }
 
 /** Organiza as canecas dentro de um retângulo (slot ou canvas todo). */
@@ -347,6 +388,33 @@ export default function CompositionEditor() {
     render();
   }, [render]);
 
+  // Caneca girando: repinta o canvas ~30 fps enquanto houver camada de
+  // vídeo, para o giro tocar em loop sobre o cenário. Sem vídeo, nada muda.
+  const renderRef = useRef(render);
+  renderRef.current = render;
+  const hasVideoLayer = layers.some((l) => l.video);
+  useEffect(() => {
+    if (!hasVideoLayer) return;
+    let raf = 0;
+    let last = 0;
+    let alive = true;
+    const loop = (t: number) => {
+      if (!alive) return;
+      if (t - last >= 33) { last = t; renderRef.current(); }
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => { alive = false; cancelAnimationFrame(raf); };
+  }, [hasVideoLayer]);
+
+  // Ao sair do editor, para os vídeos e libera as URLs dos WebMs.
+  useEffect(() => () => {
+    for (const l of layersRef.current) {
+      if (l.video) { l.video.pause(); l.video.removeAttribute("src"); l.video.load(); }
+      if (l.videoUrl) URL.revokeObjectURL(l.videoUrl);
+    }
+  }, []);
+
   // Carrega o handoff do Studio 3D (?from=mockup).
   useEffect(() => {
     let cancelled = false;
@@ -377,6 +445,21 @@ export default function CompositionEditor() {
           }
           const loaded: MugLayer[] = [];
           for (const item of handoff.items) {
+            const isVideo = item.kind === "video" || item.blob.type.startsWith("video/");
+            if (isVideo) {
+              const { video, poster, url } = await loadVideoBlob(item.blob);
+              if (cancelled) { video.pause(); URL.revokeObjectURL(url); return; }
+              loaded.push({
+                id: uid(), name: item.name, img: poster, video, videoUrl: url, kind: "video",
+                x: 0, y: 0, w: video.videoWidth, h: video.videoHeight,
+                // O vídeo já traz a sombra de contato real do 3D (que gira
+                // junto com a caneca); a elipse do editor começa zerada
+                // para não duplicar — aumente no painel Acabamento se
+                // quiser mais peso no chão.
+                finish: { ...DEFAULT_FINISH, shadow: 0 },
+              });
+              continue;
+            }
             const img = await loadBlob(item.blob);
             if (cancelled) return;
             loaded.push({ id: uid(), name: item.name, img, x: 0, y: 0, w: img.naturalWidth, h: img.naturalHeight });
@@ -389,10 +472,13 @@ export default function CompositionEditor() {
           const arranged = arrangeLayers(loaded, rect);
           setLayers(arranged);
           setSelectedIds(arranged[0] ? [arranged[0].id] : []);
+          const hasVideo = arranged.some((l) => l.kind === "video");
           setStatus(
-            handoff.mode === "separate"
-              ? `${arranged.length} canecas em camadas independentes. Clique numa caneca para mover só ela; a outra fica no lugar.`
-              : "Composição recebida do Studio 3D. Escolha um cenário e ajuste as canecas.",
+            hasVideo
+              ? "Caneca girando recebida — escolha um cenário, ela continua girando sobre ele. Ajuste a sombra no painel Acabamento."
+              : handoff.mode === "separate"
+                ? `${arranged.length} canecas em camadas independentes. Clique numa caneca para mover só ela; a outra fica no lugar.`
+                : "Composição recebida do Studio 3D. Escolha um cenário e ajuste as canecas.",
           );
           setHandoffLoaded(true);
         } else {
@@ -1164,7 +1250,7 @@ export default function CompositionEditor() {
                     }
                     className="block w-full text-left text-xs font-semibold text-white"
                   >
-                    <span className={styles.layerName}><Layers size={14} /> {layer.name}</span>
+                    <span className={styles.layerName}><Layers size={14} /> {layer.name}{layer.kind === "video" ? " · ▶ girando" : ""}</span>
                     <span className="block font-normal text-neutral-400">
                       {Math.round(layer.w)} × {Math.round(layer.h)} px
                     </span>
