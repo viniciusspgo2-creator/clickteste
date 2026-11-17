@@ -10,7 +10,7 @@ import {assertExportBlobFormat, addPngDpiMetadata} from './image-export-integrit
 import type {DesignGuide} from './guides';
 import {drawGrounding,clearGroundingCache,pinGroundedNode,type Grounding} from './grounding';
 /** Editor local: documento, desenho e exportação. Nada do usuário é enviado ao servidor. */
-export type NodeKind='text'|'image'|'rect'|'circle'|'bezier';
+export type NodeKind='text'|'image'|'video'|'rect'|'circle'|'bezier';
 export type ColorGradient={kind:'linear'|'radial';from:string;to:string;angle:number};
 export type BezierPoints={sx:number;sy:number;c1x:number;c1y:number;c2x:number;c2y:number;ex:number;ey:number};
 export type EraserStroke={size:number;points:{x:number;y:number}[]};
@@ -43,8 +43,29 @@ export function imageFor(src:string){
  return loading;
 }
 export function invalidateImage(src:string){images.delete(src)}
+/** Vídeo em loop (ex.: caneca girando do Studio 3D): o quadro atual é o que
+ * drawDesign desenha a cada repintura. Cache por src, como imageFor. */
+const videos=new Map<string,Promise<HTMLVideoElement>>();
+export function videoFor(src:string){
+ const cached=videos.get(src);if(cached)return cached;
+ const loading=new Promise<HTMLVideoElement>((resolve,reject)=>{
+  const video=document.createElement('video');
+  video.loop=true;video.muted=true;video.playsInline=true;video.preload='auto';
+  const timeout=window.setTimeout(()=>{cleanup();reject(new Error('Tempo limite ao carregar o vídeo.'));},15000);
+  const cleanup=()=>{window.clearTimeout(timeout);video.onloadeddata=null;video.onerror=null;};
+  video.onloadeddata=()=>{cleanup();void video.play().catch(()=>{});resolve(video);};
+  video.onerror=()=>{cleanup();reject(new Error('Não foi possível carregar o vídeo.'));};
+  video.src=src;
+ });
+ videos.set(src,loading);
+ // A failed request can be retried. If the cache was reset while it was
+ // pending, never remove a newer successful request for the same URL.
+ void loading.catch(()=>{if(videos.get(src)===loading)videos.delete(src);});
+ return loading;
+}
+export function invalidateVideo(src:string){videos.delete(src)}
 /** Free local image and mask buffers when a project is reset. Saved projects are untouched. */
-export function clearDesignRenderCache(){images.clear();rasterEffectCache.clear();clearGroundingCache();clearAssetTokens();}
+export function clearDesignRenderCache(){images.clear();for(const loading of videos.values())void loading.then(v=>v.pause()).catch(()=>{});videos.clear();rasterEffectCache.clear();clearGroundingCache();clearAssetTokens();}
 const limit=(n:number,min:number,max:number)=>Math.max(min,Math.min(max,n));
 export function nodeFill(ctx:CanvasRenderingContext2D,n:DesignNode):string|CanvasGradient{
  const g=n.gradient;if(!g)return n.fill||'#ff831f';
@@ -109,6 +130,10 @@ export async function assertDesignAssetsReady(doc:DesignDocument):Promise<void>{
  for(const node of doc.nodes){
   if(node.visible===false)continue;
   const name=(node.layerName||node.text?.slice(0,40)||node.role||node.kind||'sem nome').slice(0,80);
+  if(node.kind==='video'&&node.src){
+   try{const video=await videoFor(node.src);if(!video.videoWidth||!video.videoHeight)throw new Error('dimensões inválidas');}
+   catch{throw new Error(`O vídeo da camada “${name}” não pôde ser carregado. Corrija ou remova essa camada antes de exportar.`);}
+  }
   for(const [kind,src] of [['imagem',node.kind==='image'?node.src:undefined],['máscara',node.maskSrc]] as const){
    if(!src)continue;
    try{const image=await imageFor(src);if(!image.naturalWidth||!image.naturalHeight)throw new Error('dimensões inválidas');}
@@ -126,6 +151,7 @@ export async function drawDesign(canvas:HTMLCanvasElement,doc:DesignDocument,tim
  ctx.clearRect(0,0,doc.width,doc.height);
  if(doc.background!=='transparent'){ctx.fillStyle=doc.background;ctx.fillRect(0,0,doc.width,doc.height);}
  await Promise.all(renderedNodes.filter(n=>n.kind==='image'&&n.src).map(n=>imageFor(n.src!).catch(()=>null)));
+ await Promise.all(renderedNodes.filter(n=>n.kind==='video'&&n.src).map(n=>videoFor(n.src!).catch(()=>null)));
  for(const n of renderedNodes){
   if(n.effectKind){
    // Bound intermediate pixel buffers on very large alternate documents.
@@ -225,6 +251,20 @@ export async function drawDesign(canvas:HTMLCanvasElement,doc:DesignDocument,tim
     ctx.drawImage(img,sx,sy,sw,sh,-n.w/2,-n.h/2,n.w,n.h);
    }
   }catch(error){if(options?.strict)throw new Error(`Falha ao renderizar a camada “${n.layerName||n.role||n.kind}”: ${error instanceof Error?error.message:'imagem inválida'}`);}}
+  // Nó de vídeo (ex.: caneca girando do Studio 3D): desenha o quadro atual do
+  // elemento em loop, com o mesmo encaixe "preencher sem achatar", ângulo e
+  // opacidade do nó de imagem. Na exportação PNG sai o quadro atual.
+  if(n.kind==='video'&&n.src){try{
+   const video=await videoFor(n.src);
+   if(!video.videoWidth||!video.videoHeight)throw new Error('Vídeo sem dimensões.');
+   const vw=video.videoWidth,vh=video.videoHeight;
+   const targetRatio=n.w/n.h,sourceRatio=vw/vh;
+   let sx=0,sy=0,sw=vw,sh=vh;
+   if(sourceRatio>targetRatio){const fitW=vh*targetRatio;sx=(vw-fitW)/2;sw=fitW;}
+   else{const fitH=vw/targetRatio;sy=(vh-fitH)/2;sh=fitH;}
+   ctx.filter=`brightness(${n.brightness??100}%) contrast(${n.contrast??100}%) saturate(${n.saturation??100}%) blur(${n.blur||0}px) grayscale(${n.grayscale||0}%) sepia(${n.sepia||0}%) hue-rotate(${n.hue||0}deg)`;
+   ctx.drawImage(video,sx,sy,sw,sh,-n.w/2,-n.h/2,n.w,n.h);
+  }catch(error){if(options?.strict)throw new Error(`Falha ao renderizar a camada “${n.layerName||n.role||n.kind}”: ${error instanceof Error?error.message:'vídeo inválido'}`);}}
   if(n.shapeId){
    const path=new Path2D();path.addPath(new Path2D(vectorShapePath(n.shapeId,n.shapePoints)),new DOMMatrix([n.w/1000,0,0,n.h/1000,-n.w/2,-n.h/2]));
    lineStyle(ctx,n);ctx.fillStyle=nodeFill(ctx,n);ctx.fill(path,'evenodd');if(n.strokeWidth&&n.stroke){ctx.lineWidth=n.strokeWidth;ctx.strokeStyle=n.stroke;ctx.stroke(path);}
@@ -243,8 +283,7 @@ export async function drawDesign(canvas:HTMLCanvasElement,doc:DesignDocument,tim
   ctx.restore();
  }
 }
-export async function asDataUrl(file:Blob,maxSide=4800):Promise<string>{
- if(file.size>24*1024*1024)throw new Error('Imagem acima de 24 MB. Reduza o arquivo.');
+export async function asDataUrl(file:Blob,maxSide=4800):Promise<string>{ if(file.size>24*1024*1024)throw new Error('Imagem acima de 24 MB. Reduza o arquivo.');
  const src=URL.createObjectURL(file);
  try{const image=await imageFor(src);const side=Math.max(image.naturalWidth,image.naturalHeight);
   if(!side)throw new Error('Imagem sem dimensões.');const ratio=Math.min(1,maxSide/side);
@@ -252,6 +291,17 @@ export async function asDataUrl(file:Blob,maxSide=4800):Promise<string>{
   const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
   canvas.getContext('2d')!.drawImage(image,0,0,w,h);return canvas.toDataURL('image/png');
  }finally{URL.revokeObjectURL(src);invalidateImage(src)}
+}
+/** Data URL crua de um blob (ex.: WebM com alfa): sem re-encodar, sem limite
+ * de lado — o vídeo já vem no tamanho certo do Studio. */
+export function blobToDataUrl(blob:Blob):Promise<string>{
+ if(blob.size>24*1024*1024)throw new Error('Vídeo acima de 24 MB. Envie novamente do Studio 3D com menos segundos de giro.');
+ return new Promise((resolve,reject)=>{
+  const reader=new FileReader();
+  reader.onload=()=>resolve(String(reader.result));
+  reader.onerror=()=>reject(new Error('Não foi possível preparar o vídeo.'));
+  reader.readAsDataURL(blob);
+ });
 }
 export async function exportDesign(doc:DesignDocument,format:ExportFormat,scale:number,mirrorHorizontal=false):Promise<Blob>{
  const w=Math.round(doc.width*scale),h=Math.round(doc.height*scale);

@@ -63,7 +63,7 @@ export async function POST(req: Request) {
         });
         if (!current) {
           const used = await tx.accessCodeUse.count({ where: { codeId: row.id } });
-          if (used >= Math.max(1, Math.min(row.maxUses, 100)))
+          if (used >= Math.max(1, Math.min(row.maxUses, 500)))
             return { ok: false as const, reason: "full" };
         }
 

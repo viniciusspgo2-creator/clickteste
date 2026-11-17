@@ -2,14 +2,15 @@
 const NAME='cg-creative-local-v1';
 const HANDOFF_TTL_MS=24*60*60*1000;
 const STORE='handoff';
-export type MockupHandoffLayer={blob:Blob;name:string};
+export type MockupHandoffLayer={blob:Blob;name:string;kind?:'image'|'video'};
 export type MockupHandoff={mode:'composition'|'separate';items:MockupHandoffLayer[]};
 const MAX_HANDOFF_BYTES=80*1024*1024;
 function validLayers(items:unknown):items is MockupHandoffLayer[]{
  if(!Array.isArray(items)||!items.length||items.length>32)return false;
  let bytes=0;
- return items.every(item=>item&&item.blob instanceof Blob&&item.blob.type==='image/png'&&
+ return items.every(item=>item&&item.blob instanceof Blob&&(item.blob.type==='image/png'||item.blob.type==='video/webm')&&
   item.blob.size>0&&typeof item.name==='string'&&item.name.length>0&&item.name.length<=120&&
+  (item.kind===undefined||item.kind==='image'||item.kind==='video')&&
   (bytes+=item.blob.size)<=MAX_HANDOFF_BYTES);
 }
 function openDB():Promise<IDBDatabase>{
@@ -29,7 +30,7 @@ export async function writeHandoff(blob:Blob){
 }
 /** Atomic write: partial captures never replace a previous successful handoff. */
 export async function writeLayeredHandoff(items:MockupHandoffLayer[]){
- if(!validLayers(items))throw new Error('Não foi possível preparar as canecas. Envie até 32 peças, com total de até 80 MB em PNG.');
+ if(!validLayers(items))throw new Error('Não foi possível preparar as canecas. Envie até 32 peças, com total de até 80 MB em PNG ou WebM.');
  const db=await openDB();
  try{await new Promise<void>((resolve,reject)=>{
   const tx=db.transaction(STORE,'readwrite');

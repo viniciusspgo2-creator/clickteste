@@ -52,6 +52,8 @@ export interface AnimOpts {
   direction?: "right" | "left" | "pingpong";
   turns?: number;
   signal?: AbortSignal;
+  /** Handoff ao Editor: renderiza só esta peça (ex.: "hero"), sem acompanhantes. */
+  objectId?: string;
 }
 
 /* ---------------- caminho de câmera ---------------- */
@@ -254,7 +256,11 @@ export async function exportVideo(
   );
 }
 
-async function exportVideoAlpha(
+/** WebM com ALFA (VP9 duplo: cor + máscara), usado pelo download e pelo
+ * handoff da caneca girando ao Editor 2D. Com objectId, só aquela peça gira;
+ * sem ele, gira a composição inteira. A sombra de contato vai junto: o
+ * beginFrames só a esconde quando hideGroundShadow é passado. */
+export async function exportVideoAlpha(
   w: number,
   h: number,
   { anim, duration, fps, onProgress, ...extra }: AnimOpts,
@@ -266,7 +272,7 @@ async function exportVideoAlpha(
   let tt: Turntable | null = null;
   try {
     encoder = await createAlphaVideoEncoder(w, h, fps);
-    session = beginFrames(w, h, { transparent: true, ssCap: extra.quality === "fast" ? 1 : 2 });
+    session = beginFrames(w, h, { transparent: true, ssCap: extra.quality === "fast" ? 1 : 2, objectId: extra.objectId });
     const base = fitCamera(session);
     const center = motionCenter(session);
     const baseOffset = new THREE.Vector3().subVectors(base.position, center);

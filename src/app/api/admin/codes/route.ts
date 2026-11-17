@@ -67,8 +67,8 @@ export async function POST(req: Request) {
     const body = await readJsonBody(req, 32768);
     const parsed = parseCodeCreation(body);
     const mode = body.accessMode === "universal" ? "universal" : "individual";
-    if (mode === "universal" && (parsed.names.length !== 1 || !Number.isInteger(body.maxUses) || body.maxUses < 1 || body.maxUses > 100))
-      return bad("O código universal precisa de um limite entre 1 e 100 usuários.");
+    if (mode === "universal" && (parsed.names.length !== 1 || !Number.isInteger(body.maxUses) || body.maxUses < 1 || body.maxUses > 500))
+      return bad("O código universal precisa de um limite entre 1 e 500 usuários.");
     const entries = parsed.names.map(clientName => ({
       code: `${parsed.prefix}-${randomBytes(6).toString("hex").toUpperCase()}`,
       clientName, clientType: parsed.clientType, note: parsed.note,
@@ -115,8 +115,8 @@ export async function PATCH(req: Request) {
     if (body.accessMode !== undefined && body.accessMode !== row.accessMode)
       return bad("Para alterar entre individual e universal, gere um novo código.");
     const maxUses = row.accessMode === "universal" ? (body.maxUses === undefined ? row.maxUses : body.maxUses) : 1;
-    if (!Number.isInteger(maxUses) || maxUses < 1 || maxUses > 100)
-      return bad("O limite do código universal deve ficar entre 1 e 100 usuários.");
+    if (!Number.isInteger(maxUses) || maxUses < 1 || maxUses > 500)
+      return bad("O limite do código universal deve ficar entre 1 e 500 usuários.");
     const data: Prisma.AccessCodeUpdateInput = {
       clientName,
       clientType,

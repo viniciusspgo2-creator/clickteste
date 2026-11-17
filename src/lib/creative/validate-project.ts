@@ -4,7 +4,7 @@
 import {effectKinds} from './layer-effects';
 import {vectorShapes} from './vector-shapes';
 import type {DesignDocument} from './design';
-const kinds=new Set(['text','image','rect','circle','bezier']);
+const kinds=new Set(['text','image','video','rect','circle','bezier']);
 const roles=new Set(['template','background','mockup','content','foreground']);
 const numeric=(n:unknown,min:number,max:number)=>typeof n==='number'&&Number.isFinite(n)&&n>=min&&n<=max;
 const isRecord=(v:unknown):v is Record<string,unknown>=>typeof v==='object'&&v!==null&&!Array.isArray(v);
@@ -13,7 +13,7 @@ const mediaUrl=(value:unknown,type:'image'|'video')=>{
  if(!short(value,34_000_000))return false;
  const s=value as string;
  if(/^(https:\/\/|blob:)/i.test(s))return true;
- if(type==='video')return /^data:video\/mp4;base64,/i.test(s);
+ if(type==='video')return /^data:video\/(mp4|webm);base64,/i.test(s);
  if(/^data:image\/(png|jpeg|webp|gif|bmp|avif);base64,/i.test(s))return true;
  // Bundled vector backgrounds are embedded as SVG data URIs.
  if(/^data:image\/svg\+xml[,;]/i.test(s)){
@@ -70,6 +70,7 @@ export function validateProjectDocument(input:unknown):asserts input is DesignDo
   if(n.visible!==undefined&&typeof n.visible!=='boolean')throw new Error('Visibilidade de camada inválida.');
   if(n.locked!==undefined&&typeof n.locked!=='boolean')throw new Error('Bloqueio de camada inválido.');
   if(n.kind==='image'&&!mediaUrl(n.src,'image'))throw new Error(`Imagem insegura ou inválida no elemento ${index+1}.`);
+  if(n.kind==='video'&&!mediaUrl(n.src,'video'))throw new Error(`Vídeo inseguro ou inválido no elemento ${index+1}.`);
   if(n.kind==='text'&&!short(n.text,20000))throw new Error(`Texto muito longo no elemento ${index+1}.`);
   if(n.gradient!==undefined){const g=n.gradient;if(!isRecord(g)||!['linear','radial'].includes(String(g.kind))||!/^#[0-9a-f]{6}$/i.test(String(g.from))||!/^#[0-9a-f]{6}$/i.test(String(g.to))||!numeric(g.angle,-360,360))throw new Error('Degradê inválido.');}
   if(n.bezier!==undefined){const b=n.bezier;if(!isRecord(b)||!['sx','sy','c1x','c1y','c2x','c2y','ex','ey'].every(k=>numeric(b[k],-.5,1.5)))throw new Error('Pontos Bézier inválidos.');}

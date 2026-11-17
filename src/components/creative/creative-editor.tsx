@@ -416,6 +416,21 @@ export function CreativeEditor(){
   finally{if(request===assetsRequestRef.current)setAssetsLoading(false);}
  },[kind,assetQuery,panel,pngCategory]);
  useEffect(()=>{void loadAssets(1);},[loadAssets]);
+ // Nó de vídeo (caneca girando): repinta a prévia ~30 fps enquanto houver um
+ // vídeo visível, para o giro tocar em loop sobre o cenário. Sem vídeo, nada
+ // muda — a repintura continua só por mudança de documento/estado.
+ const hasVideoNode=useMemo(()=>doc.nodes.some(n=>n.kind==='video'&&n.src&&n.visible!==false),[doc]);
+ const [videoTick,setVideoTick]=useState(0);
+ useEffect(()=>{
+  if(!hasVideoNode)return;
+  let raf=0,last=0;
+  const loop=(t:number)=>{
+   if(t-last>=33){last=t;setVideoTick(v=>v+1);}
+   raf=requestAnimationFrame(loop);
+  };
+  raf=requestAnimationFrame(loop);
+  return()=>cancelAnimationFrame(raf);
+ },[hasVideoNode]);
  useEffect(()=>{
   const seq=++renderId.current;const canvas=canvasRef.current;if(!canvas)return;
   const work=document.createElement('canvas');
@@ -429,7 +444,7 @@ export function CreativeEditor(){
   if(visibleCtx){visibleCtx.clearRect(0,0,canvas.width,canvas.height);visibleCtx.drawImage(work,0,0);}
   }).catch(()=>{if(seq===renderId.current)setNotice('Não foi possível renderizar um dos elementos.');});
   return()=>{renderId.current++};
- },[doc,fontRevision,previewSecond,activeTabId,previewFont,pathDraft]);
+ },[doc,fontRevision,previewSecond,activeTabId,previewFont,pathDraft,videoTick]);
  // Handoff: dados binários ficam exclusivamente no IndexedDB do navegador.
  useEffect(()=>{let mounted=true;let initialSession=documentSessionRef.current.capture();void (async()=>{
   try{
@@ -974,7 +989,7 @@ export function CreativeEditor(){
     <div className="cr-layer-list" role="list" aria-label="Camadas da composição (frente para trás)">
      {doc.nodes.length===0&&<div className="cr-empty">Adicione uma caneca, texto, fundo ou personagem para começar.</div>}
      {[...doc.nodes].reverse().map((node,reverseIndex)=><div role="listitem" className={`cr-layer-item ${selected===node.id?'active':''} ${node.visible===false?'hidden-layer':''}`} key={node.id}>
-      <button type="button" className="cr-layer-select" aria-pressed={selected===node.id} title="Selecionar esta camada" onClick={()=>{setSelected(node.id);setSceneDragId(null)}}><span>{node.kind==='text'?'T':node.kind==='image'?'◧':'▣'}</span><strong>{layerLabel(node,doc.nodes.length-reverseIndex-1)}</strong><small>{node.role==='mockup'?'Mockup':node.kind==='text'?'Texto':node.role==='foreground'?'Primeiro plano':node.role==='background'?'Fundo':node.kind==='image'?'Imagem':'Forma'}</small></button>
+      <button type="button" className="cr-layer-select" aria-pressed={selected===node.id} title="Selecionar esta camada" onClick={()=>{setSelected(node.id);setSceneDragId(null)}}><span>{node.kind==='text'?'T':node.kind==='image'?'◧':node.kind==='video'?'▶':'▣'}</span><strong>{layerLabel(node,doc.nodes.length-reverseIndex-1)}</strong><small>{node.role==='mockup'?'Mockup':node.kind==='text'?'Texto':node.kind==='video'?'Vídeo':node.role==='foreground'?'Primeiro plano':node.role==='background'?'Fundo':node.kind==='image'?'Imagem':'Forma'}</small></button>
       <div className="cr-layer-tools">
        <button type="button" aria-label={node.visible===false?'Mostrar camada':'Ocultar camada'} title={node.visible===false?'Mostrar':'Ocultar'} onClick={()=>toggleLayer(node.id,'visible')}>{node.visible===false?<EyeOff size={15}/>:<Eye size={15}/>}</button>
        <button type="button" aria-label={node.locked?'Desbloquear camada':'Bloquear camada'} title={node.locked?'Desbloquear':'Bloquear'} onClick={()=>toggleLayer(node.id,'locked')}>{node.locked?<Lock size={15}/>:<Unlock size={15}/>}</button>
@@ -1040,7 +1055,7 @@ export function CreativeEditor(){
   </main>
   <aside className="cr-inspector"><details className="cr-responsive-panel" open><summary className="cr-responsive-summary">Propriedades da arte</summary><div className="cr-panel-head"><h2>{t('Propriedades')}</h2><span>{t('AJUSTES DE PRECISÃO')}</span></div>
   {!active?<div className="cr-inspector-empty"><span className="cr-section-eyebrow">COMO PERSONALIZAR</span><WandSparkles size={25}/><h3>Um detalhe por vez</h3><p>Clique em um texto, imagem ou forma na arte. Os ajustes desse item aparecem aqui.</p><ol><li><span>1</span>Adicione pela barra da esquerda.</li><li><span>2</span>Clique no item para selecionar.</li><li><span>3</span>Ajuste tamanho, posição e estilo.</li></ol><small><Keyboard size={15}/> Use Ctrl + Z para desfazer quando precisar.</small></div>:<div className="cr-properties">
-   <div className="cr-edit-actions"><button onClick={copySelected} title="Copiar elemento selecionado para outra aba"><Copy size={14}/> Copiar</button><button onClick={cutSelected} disabled={!!active.locked} title="Recortar camada para colar"><Scissors size={14}/> Recortar</button><button onClick={pasteSelected} disabled={!clipboardReady} title="Colar camada copiada"><ClipboardPaste size={14}/> Colar</button></div><div className="cr-selected-bar"><span>{active.kind==='text'?'Texto':active.kind==='image'?'Imagem':'Forma'}</span><small>{active.locked?'Camada bloqueada':'Editando este item'}</small></div>
+   <div className="cr-edit-actions"><button onClick={copySelected} title="Copiar elemento selecionado para outra aba"><Copy size={14}/> Copiar</button><button onClick={cutSelected} disabled={!!active.locked} title="Recortar camada para colar"><Scissors size={14}/> Recortar</button><button onClick={pasteSelected} disabled={!clipboardReady} title="Colar camada copiada"><ClipboardPaste size={14}/> Colar</button></div><div className="cr-selected-bar"><span>{active.kind==='text'?'Texto':active.kind==='image'?'Imagem':active.kind==='video'?'Vídeo':'Forma'}</span><small>{active.locked?'Camada bloqueada':'Editando este item'}</small></div>
    {canGround(active)&&<section className="cr-table-controls" aria-label="Sombra e apoio na mesa">
     <div className="cr-table-control-title"><Sparkles size={21}/><div><strong>Realismo na mesa</strong><small>{active.grounding?.pin?'Presa à mesa · move para os lados':'Sombra do contorno real da base'}</small></div></div>
     <button type="button" className="cr-table-primary" disabled={!!active.locked||groundingBusy} onClick={()=>void integrateWithTable()}>{groundingBusy?'Encaixando…':'Integrar à mesa em 1 clique'}</button>

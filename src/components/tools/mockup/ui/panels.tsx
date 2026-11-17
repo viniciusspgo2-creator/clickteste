@@ -85,6 +85,7 @@ import {
 } from "../exporters/image-exporter";
 import {
   exportVideo,
+  exportVideoAlpha,
   exportGif,
   VIDEO_RESOLUTIONS,
 } from "../exporters/video-exporter";
@@ -1762,6 +1763,35 @@ function ImageTab() {
     } finally { transferActive.current = false; if (transferMounted.current) { setSending(false); setSendingLabel(""); } }
   };
 
+  /** Caneca girando (giro 3D real de vitrine) em WebM com fundo transparente.
+   * Reusa o turntable do exportador de vídeo: a caneca gira 360° sobre o
+   * próprio eixo, câmera parada, sombra de contato junto — no Editor 2D ela
+   * continua girando em loop sobre o cenário escolhido. Só a caneca principal
+   * ("hero") vai; acompanhantes ficam de fora para o giro não confundir. */
+  const sendSpinningToEditor = async () => {
+    if (busy || transferActive.current) return;
+    transferActive.current = true;
+    setSending(true);
+    try {
+      const state = useMockupStore.getState();
+      if (state.mug.hidden) throw new ExportError("Mostre a caneca principal antes de enviar o giro ao Editor.");
+      const frames = 120; // 4 s a 30 fps, um giro completo
+      setSendingLabel(`Renderizando giro… quadro 1 de ${frames}`);
+      const video = await exportVideoAlpha(1200, 1200, {
+        anim: "giro", duration: 4, fps: 30, transparent: true, objectId: "hero",
+        onProgress: (p) => { if (transferMounted.current) setSendingLabel(`Renderizando giro… quadro ${Math.min(frames, Math.max(1, Math.ceil(p * frames)))} de ${frames}`); },
+      });
+      if (!transferMounted.current) return;
+      setSendingLabel("Transferindo vídeo…");
+      await writeLayeredHandoff([{ blob: video.blob, name: (state.mug.name || "Caneca girando").slice(0, 120), kind: "video" }]);
+      if (!transferMounted.current) return;
+      setOpen(false);
+      router.push("/studio-mockup-2d?from=mockup");
+    } catch (e) {
+      if (transferMounted.current) toast({ title: "Não foi possível enviar o giro ao Editor", description: e instanceof Error ? e.message : "Tente novamente.", variant: "destructive" });
+    } finally { transferActive.current = false; if (transferMounted.current) { setSending(false); setSendingLabel(""); } }
+  };
+
   const tooBig = !Number.isFinite(width) || !Number.isFinite(height) || width < 1 || height < 1 || width > MAX_EXPORT_PX || height > MAX_EXPORT_PX;
 
   return (
@@ -1975,6 +2005,11 @@ function ImageTab() {
           Enviar composição completa
         </button>
         <p className="cg-editor-transfer-hint">Mantém todas as canecas juntas em uma imagem. A transferência dos dois modos acontece apenas neste navegador.</p>
+        <button type="button" onClick={() => void sendSpinningToEditor()} disabled={busy || sending || visiblePieceCount === 0}>
+          {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCw className="h-4 w-4" />}
+          Enviar caneca girando
+        </button>
+        <p className="cg-editor-transfer-hint">Vídeo da caneca girando 360° sem fundo (4 s em loop). No Editor, escolha um cenário e a caneca fica girando sobre ele.</p>
         {sending && <p role="status" aria-live="polite">{sendingLabel || "Preparando transferência…"}</p>}
       </details>
       {!art.imageId && <p className="cg-export-warning"><TriangleAlert size={15} />A caneca está sem arte. Você pode continuar ou adicionar sua estampa.</p>}

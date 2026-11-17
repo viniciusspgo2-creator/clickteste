@@ -15,7 +15,7 @@ export async function GET(req:Request){
  try{
   const response=await fetch(new URL('/api/sso/studio/verify',target.origin),{method:'POST',headers:{'Content-Type':'application/json','X-Studio-SSO-Signature':createHmac('sha256',secret).update(ticket).digest('hex')},body:JSON.stringify({ticket}),cache:'no-store',signal:AbortSignal.timeout(8000),redirect:'error'})
   if(!response.ok)return Response.json({error:'Sua sessão expirou ou você não tem acesso ao Studio. Volte ao painel e tente novamente.'},{status:403,headers:{'Cache-Control':'no-store'}})
-  const data=await response.json() as {ok:boolean;user?:{id:string;name:string;registeredAt:string;tool:keyof typeof destinations;kind:string;expiresAt:string|null;override:string}}
+  const data=await response.json() as {ok:boolean;user?:{id:string;name:string;registeredAt:string;tool:keyof typeof destinations;kind:string;expiresAt:string|null;override:string;maxSessions?:number|null}}
   if(!data.ok||!data.user||!destinations[data.user.tool])return Response.json({error:'Resposta de login inválida.'},{status:403})
   const browser=browserToken(req)||randomBytes(32).toString('hex')
   const session=await establishUnifiedStudioSession(data.user,browser)

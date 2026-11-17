@@ -33,6 +33,7 @@ export async function inspectProjectMedia(doc:DesignDocument,loaders:ProjectMedi
  for(const [index,node] of doc.nodes.entries()){
   const name=(node.layerName||node.text?.slice(0,32)||`Camada ${index+1}`).slice(0,60);
   if(node.kind==='image'&&node.src)references.push({src:node.src,name,kind:'image'});
+  if(node.kind==='video'&&node.src)references.push({src:node.src,name,kind:'video'});
   if(node.maskSrc)references.push({src:node.maskSrc,name,kind:'mask'});
  }
  if(doc.smartTemplate?.maskSrc)references.push({src:doc.smartTemplate.maskSrc,name:'Máscara do template',kind:'mask'});
