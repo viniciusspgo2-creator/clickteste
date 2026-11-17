@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import styles from "./composition-editor.module.css";
-import { ArrowLeft, Download, Upload, ImagePlus, Layers, SlidersHorizontal, Undo2, Redo2, Maximize, Ruler, Sparkles, RotateCcw, MousePointer2, Plus, Trash2, LayoutDashboard } from "lucide-react";
+import { ArrowLeft, Download, Film, Upload, ImagePlus, Layers, SlidersHorizontal, Undo2, Redo2, Maximize, Ruler, Sparkles, RotateCcw, MousePointer2, Plus, Trash2, LayoutDashboard } from "lucide-react";
 import NextImage from "next/image";
 import { LIBRARY_URL } from "@/lib/studio-links";
 import { readEditorHandoff } from "@/lib/creative/handoff";
@@ -17,7 +17,9 @@ const studioSceneCategories = Array.from(new Set(studioScenes.map(scene => scene
  * caneca branca embutida.
  *
  * - Recebe o handoff do Studio 3D (?from=mockup): cada caneca vira uma
- *   camada independente. Também aceita importar um PNG transparente.
+ *   camada independente. Também aceita importar um PNG transparente ou
+ *   um WebM girando (caneca com fundo transparente exportada do Studio 3D)
+ *   direto do PC — mesma camada de vídeo do handoff, sem depender dele.
  * - O cenário é escolhido numa GALERIA VISUAL (miniaturas, como no
  *   Studio Templates) — não é uma lista de nomes.
  * - Cada caneca se move separadamente (arrastar), redimensiona pela
@@ -249,6 +251,7 @@ export default function CompositionEditor() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bgFileInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const webmInputRef = useRef<HTMLInputElement>(null);
   const dragRef = useRef<null | {
     mode: "move" | "resize";
     id: string;
@@ -561,6 +564,47 @@ export default function CompositionEditor() {
         setStatus(`Caneca importada: ${f.name}. Arraste para posicionar.`);
       })
       .catch(() => setStatus("Não foi possível carregar essa imagem. Use um PNG com fundo transparente."));
+  }, []);
+
+  /** Importação manual de WebM: caneca girando com fundo transparente
+   *  exportada do Studio 3D pelo próprio usuário, direto do PC. Vira a
+   *  MESMA camada de vídeo do handoff (loop, sombra ajustável, exporta no
+   *  PNG) — só muda a origem: arquivo local em vez do IndexedDB. */
+  const addWebmFile = useCallback((f: File) => {
+    loadVideoBlob(f)
+      .then(({ video, poster, url }) => {
+        pushHistory();
+        setLayers((prev) => {
+          const layer: MugLayer = {
+            id: uid(),
+            name: f.name.replace(/\.[^.]+$/, "").slice(0, 60) || "Caneca girando",
+            img: poster,
+            video,
+            videoUrl: url,
+            kind: "video",
+            x: 0,
+            y: 0,
+            w: video.videoWidth,
+            h: video.videoHeight,
+            // O vídeo já traz a sombra de contato real do 3D (que gira
+            // junto com a caneca); a elipse do editor começa zerada para
+            // não duplicar — aumente no painel Acabamento se quiser mais
+            // peso no chão. Igual ao handoff.
+            finish: { ...DEFAULT_FINISH, shadow: 0 },
+          };
+          const size = stateRef.current.canvasSize;
+          const arranged = arrangeLayers([...prev, layer], {
+            x: size.w * 0.06,
+            y: size.h * 0.11,
+            w: size.w * 0.88,
+            h: size.h * 0.78,
+          });
+          setSelectedIds([layer.id]);
+          return arranged;
+        });
+        setStatus(`Caneca girando importada: ${f.name}. Ela continua girando sobre o cenário — ajuste a sombra no painel Acabamento.`);
+      })
+      .catch(() => setStatus("Não foi possível carregar esse vídeo. Use um WebM com fundo transparente exportado do Studio 3D."));
   }, []);
 
   const addBgFile = useCallback((f: File) => {
@@ -1169,7 +1213,7 @@ export default function CompositionEditor() {
         <section className={styles.center} aria-label="Área de composição">
           <div className={styles.toolbar}>
             <div><button title="Desfazer (Ctrl+Z)" aria-label="Desfazer" onClick={undo} disabled={!canUndo}><Undo2 size={17}/></button><button title="Refazer (Ctrl+Shift+Z)" aria-label="Refazer" onClick={redo} disabled={!canRedo}><Redo2 size={17}/></button></div>
-            <div><button onClick={() => fileInputRef.current?.click()}><Plus size={16}/> Importar caneca</button><button onClick={() => logoInputRef.current?.click()}><Upload size={16}/> Logo</button></div>
+            <div><button onClick={() => fileInputRef.current?.click()}><Plus size={16}/> Importar caneca</button><button onClick={() => webmInputRef.current?.click()} title="Caneca girando em WebM com fundo transparente, exportada do Studio 3D"><Film size={16}/> Importar WebM</button><button onClick={() => logoInputRef.current?.click()}><Upload size={16}/> Logo</button></div>
             <button title="Organizar canecas no cenário" onClick={organizeLayers} disabled={!layers.length}><Layers size={16}/> Organizar</button>
           </div>
           <div className={styles.canvasViewport} ref={viewportRef}>
@@ -1185,7 +1229,7 @@ export default function CompositionEditor() {
                 style={{ width: canvasSize.w * displayScale, height: canvasSize.h * displayScale }}
                 aria-label="Prévia da composição — arraste as canecas para posicionar"
                 onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp} />
-              {!layers.length && <div className={styles.empty}><MousePointer2 size={30}/><h2>Sua próxima composição<br/>começa aqui.</h2><p>Receba do Studio 3D ou importe<br/>uma caneca em PNG transparente.</p><button className={styles.primary} onClick={() => fileInputRef.current?.click()}><Plus size={16}/> Importar caneca</button></div>}
+              {!layers.length && <div className={styles.empty}><MousePointer2 size={30}/><h2>Sua próxima composição<br/>começa aqui.</h2><p>Receba do Studio 3D ou importe<br/>uma caneca em PNG ou WebM girando.</p><button className={styles.primary} onClick={() => fileInputRef.current?.click()}><Plus size={16}/> Importar caneca</button></div>}
             </div>
           </div>
           <div className={styles.canvasFooter}>
@@ -1226,7 +1270,7 @@ export default function CompositionEditor() {
             <p className={styles.hint}>Shift + clique seleciona várias. Arraste os cantos para redimensionar.</p>
             {layers.length === 0 && (
               <p className="rounded-lg bg-neutral-900 px-3 py-2 text-xs text-neutral-400">
-                Nenhuma caneca ainda. {handoffLoaded ? "Importe um PNG transparente." : "Carregando…"}
+                Nenhuma caneca ainda. {handoffLoaded ? "Importe um PNG ou um WebM girando." : "Carregando…"}
               </p>
             )}
             <ul className={styles.layerList}>
@@ -1333,6 +1377,7 @@ export default function CompositionEditor() {
         </aside>
       </main>
       <input ref={fileInputRef} type="file" accept="image/png,image/webp" multiple hidden onChange={e => { Array.from(e.target.files ?? []).forEach(addMugFile); e.target.value = ""; }}/>
+      <input ref={webmInputRef} type="file" accept="video/webm" hidden onChange={e => { const f = e.target.files?.[0]; if (f) addWebmFile(f); e.target.value = ""; }}/>
       <input ref={logoInputRef} type="file" accept="image/png,image/webp" hidden onChange={e => { const f = e.target.files?.[0]; if (f) addLogoFile(f); e.target.value = ""; }}/>
     </div>
   );
