@@ -14,6 +14,7 @@ import { useMockupStore } from "../state/store";
 import { lensToFov } from "../lib/config";
 import { mugsGroup, studioRefs, visibleMugBounds } from "./studio-refs";
 import { fitBoundsToView, framingBounds, interpolateCameraView } from "./framing";
+import { frameNdcBounds, FRAME_MUG_RADIUS } from "./bg-image";
 import { CAMERA_NEAR, CAMERA_FAR, MAX_CAMERA_DISTANCE, cameraFarFor, sceneFootprint } from "./scene-layout";
 
 type Anim = {
@@ -196,7 +197,11 @@ export function CameraRig() {
     const dir = requested && st.fitDirection
       ? new THREE.Vector3(...st.fitDirection)
       : new THREE.Vector3().subVectors(camera.position, controls.target).normalize();
-    const { pos, target } = fitBoundsToView(box, dir, camera.fov, aspect);
+    // Com cenário enquadrado, o fit mira o quadro (não a viewport): a
+    // caneca passa a ocupar ~80% do quadro, como no Editor 2D.
+    const frame = frameNdcBounds(camera);
+    const pad = frame ? 1.24 / Math.min(frame.fw, frame.fh) : 1.24;
+    const { pos, target } = fitBoundsToView(box, dir, camera.fov, aspect, pad);
     setOrbitLimit(Math.max(MAX_CAMERA_DISTANCE, camera.position.distanceTo(controls.target) * 1.1, pos.distanceTo(target) * 2));
     setAnim({
       fromPos: camera.position.clone(),
@@ -208,7 +213,14 @@ export function CameraRig() {
     });
   }, [fitNonce, scene, camera, size.width, size.height]);
 
-  useFrame(() => {
+  // distância mínima dinâmica: com cenário enquadrado, dolly/zoom não
+  // podem tirar a caneca de dentro do quadro
+  const [minDistance, setMinDistance] = useState(6.5);
+  const minDistanceRef = useRef(6.5);
+  const frameCheckAt = useRef(0);
+  const frameMugRef = useRef<{ center: THREE.Vector3; radius: number } | null>(null);
+
+  useFrame((_, delta) => {
     if (studioRefs.exporting) return;
     const controls = controlsRef.current;
     if (!controls) return;
@@ -224,6 +236,59 @@ export function CameraRig() {
       controls.update();
     }
     ensureFarPlane(camera, cameraFarFor(camera.position.distanceTo(controls.target), sceneRadius));
+    // --- trava do quadro do cenário ---
+    // (1) distância mínima: quanto mais estreito o quadro ou maior o zoom,
+    // mais longe a câmera precisa ficar para a caneca caber dentro dele.
+    // (2) pan: o alvo não pode levar a caneca para fora do quadro.
+    frameCheckAt.current += delta;
+    if (frameCheckAt.current > 0.5) {
+      frameCheckAt.current = 0;
+      const fr = frameNdcBounds(camera);
+      if (fr) {
+        const box = visibleMugBounds(scene);
+        const sphere = box.isEmpty()
+          ? { center: new THREE.Vector3(0, 4.75, 0), radius: FRAME_MUG_RADIUS }
+          : box.getBoundingSphere(new THREE.Sphere());
+        const r = Math.max(FRAME_MUG_RADIUS, sphere.radius || 0);
+        frameMugRef.current = { center: sphere.center.clone(), radius: r };
+        const zoomF = (useMockupStore.getState().zoom ?? 100) / 100;
+        const tanV = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
+        const limit = fr.fh * Math.min(1, fr.fa);
+        const next = Math.max(6.5, (r * zoomF) / (tanV * limit));
+        if (Math.abs(next - minDistanceRef.current) > 0.5) {
+          minDistanceRef.current = next;
+          setMinDistance(next);
+        }
+      } else {
+        frameMugRef.current = null;
+        if (minDistanceRef.current !== 6.5) {
+          minDistanceRef.current = 6.5;
+          setMinDistance(6.5);
+        }
+      }
+    }
+    const frPan = frameNdcBounds(camera);
+    const mugCache = frameMugRef.current;
+    if (!anim && frPan && controls && mugCache) {
+      const center = mugCache.center;
+      const v = center.clone().project(camera);
+      const dist = Math.max(camera.position.distanceTo(center), 0.01);
+      const zoomF = camera.zoom || 1;
+      const tanV = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
+      const halfH = (mugCache.radius / dist) * zoomF / tanV;
+      const halfW = halfH / (camera.aspect || 1);
+      const ax = THREE.MathUtils.clamp(v.x, -(frPan.fw - halfW), frPan.fw - halfW);
+      const ay = THREE.MathUtils.clamp(v.y, -(frPan.fh - halfH), frPan.fh - halfH);
+      if (Math.abs(ax - v.x) > 0.001 || Math.abs(ay - v.y) > 0.001) {
+        const dir = new THREE.Vector3();
+        camera.getWorldDirection(dir);
+        const right = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), dir).normalize();
+        const up = new THREE.Vector3().crossVectors(dir, right).normalize();
+        const tanH = tanV * (camera.aspect || 1);
+        controls.target.addScaledVector(right, (v.x - ax) * tanH * dist);
+        controls.target.addScaledVector(up, (v.y - ay) * tanV * dist);
+      }
+    }
   });
 
   // perda de foco de contexto WebGL — nada a fazer aqui, tratado no Canvas
@@ -243,7 +308,7 @@ export function CameraRig() {
       screenSpacePanning
       touches={{ ONE: tool === "pan" ? THREE.TOUCH.PAN : THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN }}
       onStart={() => setAnim(null)}
-      minDistance={6.5}
+      minDistance={minDistance}
       maxDistance={orbitLimit}
       maxPolarAngle={1.54}
       autoRotate={false} // o giro agora move a caneca, não a câmera

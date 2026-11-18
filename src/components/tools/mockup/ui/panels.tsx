@@ -821,6 +821,7 @@ function TransparentSwatch() {
 /** galeria de cenários prontos, todos gerados por código */
 function ScenesGallery() {
   const patch = useMockupStore((s) => s.patch);
+  const frameAll = useMockupStore((s) => s.frameAll);
   const current = useMockupStore((s) => s.bg.imageId);
   const bgType = useMockupStore((s) => s.bg.type);
   const refs = useRef<(HTMLCanvasElement | null)[]>([]);
@@ -859,6 +860,8 @@ function ScenesGallery() {
                 imageBlur: 0,
                 imageBright: 1,
               });
+              // Enquadra a caneca dentro do quadro do cenário.
+              frameAll();
             }}
             title={s.label}
             aria-pressed={bgType === "image" && current === s.id}
@@ -893,6 +896,7 @@ function ScenesGallery() {
 export function ScenePanel() {
   const bg = useMockupStore((s) => s.bg);
   const patch = useMockupStore((s) => s.patch);
+  const frameAll = useMockupStore((s) => s.frameAll);
   const bgAdjustMode = useMockupStore((s) => s.bgAdjustMode);
   const setBgAdjustMode = useMockupStore((s) => s.setBgAdjustMode);
   const { toast } = useToast();
@@ -941,6 +945,8 @@ export function ScenePanel() {
           imageBlur: 0,
           imageBright: 1,
         });
+        // Enquadra a caneca dentro do quadro do cenário.
+        frameAll();
         toast({
           title: "Fundo aplicado!",
           description: `${file.name} agora é o cenário da cena.`,
@@ -955,7 +961,7 @@ export function ScenePanel() {
         setBusyBg(false);
       }
     },
-    [patch, toast],
+    [patch, toast, frameAll],
   );
 
   return (

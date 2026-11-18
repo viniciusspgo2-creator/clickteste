@@ -28,6 +28,7 @@ const SCENE_BG_ID = (sceneId: string) => `scene-2d-${sceneId}`;
 export function StudioScenesPanel() {
   const bg = useMockupStore((s) => s.bg);
   const patch = useMockupStore((s) => s.patch);
+  const frameAll = useMockupStore((s) => s.frameAll);
   const { toast } = useToast();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("");
@@ -60,6 +61,8 @@ export function StudioScenesPanel() {
         imageBlur: 0,
         imageBright: 1,
       });
+      // Enquadra a caneca dentro do quadro do cenário.
+      frameAll();
       toast({
         title: "Cenário aplicado!",
         description: `${scene.name} agora é o fundo do Studio 3D.`,

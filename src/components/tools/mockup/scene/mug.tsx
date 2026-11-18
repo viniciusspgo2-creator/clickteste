@@ -24,7 +24,8 @@ import {
 import { NEUTRAL_ADJUSTMENTS } from "../lib/art-adjustments";
 import { MUG, FLOAT_LIFT, PEDESTAL_H, PLATE_H, detectMobile } from "../lib/config";
 import { studioRefs } from "./studio-refs";
-import { dragPlane, planarDragDelta, pointerOnPlane, uniformScaleFromGizmo } from "./object-interaction";
+import { clampCenterToFrame, dragPlane, planarDragDelta, pointerOnPlane, uniformScaleFromGizmo } from "./object-interaction";
+import { FRAME_MUG_RADIUS } from "./bg-image";
 import { MUG_CONTACT_LAYER } from "./scene-layout";
 import { freehandRotation } from "../lib/freehand-rotation";
 
@@ -430,8 +431,12 @@ function MugObject({
         const point = pointerOnPlane(e.clientX, e.clientY, gl.domElement.getBoundingClientRect(), camera, active.plane);
         if (!point) return;
         e.preventDefault();
-        const delta = planarDragDelta(active.primary.position, active.anchor, point,
+        let delta = planarDragDelta(active.primary.position, active.anchor, point,
           active.items.map(item => item.position), useMockupStore.getState().snapEnabled && !e.altKey);
+        // Com cenário enquadrado, a caneca não sai do quadro ao arrastar.
+        const cand = new THREE.Vector3(active.primary.position.x + delta.x, 4.75, active.primary.position.z + delta.z);
+        const clamped = clampCenterToFrame(cand, camera, gl.domElement.getBoundingClientRect(), FRAME_MUG_RADIUS);
+        delta = { x: clamped.x - active.primary.position.x, z: clamped.z - active.primary.position.z };
         for (const item of active.items) {
           item.node.position.x = item.position.x + delta.x;
           item.node.position.z = item.position.z + delta.z;
@@ -604,6 +609,11 @@ function MugObject({
               const active = gesture.current;
               if (!active || active.kind !== "gizmo") return;
               if (active.tool === "move") {
+                // Com cenário enquadrado, a caneca não sai do quadro ao arrastar pelo gizmo.
+                const cand = new THREE.Vector3(object.position.x, 4.75, object.position.z);
+                const clamped = clampCenterToFrame(cand, camera, gl.domElement.getBoundingClientRect(), FRAME_MUG_RADIUS);
+                object.position.x = clamped.x;
+                object.position.z = clamped.z;
                 const delta = planarDragDelta(active.primary.position, { x: 0, z: 0 },
                   { x: object.position.x - active.primary.position.x, z: object.position.z - active.primary.position.z },
                   active.items.map(item => item.position), false);

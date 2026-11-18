@@ -2,9 +2,13 @@
    Fundo com IMAGEM do usuário — fixo na tela (não gira quando a
    câmera orbita), como uma foto de estúdio. Implementado como um
    quad na raiz da cena, realinhado à câmera ativa a cada render
-   (preview, imagem, vídeo, GIF, lote) — o encaixe é calculado
-   contra o quadro atual, então as proporções de exportação ficam
-   coerentes. Layer própria: não aparece em reflexos do piso.
+   (preview, imagem, vídeo, GIF, lote). O cenário aparece
+   ENQUADRADO — um quadro com o aspecto da saída selecionada,
+   centralizado, com margem e borda visível — igual ao slot do
+   Editor 2D. O encaixe é calculado contra o quadro, não contra a
+   viewport. Na exportação o quadro preenche o canvas (fill 1),
+   então a exportação é exatamente a composição. Layer própria:
+   não aparece em reflexos do piso.
    ============================================================ */
 
 "use client";
@@ -15,6 +19,42 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useMockupStore } from "../state/store";
 import { studioRefs } from "./studio-refs";
 import { getBackgroundImage } from "../lib/background-registry";
+import { EXPORT_RATIOS } from "../lib/config";
+
+/** Fração da viewport ocupada pelo quadro do cenário (0.86 na prévia; 1 na exportação, que é o próprio quadro). */
+export const FRAME_FILL = 0.86;
+/** Raio aproximado da caneca com alça (mesmo valor usado pela câmera). */
+export const FRAME_MUG_RADIUS = 7.6;
+
+/** Aspecto (w/h) do quadro de composição = aspecto da saída selecionada. */
+export function getFrameAspect(): number {
+  const es = useMockupStore.getState().exportSettings;
+  const ratio = EXPORT_RATIOS.find((r) => r.id === es.ratioId);
+  if (ratio) return ratio.w / ratio.h;
+  if (es.customW > 0 && es.customH > 0) return es.customW / es.customH;
+  return 1;
+}
+
+export interface FrameNdc {
+  /** metade da altura do quadro em NDC */
+  fh: number;
+  /** metade da largura do quadro em NDC */
+  fw: number;
+  /** aspecto do quadro (w/h) */
+  fa: number;
+}
+
+/** Limites do quadro do cenário em NDC, ou null sem cenário enquadrado. */
+export function frameNdcBounds(camera: THREE.PerspectiveCamera): FrameNdc | null {
+  const st = useMockupStore.getState();
+  if (st.bg.type !== "image" || !st.bg.imageId || !getBackgroundImage(st.bg.imageId)) return null;
+  const fa = getFrameAspect();
+  const fill = studioRefs.exporting ? 1 : FRAME_FILL;
+  const aspect = camera.aspect || 1;
+  const fh = Math.min(fill, (fill * aspect) / fa);
+  const fw = (fh * fa) / aspect;
+  return { fh, fw, fa };
+}
 
 const vert = /* glsl */ `
   varying vec2 vUv;
@@ -84,22 +124,42 @@ const frag = /* glsl */ `
 const _dir = new THREE.Vector3();
 const _quat = new THREE.Quaternion();
 
-/** alinha o quad do fundo com a câmera que vai renderizar o frame */
+/** Alinha o quadro do cenário com a câmera que vai renderizar o frame.
+ * O cenário NÃO cobre mais a viewport inteira: ele é um quadro com o
+ * aspecto da saída selecionada, centralizado e com margem — igual ao slot
+ * do Editor 2D. Na exportação o quadro preenche o canvas (fill 1), então
+ * a exportação é exatamente a composição. A borda escura (bg-frame-border)
+ * marca os limites do quadro na prévia. O tamanho do quadro leva em conta
+ * o zoom da câmera, para ficar estável na tela. */
 export function alignBackdrop(
   scene: THREE.Scene,
   cam: THREE.PerspectiveCamera,
 ): void {
   const mesh = scene.getObjectByName("bg-image") as THREE.Mesh | null;
-  if (!mesh || !mesh.visible) return;
+  if (!mesh) return;
+  const border = scene.getObjectByName("bg-frame-border") as THREE.Mesh | null;
   cam.getWorldDirection(_dir);
   cam.getWorldQuaternion(_quat);
-  mesh.quaternion.copy(_quat);
-  mesh.position.copy(cam.position).addScaledVector(_dir, 1);
+  const fa = getFrameAspect();
+  const fill = studioRefs.exporting ? 1 : FRAME_FILL;
   const fovRad = (cam.fov * Math.PI) / 180;
-  const h = 2 * Math.tan(fovRad / 2); // a 1 unidade da câmera
-  mesh.scale.set(h * cam.aspect, h, 1);
+  const tanV = Math.tan(fovRad / 2) / (cam.zoom || 1);
+  let halfH = tanV * fill;
+  let halfW = halfH * fa;
+  const maxHalfW = tanV * fill * cam.aspect;
+  if (halfW > maxHalfW) {
+    halfW = maxHalfW;
+    halfH = halfW / fa;
+  }
+  const place = (m: THREE.Mesh, dist: number, s: number) => {
+    m.quaternion.copy(_quat);
+    m.position.copy(cam.position).addScaledVector(_dir, dist);
+    m.scale.set(halfW * 2 * s, halfH * 2 * s, 1);
+  };
+  place(mesh, 1, 1);
+  if (border) place(border, 1.002, 1.03);
   const mat = mesh.material as THREE.ShaderMaterial;
-  if (mat?.uniforms?.uFrameAspect) mat.uniforms.uFrameAspect.value = cam.aspect;
+  if (mat?.uniforms?.uFrameAspect) mat.uniforms.uFrameAspect.value = fa;
 }
 
 export function ImageBackdrop() {
@@ -168,20 +228,38 @@ export function ImageBackdrop() {
     return m;
   }, [material]);
 
+  /** Borda escura que marca os limites do quadro do cenário na prévia. */
+  const border = useMemo(() => {
+    const m = new THREE.Mesh(
+      new THREE.PlaneGeometry(1, 1),
+      new THREE.MeshBasicMaterial({ color: 0x171717, depthTest: false, depthWrite: false }),
+    );
+    m.name = "bg-frame-border";
+    m.renderOrder = -1000;
+    m.frustumCulled = false;
+    m.layers.set(1);
+    m.visible = false;
+    return m;
+  }, []);
+
   useEffect(() => {
     scene.add(mesh);
+    scene.add(border);
     camera.layers.enable(1);
     return () => {
       scene.remove(mesh);
+      scene.remove(border);
     };
-  }, [scene, mesh, camera]);
+  }, [scene, mesh, border, camera]);
 
   useEffect(
     () => () => {
       mesh.geometry.dispose();
       material.dispose();
+      border.geometry.dispose();
+      (border.material as THREE.Material).dispose();
     },
-    [mesh, material],
+    [mesh, material, border],
   );
 
   // sincroniza uniforms com o estado
@@ -214,6 +292,7 @@ export function ImageBackdrop() {
     // eslint-disable-next-line react-hooks/immutability -- mesh é um objeto three.js
     mesh.visible =
       !!texture && bg.type === "image" && !studioRefs.exportTransparent;
+    border.visible = mesh.visible;
     if (mesh.visible) alignBackdrop(scene, camera);
   });
 
