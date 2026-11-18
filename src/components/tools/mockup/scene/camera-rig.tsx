@@ -83,6 +83,7 @@ export function CameraRig() {
   const controlsRef = useRef<OrbitControlsImpl>(null);
   const lens = useMockupStore((s) => s.camera.lens);
   const autoRotateSpeed = useMockupStore((s) => s.camera.autoRotateSpeed);
+  const autoRotate = useMockupStore((s) => s.camera.autoRotate);
   const presetRequest = useMockupStore((s) => s.presetRequest);
   const focusNonce = useMockupStore((s) => s.focusNonce);
   const fitNonce = useMockupStore((s) => s.fitNonce);
@@ -243,8 +244,20 @@ export function CameraRig() {
     // (1) distância mínima: quanto mais estreito o quadro ou maior o zoom,
     // mais longe a câmera precisa ficar para a caneca caber dentro dele.
     // (2) pan: o alvo não pode levar a caneca para fora do quadro.
+    //
+    // CONGELADA DURANTE O GIRO 360° (bug3-turntable): a caneca gira sobre o
+    // próprio eixo sem transladar, mas o CENTRO da sua AABB orbita o eixo
+    // (±0,75u: a alça estende a caixa de um lado só) e o raio da esfera
+    // oscila (7,7..8,1u) — a cada refresh de 0,5 s a trava perseguia esse
+    // centro fantasma e arrastava controls.target em escada (pico 0,55u ≈
+    // 19 px num único frame; excursão total 1,50u ≈ 52 px), e o minDistance
+    // saltava ~2u a cada refresh: a imagem inteira tremia/respirava no
+    // ritmo do giro, embora o ângulo girasse perfeitamente linear
+    // (simulação: ~/workspace/studio-bug3-turntable-math.mjs). Durante o
+    // giro nada translada, então nada há para travar: o refresh acumula e
+    // dispara sozinho no 1º frame após a pausa, com a pose já parada.
     frameCheckAt.current += delta;
-    if (frameCheckAt.current > 0.5) {
+    if (!autoRotate && frameCheckAt.current > 0.5) {
       frameCheckAt.current = 0;
       const fr = frameNdcBounds(camera);
       if (fr) {
@@ -274,7 +287,9 @@ export function CameraRig() {
     }
     const frPan = frameNdcBounds(camera);
     const mugCache = frameMugRef.current;
-    if (!anim && frPan && controls && mugCache) {
+    // Sem o `!autoRotate`, a trava perseguia o centro da AABB, que orbita
+    // o eixo enquanto a caneca gira (ver comentário acima) — tremor.
+    if (!anim && !autoRotate && frPan && controls && mugCache) {
       const center = mugCache.center;
       const v = center.clone().project(camera);
       const dist = Math.max(camera.position.distanceTo(center), 0.01);
