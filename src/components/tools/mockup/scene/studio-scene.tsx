@@ -53,6 +53,11 @@ function SceneContent() {
 
   return (
     <>
+      {/* CameraRig ANTES do ImageBackdrop: o useFrame dele move a câmera e
+        o do ImageBackdrop alinha o quadro a ela — nessa ordem o quadro
+        nunca fica um frame atrás da câmera (durante voos longos do fit o
+        quadro aparecia como uma miniatura por 1-2 frames). */}
+      <CameraRig />
       <Backdrop />
       <ImageBackdrop />
       <PanoramaBackdrop />
@@ -61,7 +66,6 @@ function SceneContent() {
       <Mug />
       <FloatShadows />
       <StudioContactShadows />
-      <CameraRig />
       {fxEnabled && <PostFX />}
     </>
   );

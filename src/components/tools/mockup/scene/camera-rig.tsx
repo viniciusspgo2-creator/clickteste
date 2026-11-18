@@ -285,14 +285,34 @@ export function CameraRig() {
       // clampNdcToFrame nunca inverte a faixa: se a caneca for maior que
       // o quadro num eixo, o centro fica no meio desse eixo.
       const { x: ax, y: ay } = clampNdcToFrame(v.x, v.y, frPan, halfW, halfH);
-      if (Math.abs(ax - v.x) > 0.001 || Math.abs(ay - v.y) > 0.001) {
+      if (
+        Number.isFinite(v.x) && Number.isFinite(v.y) && Number.isFinite(dist) &&
+        (Math.abs(ax - v.x) > 0.001 || Math.abs(ay - v.y) > 0.001)
+      ) {
         const dir = new THREE.Vector3();
         camera.getWorldDirection(dir);
-        const right = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), dir).normalize();
-        const up = new THREE.Vector3().crossVectors(dir, right).normalize();
+        // Base da câmera (direita de verdade): right = dir × cima.
+        // O código anterior usava cima × dir, que é a ESQUERDA da câmera —
+        // a correção horizontal empurrava o alvo para o lado errado, o erro
+        // dobrava a cada frame e a câmera voava para o infinito em ~0,1 s
+        // (a caneca sumia e a viewport ficava bege e vazia).
+        const right = new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0, 1, 0));
+        if (right.lengthSq() < 1e-8) right.set(1, 0, 0); // câmera olhando p/ baixo
+        right.normalize();
+        const up = new THREE.Vector3().crossVectors(right, dir).normalize();
         const tanH = tanV * (camera.aspect || 1);
-        controls.target.addScaledVector(right, (v.x - ax) * tanH * dist);
-        controls.target.addScaledVector(up, (v.y - ay) * tanV * dist);
+        const correction = new THREE.Vector3()
+          .addScaledVector(right, (v.x - ax) * tanH * dist)
+          .addScaledVector(up, (v.y - ay) * tanV * dist);
+        // Rede de segurança: uma correção nunca move o alvo mais que a
+        // distância até a caneca num único frame, nem com valores inválidos.
+        if (
+          correction.lengthSq() > 0 &&
+          Number.isFinite(correction.x) && Number.isFinite(correction.y) && Number.isFinite(correction.z)
+        ) {
+          if (correction.length() > dist) correction.setLength(dist);
+          controls.target.add(correction);
+        }
       }
     }
   });

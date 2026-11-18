@@ -430,9 +430,28 @@ function MugObject({
       if (active?.kind === "move" && e.pointerId === active.pointerId && active.plane && active.anchor) {
         const point = pointerOnPlane(e.clientX, e.clientY, gl.domElement.getBoundingClientRect(), camera, active.plane);
         if (!point) return;
+        // Perto do horizonte o raio fica quase paralelo ao plano horizontal
+        // e o ponto explode (centenas de unidades): a caneca teleportava e
+        // sumia. Prende o ponto no raio, perto da âncora — o arraste segue
+        // o ponteiro, mas nunca dá um salto maior que o quadro.
+        const anchorDist = camera.position.distanceTo(active.anchor);
+        const maxHit = anchorDist * 2 + 20;
+        if (point.distanceTo(camera.position) > maxHit) {
+          // prende o ponto no raio, a maxHit da câmera (mantém a direção)
+          point.sub(camera.position).setLength(maxHit).add(camera.position);
+        }
         e.preventDefault();
         let delta = planarDragDelta(active.primary.position, active.anchor, point,
           active.items.map(item => item.position), useMockupStore.getState().snapEnabled && !e.altKey);
+        // Rede de segurança: um único evento de ponteiro nunca move a
+        // caneca mais que ~1 quadro (a caneca tem ~15u de largura).
+        const stepCap = Math.max(20, anchorDist * 0.25);
+        const stepLen = Math.hypot(delta.x, delta.z);
+        if (Number.isFinite(stepLen) && stepLen > stepCap) {
+          delta = { x: (delta.x / stepLen) * stepCap, z: (delta.z / stepLen) * stepCap };
+        } else if (!Number.isFinite(stepLen)) {
+          return;
+        }
         // Com cenário enquadrado, a caneca não sai do quadro ao arrastar.
         const cand = new THREE.Vector3(active.primary.position.x + delta.x, 4.75, active.primary.position.z + delta.z);
         const clamped = clampCenterToFrame(cand, camera, gl.domElement.getBoundingClientRect(), FRAME_MUG_RADIUS);

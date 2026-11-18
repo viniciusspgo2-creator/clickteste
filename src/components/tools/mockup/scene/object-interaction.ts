@@ -33,7 +33,17 @@ export function clampCenterToFrame(
   const clientX = rect.left + ((cx + 1) / 2) * rect.width;
   const clientY = rect.top + ((1 - cy) / 2) * rect.height;
   const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -center.y);
-  return pointerOnPlane(clientX, clientY, rect, cam, plane) ?? center;
+  const hit = pointerOnPlane(clientX, clientY, rect, cam, plane);
+  // Perto do horizonte o raio fica quase paralelo ao plano horizontal: o
+  // ponto explode para centenas de unidades (ou não existe) e o clamp
+  // devolvia a caneca teleportada sem mudar nada. Nesse caso reconstrói
+  // num plano perpendicular à vista passando pelo centro atual — o raio
+  // nunca é paralelo a ele, e o ponto fica sempre perto da caneca.
+  if (hit && hit.distanceTo(cam.position) <= dist * 2) return hit;
+  const dir = new THREE.Vector3();
+  cam.getWorldDirection(dir);
+  const viewPlane = new THREE.Plane().setFromNormalAndCoplanarPoint(dir, center);
+  return pointerOnPlane(clientX, clientY, rect, cam, viewPlane) ?? center;
 }
 
 /** One shared delta keeps a selected group together, including at the scene bounds. */
