@@ -10,7 +10,7 @@ import {
   captureFrame,
   downloadBlob,
   endFrames,
-  fitCamera,
+  fitViewportCamera,
   ExportError,
   renderFrame,
 } from "./frame-capture";
@@ -54,7 +54,8 @@ export async function exportImage(opts: ExportOpts): Promise<ExportResult> {
     whiteBackground: opts.background === "white" || (requestedTransparent && opts.format === "jpeg"),
     ssCap: opts.supersample ?? 4 });
   try {
-    const cam2 = fitCamera(session);
+    // Câmera fiel à viewport: a exportação sai exatamente como está na tela.
+    const cam2 = fitViewportCamera(session);
     // render offscreen + captura síncrona
     renderFrame(session, cam2);
     const out = await captureFrame(
@@ -110,7 +111,8 @@ export async function exportImageCanvas(
     ssCap: 2,
   });
   try {
-    const cam2 = fitCamera(session);
+    // Câmera fiel à viewport, igual à exportação de imagem.
+    const cam2 = fitViewportCamera(session);
     renderFrame(session, cam2);
     return await captureFrame(
       session,
