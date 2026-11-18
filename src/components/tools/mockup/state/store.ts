@@ -565,11 +565,7 @@ function effRadius(
   return d <= 55 ? Math.max(rBody, MUG_FULL_R * scale) : rBody;
 }
 
-/** Rotação Y que põe a alça de lado: -90 = alça à esquerda, +90 = à direita
- * (a alça nasce apontando p/ -Z, atrás da caneca; ver handleDirDeg). */
-export const HANDLE_SIDE_ROTATION_Y = { left: -90, right: 90 } as const;
-
-export function minDistBetween(
+function minDistBetween(
   a: { rotationY: number; scale: number; posX: number; posZ: number },
   b: { rotationY: number; scale: number; posX: number; posZ: number },
 ): number {
@@ -590,12 +586,11 @@ interface Posed {
 
 /**
  * Empurra as canecas acompanhantes até nenhuma encostar na principal
- * (na posição real dela, não na origem) nem entre si — respeitando a
- * alça em qualquer rotação.
+ * (em 0,0) nem entre si — respeitando a alça em qualquer rotação.
  */
 function resolveOverlaps(
   list: CompanionMug[],
-  hero: { rotationY: number; scale: number; posX: number; posZ: number },
+  hero: { rotationY: number; scale: number },
 ): { list: CompanionMug[]; moved: boolean } {
   const arr = list.map((c) => ({ ...c }));
   let moved = false;
@@ -606,14 +601,14 @@ function resolveOverlaps(
     for (let i = 0; i < arr.length; i++) {
       const c = arr[i];
       // vs caneca principal
-      const dist = Math.hypot(c.posX - hero.posX, c.posZ - hero.posZ);
-      const need = minDistBetween(hero, c as Posed);
+      const dist = Math.hypot(c.posX, c.posZ);
+      const need = minDistBetween({ ...hero, posX: 0, posZ: 0 }, c as Posed);
       if (dist < need - 0.01) {
-        const a = dist > 0.001 ? Math.atan2(c.posZ - hero.posZ, c.posX - hero.posX) : Math.PI / 2;
+        const a = dist > 0.001 ? Math.atan2(c.posZ, c.posX) : Math.PI / 2;
         arr[i] = {
           ...c,
-          posX: round2(hero.posX + Math.cos(a) * need),
-          posZ: round2(hero.posZ + Math.sin(a) * need),
+          posX: round2(Math.cos(a) * need),
+          posZ: round2(Math.sin(a) * need),
         };
         touched = true;
       }
@@ -665,41 +660,71 @@ export function makeCompanion(partial?: Partial<CompanionMug>): CompanionMug {
     showArt: true,
     rotationY: -25,
     posX: 10.8,
-    posZ: 0,
-    scale: 1,
+    posZ: 0.6,
+    scale: 0.95,
     ...partial,
   };
 }
 
 /**
- * Arranjos prontos da aba Composição — só a quantidade de peças e o giro
- * das alças (alças apontam para fora do grupo). TODOS nascem na mesma
- * fileira: mesma base (posY 0), mesma profundidade (posZ 0) e mesma escala
- * da principal — as posições em X são calculadas em arrangeScene a partir
- * da escala. O arranjo antigo punha a peça de trás em posZ -12 com escala
- * 0.86–0.94: em perspectiva ela nascia menor e mais alta que as outras.
+ * Arranjos prontos — posições calculadas para NUNCA encostar nem
+ * atravessar em qualquer rotação (alças apontam para fora do grupo).
  */
-export const ARRANGEMENTS: Record<string, { rotations: number[] }> = {
-  trio: { rotations: [-90, 0, 90] },
-  quarto: { rotations: [-90, -25, 25, 90] },
-  vitrine: { rotations: [-115, -40, 40, 115] },
-};
-
-/** Rotação Y por peça em cada "Composição rápida" — alças para fora do
- * grupo com a arte legível. O leque é só giro (mesma base/profundidade). */
-const COMPOSE_ROTATIONS: Record<string, number[]> = {
-  pair: [-40, 40],
-  trio: [-45, 0, 45],
-  row: [-45, -15, 15, 45],
-  fan: [-55, 0, 55],
-  stack: [-40, 40],
-  gift: [-55, 55],
-};
+export const ARRANGEMENTS: Record<string, ReturnType<typeof makeCompanion>[]> =
+  {
+    duo: [makeCompanion({ posX: 10.8, posZ: 0.6, rotationY: 90, scale: 0.98 })],
+    trio: [
+      makeCompanion({ posX: -10.8, posZ: 0.8, rotationY: -90, scale: 0.94 }),
+      makeCompanion({
+        posX: 10.8,
+        posZ: 0.8,
+        rotationY: 90,
+        scale: 0.94,
+        variant: "white",
+      }),
+    ],
+    quarto: [
+      makeCompanion({ posX: -10.6, posZ: 3.4, rotationY: -115, scale: 0.92 }),
+      makeCompanion({
+        posX: 10.6,
+        posZ: 3.4,
+        rotationY: 115,
+        scale: 0.92,
+        variant: "white",
+      }),
+      makeCompanion({
+        posX: 0,
+        posZ: -12.4,
+        rotationY: 0,
+        scale: 0.9,
+        variant: "magic",
+        accentColor: "#8b2f1d",
+      }),
+    ],
+    vitrine: [
+      makeCompanion({ posX: -12.2, posZ: 2.2, rotationY: -125, scale: 0.9 }),
+      makeCompanion({
+        posX: 12.2,
+        posZ: 2.2,
+        rotationY: 125,
+        scale: 0.9,
+        variant: "white",
+      }),
+      makeCompanion({
+        posX: 0,
+        posZ: -12.8,
+        rotationY: 0,
+        scale: 0.86,
+        variant: "magic",
+        accentColor: "#1f4d3f",
+      }),
+    ],
+  };
 
 const initialExport: ExportState = {
-  ratioId: "portrait",
+  ratioId: "sq",
   customW: 1080,
-  customH: 1350,
+  customH: 1080,
   scale: 1,
   format: "png",
   quality: 0.92,
@@ -957,51 +982,41 @@ export const useMockupStore = create<MockupStore>((set, get) => {
               ? 4
               : 3;
       const step = 15 * st.mug.scale;
-      const rotations = COMPOSE_ROTATIONS[kind] ?? [];
-      // A pose nasce do zero p/ cada peça: mesma base (posY 0), mesma
-      // profundidade (posZ 0), mesma escala da principal e sem inclinação.
-      // O código antigo espalhava ...st.companions[i] por cima do preset e
-      // a pose anterior vazava: posY de "Empilhadas" (flutuando), posZ de
-      // "Kit presente"/arranjos (menor e mais alta em perspectiva) e escala
-      // antiga. Só arte/aparência da peça anterior são preservadas.
-      const poseFor = (i: number) => ({
-        posX: (-(n - 1) * step) / 2 + i * step,
+      const hero = {
+        ...st.mug,
+        posX: (-(n - 1) * step) / 2,
         posY: 0,
         posZ: 0,
         tiltX: 0,
         tiltZ: 0,
-        rotationY: rotations.length ? rotations[i] : st.mug.rotationY,
-        scale: st.mug.scale,
+        rotationY: -40,
         hidden: false,
-      });
-      const hero = { ...st.mug, ...poseFor(0) };
-      const list = Array.from({ length: n - 1 }, (_, i) => {
-        const prev = st.companions[i];
-        return makeCompanion({
-          ...(prev
-            ? {
-                variant: prev.variant,
-                accentColor: prev.accentColor,
-                handleStyle: prev.handleStyle,
-                model: prev.model,
-                art: { ...(prev.art ?? st.art) },
-              }
-            : { art: { ...st.art } }),
-          ...poseFor(i + 1),
+      };
+      const list = Array.from({ length: n - 1 }, (_, i) =>
+        makeCompanion({
+          ...hero,
+          ...st.companions[i],
+          posX: hero.posX + (i + 1) * step,
           name: `Caneca ${i + 2}`,
-        });
-      });
+          art: { ...(st.companions[i]?.art ?? st.art) },
+          rotationY: kind === "fan" ? (i + 1) * 55 - 55 : 40,
+        }),
+      );
       if (kind === "stack") {
-        // Exceção óbvia: empilhar de propósito — o topo assenta sobre a base.
         hero.posX = 0;
         list[0].posX = 0;
         list[0].posY = 9.55 * hero.scale;
       }
       if (kind === "gift") {
-        hero.posX = -7.5 * hero.scale;
-        list[0].posX = 7.5 * hero.scale;
+        hero.posX = -7.5;
+        list[0].posX = 7.5;
+        list[0].posZ = -4;
       }
-      // Leque é só giro: mesma base e mesma profundidade p/ todas.
+      if (kind === "fan") {
+        hero.posZ = 3;
+        list[0].posZ = -3;
+        list[1].posZ = 3;
+      }
       set({
         mug: hero,
         companions: list,
@@ -1099,28 +1114,7 @@ export const useMockupStore = create<MockupStore>((set, get) => {
     setExportOpen: (v) => set({ exportOpen: v }),
 
     setExport: (partial) =>
-      set((s) => {
-        const next = { ...s.exportSettings, ...partial };
-        // Trocar o tamanho da saída muda o aspecto do quadro do cenário:
-        // reenquadra a caneca junto, para ela nunca ficar fora do quadro
-        // novo. Só dispara quando o aspecto de fato mudou (formato,
-        // qualidade ou escala não mexem no enquadramento).
-        const aspectChanged =
-          (partial.ratioId !== undefined &&
-            partial.ratioId !== s.exportSettings.ratioId) ||
-          (partial.customW !== undefined &&
-            partial.customW !== s.exportSettings.customW) ||
-          (partial.customH !== undefined &&
-            partial.customH !== s.exportSettings.customH);
-        return aspectChanged
-          ? {
-              exportSettings: next,
-              fitNonce: s.fitNonce + 1,
-              fitDirection: null,
-              zoom: 100,
-            }
-          : { exportSettings: next };
-      }),
+      set((s) => ({ exportSettings: { ...s.exportSettings, ...partial } })),
 
     addCompanion: () => {
       const st = get();
@@ -1149,54 +1143,16 @@ export const useMockupStore = create<MockupStore>((set, get) => {
       }
       guardHistory();
       const st = get();
-      // Fileira na mesma base: mesma profundidade (posZ 0), mesma escala
-      // da principal e sem inclinação — a diferença entre Trio/Quarteto/
-      // Vitrine é só a quantidade e o giro das alças. A peça de trás em
-      // posZ -12 nascia menor e mais alta (perspectiva).
-      const rotations = ARRANGEMENTS[kind].rotations;
-      const n = rotations.length;
-      const step = 15 * st.mug.scale;
-      const hero = {
-        ...st.mug,
-        posX: (-(n - 1) * step) / 2,
-        posY: 0,
-        posZ: 0,
-        tiltX: 0,
-        tiltZ: 0,
-        rotationY: rotations[0],
-        hidden: false,
-      };
-      const fresh = rotations.slice(1).map((rotationY, i) =>
-        makeCompanion({
-          ...(st.companions[i]
-            ? {
-                variant: st.companions[i].variant,
-                accentColor: st.companions[i].accentColor,
-                handleStyle: st.companions[i].handleStyle,
-                model: st.companions[i].model,
-                art: { ...(st.companions[i].art ?? st.art) },
-              }
-            : { art: { ...st.art } }),
-          id: `comp_${Date.now()}_${++companionSeq}`,
-          name: `Caneca ${i + 2}`,
-          posX: (-(n - 1) * step) / 2 + (i + 1) * step,
-          posY: 0,
-          posZ: 0,
-          tiltX: 0,
-          tiltZ: 0,
-          rotationY,
-          scale: st.mug.scale,
-        }),
-      );
-      // Rede de segurança: nunca encostar (empurra em X, na mesma base).
+      set({ mug: { ...st.mug, posX: 0, posZ: 0, posY: 0, hidden: false } });
+      const fresh = ARRANGEMENTS[kind].map((c) => ({
+        ...c,
+        id: `comp_${Date.now()}_${++companionSeq}`,
+      }));
       const res = resolveOverlaps(fresh, {
-        rotationY: hero.rotationY,
-        scale: hero.scale,
-        posX: hero.posX,
-        posZ: hero.posZ,
+        rotationY: st.mug.rotationY,
+        scale: st.mug.scale,
       });
       set({
-        mug: hero,
         companions: res.list,
         layerOrder: ["hero", ...res.list.map((c) => c.id)],
         selectedIds: ["hero"],
@@ -1216,8 +1172,8 @@ export const useMockupStore = create<MockupStore>((set, get) => {
       const step = 15 * maxScale;
       const start = -list.length * step / 2;
       set({
-        mug: { ...st.mug, posX: start, posZ: 0, posY: 0 },
-        companions: list.map((c, i) => ({ ...c, posX: start + (i + 1) * step, posZ: 0, posY: 0 })),
+        mug: { ...st.mug, posX: start, posZ: 0 },
+        companions: list.map((c, i) => ({ ...c, posX: start + (i + 1) * step, posZ: 0 })),
         fitNonce: st.fitNonce + 1,
         fitDirection: [0, 0.14, 1],
         zoom: 100,

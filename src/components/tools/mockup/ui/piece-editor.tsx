@@ -1,7 +1,7 @@
 "use client";
 
 import { Coffee, ImagePlus, LockKeyhole, Pause, Play, RotateCcw, RotateCw } from "lucide-react";
-import { useMockupStore, HANDLE_SIDE_ROTATION_Y } from "../state/store";
+import { useMockupStore } from "../state/store";
 import { SliderRow } from "./controls";
 import { studioRefs } from "../scene/studio-refs";
 
@@ -48,14 +48,6 @@ export function PieceEditor({ onUpload }: { onUpload: () => void }) {
             st.patch("camera", { autoRotate: !playing, spinIds: [id] });
             if (!playing) st.frameAll();
           }}>{playing ? <Pause /> : <Play />}{playing ? "Pausar peça" : "Girar esta"}</button>
-        </div>
-        <div className="cg-piece-turns" role="group" aria-label="Lado da alça da caneca selecionada">
-          <button type="button" aria-pressed={degrees(piece.rotationY) === degrees(HANDLE_SIDE_ROTATION_Y.left)}
-            title="Gira a caneca para a alça ficar do lado esquerdo"
-            onClick={() => turn(HANDLE_SIDE_ROTATION_Y.left)}>Alça à esquerda</button>
-          <button type="button" aria-pressed={degrees(piece.rotationY) === degrees(HANDLE_SIDE_ROTATION_Y.right)}
-            title="Gira a caneca para a alça ficar do lado direito"
-            onClick={() => turn(HANDLE_SIDE_ROTATION_Y.right)}>Alça à direita</button>
         </div>
       </fieldset>
       {pieces.length > 1 && <button type="button" className="cg-piece-copy" disabled={!piece.art?.imageId}

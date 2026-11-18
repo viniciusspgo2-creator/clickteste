@@ -35,7 +35,7 @@ export function SceneFraming({ compact = false }: { compact?: boolean }) {
     <div className="cg-framing-presets" role="group" aria-label="Proximidade da apresentação">
       {([[85,"Mais espaço"],[115,"Destaque"],[140,"Primeiro plano"]] as const).map(([value,label])=><button type="button" key={value} onClick={()=>approach(value)}>{label}</button>)}
     </div>
-    <p className="cg-hint">{framing === "safe" ? "A imagem exportada sai igual ao que você vê na tela. O automático mantém o conjunto inteiro no vídeo." : "A imagem exportada sai igual ao que você vê na tela. Sua aproximação será mantida no vídeo — confira a prévia final."}</p>
+    <p className="cg-hint">{framing === "safe" ? "O automático mantém o conjunto inteiro na exportação. Aproximar é opcional e ativa Minha aproximação." : "Sua aproximação será mantida ao exportar. Uma proporção diferente pode recortar as bordas: confira a prévia final."}</p>
     {!compact && <>
       <div className="cg-framing-presets"><button type="button" onClick={()=>useMockupStore.getState().setTool("pan")}><Hand size={14}/>Reposicionar no quadro</button><button type="button" onClick={()=>{const s=useMockupStore.getState();s.setZoom(100);s.frameAll();setMode("safe");}}><RotateCcw size={14}/>Restaurar enquadramento</button></div>
       <ToggleRow label="Guias para compor a apresentação" checked={showGuides} onChange={v=>useMockupStore.getState().setShowGuides(v)} />

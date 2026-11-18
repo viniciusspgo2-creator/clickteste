@@ -7,7 +7,6 @@ import { TransformControls } from "@react-three/drei";
 import type { TransformControls as TransformControlsImpl } from "three-stdlib";
 import {
   useMockupStore,
-  minDistBetween,
   type ArtState,
   type MugState,
   type CompanionMug,
@@ -25,8 +24,7 @@ import {
 import { NEUTRAL_ADJUSTMENTS } from "../lib/art-adjustments";
 import { MUG, FLOAT_LIFT, PEDESTAL_H, PLATE_H, detectMobile } from "../lib/config";
 import { studioRefs } from "./studio-refs";
-import { clampCenterToFrame, clampCenterYToFrame, dragPlane, limitDeltaByContact, planarDragDelta, pointerOnPlane, uniformScaleFromGizmo, type ContactPiece } from "./object-interaction";
-import { FRAME_MUG_RADIUS } from "./bg-image";
+import { dragPlane, planarDragDelta, pointerOnPlane, uniformScaleFromGizmo } from "./object-interaction";
 import { MUG_CONTACT_LAYER } from "./scene-layout";
 import { freehandRotation } from "../lib/freehand-rotation";
 
@@ -54,12 +52,6 @@ type TransformGesture = {
   anchor?: THREE.Vector3;
   startClientX?: number;
   startClientY?: number;
-  /** Peças fora da seleção, p/ a trava de contato durante o arraste. */
-  others: ContactPiece[];
-  /** Plano vertical p/ subir-descer (Shift durante o arraste). */
-  verticalPlane?: THREE.Plane;
-  /** O gesto mexeu na altura: soltar perto do chão assenta na base. */
-  movedY?: boolean;
   controls: typeof studioRefs.controls;
   controlsEnabled: boolean;
   cursor: string;
@@ -126,8 +118,6 @@ function MugObject({
   const gizmo = useRef<TransformControlsImpl>(null);
   const controlsBeforePointer = useRef(true);
   const downPointer = useRef(0);
-  /** Alt segurado (p/ o gizmo: mover livre, pode sobrepor). */
-  const altHeld = useRef(false);
   const attachGizmo = useCallback((control: TransformControlsImpl | null) => {
     gizmo.current = control;
     // Drei's name prop belongs to its empty children group. Name the actual
@@ -308,20 +298,15 @@ function MugObject({
       if (commit) {
         const changed = !item.node.position.equals(item.position) ||
           !item.node.rotation.equals(item.rotation) || !item.node.scale.equals(item.scale);
-        if (changed) {
-          const next: Partial<MugState> = {
-            posX: item.node.position.x,
-            posZ: item.node.position.z,
-            posY: item.posY + item.node.position.y - item.position.y,
-            tiltX: THREE.MathUtils.radToDeg(item.node.rotation.x),
-            rotationY: -THREE.MathUtils.radToDeg(item.node.rotation.y),
-            tiltZ: THREE.MathUtils.radToDeg(item.node.rotation.z),
-            scale: item.node.scale.x,
-          };
-          // Assentar suave: subiu/desceu e soltou perto do chão → assenta na base.
-          if (active.kind === "move" && active.movedY && Math.abs(next.posY ?? 0) <= 1) next.posY = 0;
-          updates[item.id] = next;
-        }
+        if (changed) updates[item.id] = {
+          posX: item.node.position.x,
+          posZ: item.node.position.z,
+          posY: item.posY + item.node.position.y - item.position.y,
+          tiltX: THREE.MathUtils.radToDeg(item.node.rotation.x),
+          rotationY: -THREE.MathUtils.radToDeg(item.node.rotation.y),
+          tiltZ: THREE.MathUtils.radToDeg(item.node.rotation.z),
+          scale: item.node.scale.x,
+        };
       } else {
         item.node.position.copy(item.position);
         item.node.rotation.copy(item.rotation);
@@ -354,7 +339,6 @@ function MugObject({
     if (gl.domElement.hasPointerCapture(active.pointerId)) gl.domElement.releasePointerCapture(active.pointerId);
   }, [gl, id]);
   const cancelInteraction = useCallback(() => {
-    altHeld.current = false;
     const cancelGizmo = gesture.current?.kind === "gizmo";
     if (cancelGizmo) gizmo.current?.reset();
     finishTransform(false);
@@ -379,17 +363,8 @@ function MugObject({
     });
     const primary = items.find(item => item.id === id);
     if (!primary) return null;
-    // Peças fora da seleção, paradas durante o gesto: a trava de contato
-    // do arraste usa a pose delas no início do gesto.
-    const others: ContactPiece[] = [];
-    const all = [{ id: "hero", ...st.mug }, ...st.companions];
-    for (const o of all) {
-      if (st.selectedIds.includes(o.id) || o.hidden) continue;
-      others.push({ posX: o.posX ?? 0, posZ: o.posZ ?? 0, rotationY: o.rotationY ?? 0, scale: o.scale ?? 1 });
-    }
     const active: TransformGesture = {
       kind, tool: st.tool as TransformGesture["tool"], pointerId, items, primary,
-      others,
       controls: studioRefs.controls, controlsEnabled: controlsBeforePointer.current,
       cursor: gl.domElement.style.cursor,
     };
@@ -452,81 +427,14 @@ function MugObject({
     const move = (e: PointerEvent) => {
       const active = gesture.current;
       if (active?.kind === "move" && e.pointerId === active.pointerId && active.plane && active.anchor) {
-        const rect = gl.domElement.getBoundingClientRect();
-        const anchorDist = camera.position.distanceTo(active.anchor);
-        // Rede de segurança: um único evento de ponteiro nunca move a
-        // caneca mais que ~1 quadro (a caneca tem ~15u de largura).
-        const stepCap = Math.max(20, anchorDist * 0.25);
-        // Shift durante o arraste = subir/descer a peça dentro do quadro.
-        // Sem Shift, o arraste é no plano do chão (como antes).
-        if (e.shiftKey) {
-          if (!active.verticalPlane) {
-            // Plano vertical pela âncora, de frente p/ a câmera.
-            const fwd = new THREE.Vector3();
-            camera.getWorldDirection(fwd);
-            fwd.y = 0;
-            if (fwd.lengthSq() < 1e-6) fwd.set(0, 0, 1);
-            fwd.normalize();
-            active.verticalPlane = new THREE.Plane().setFromNormalAndCoplanarPoint(fwd, active.anchor);
-          }
-          const hit = pointerOnPlane(e.clientX, e.clientY, rect, camera, active.verticalPlane);
-          if (!hit) return;
-          e.preventDefault();
-          let dy = hit.y - active.anchor.y;
-          if (!Number.isFinite(dy)) return;
-          dy = THREE.MathUtils.clamp(dy, -stepCap, stepCap);
-          for (const item of active.items) {
-            const targetY = item.position.y + dy;
-            // A altura também não sai do quadro (centro preso na borda).
-            const clampedY = clampCenterYToFrame(
-              new THREE.Vector3(item.position.x, targetY, item.position.z),
-              camera, rect, FRAME_MUG_RADIUS * item.node.scale.x);
-            if (Math.abs(clampedY - item.position.y) > 0.001) active.movedY = true;
-            item.node.position.y = clampedY;
-          }
-        } else {
-          const point = pointerOnPlane(e.clientX, e.clientY, rect, camera, active.plane);
-          if (!point) return;
-          // Perto do horizonte o raio fica quase paralelo ao plano horizontal
-          // e o ponto explode (centenas de unidades): a caneca teleportava e
-          // sumia. Prende o ponto no raio, perto da âncora — o arraste segue
-          // o ponteiro, mas nunca dá um salto maior que o quadro.
-          const maxHit = anchorDist * 2 + 20;
-          if (point.distanceTo(camera.position) > maxHit) {
-            // prende o ponto no raio, a maxHit da câmera (mantém a direção)
-            point.sub(camera.position).setLength(maxHit).add(camera.position);
-          }
-          e.preventDefault();
-          let delta = planarDragDelta(active.primary.position, active.anchor, point,
-            active.items.map(item => item.position), useMockupStore.getState().snapEnabled && !e.altKey);
-          const stepLen = Math.hypot(delta.x, delta.z);
-          if (Number.isFinite(stepLen) && stepLen > stepCap) {
-            delta = { x: (delta.x / stepLen) * stepCap, z: (delta.z / stepLen) * stepCap };
-          } else if (!Number.isFinite(stepLen)) {
-            return;
-          }
-          // Alt = mover livre: sem encaixe E pode sobrepor de propósito.
-          // Sem Alt, o arraste para quando encostar noutra peça.
-          const perItemDelta = active.items.map((item) => {
-            if (e.altKey) return delta;
-            const self: ContactPiece = {
-              posX: item.position.x, posZ: item.position.z,
-              rotationY: -THREE.MathUtils.radToDeg(item.rotation.y),
-              scale: item.scale.x,
-            };
-            return limitDeltaByContact(self, active.others, delta, minDistBetween);
-          });
-          // Com cenário enquadrado, nenhuma peça sai do quadro ao arrastar:
-          // altura REAL do centro e raio COM a escala da peça. O 4.75 fixo
-          // e o raio sem escala deixavam a caneca levantada/ampliada sair
-          // do quadro e ser cortada na borda. Cada peça é presa no quadro.
-          active.items.forEach((item, i) => {
-            const d = perItemDelta[i];
-            const cand = new THREE.Vector3(item.position.x + d.x, item.node.position.y, item.position.z + d.z);
-            const clamped = clampCenterToFrame(cand, camera, rect, FRAME_MUG_RADIUS * item.node.scale.x);
-            item.node.position.x = clamped.x;
-            item.node.position.z = clamped.z;
-          });
+        const point = pointerOnPlane(e.clientX, e.clientY, gl.domElement.getBoundingClientRect(), camera, active.plane);
+        if (!point) return;
+        e.preventDefault();
+        const delta = planarDragDelta(active.primary.position, active.anchor, point,
+          active.items.map(item => item.position), useMockupStore.getState().snapEnabled && !e.altKey);
+        for (const item of active.items) {
+          item.node.position.x = item.position.x + delta.x;
+          item.node.position.z = item.position.z + delta.z;
         }
       }
       if (active?.kind === "rotate-free" && active.pointerId === e.pointerId &&
@@ -560,14 +468,10 @@ function MugObject({
       cancelInteraction();
     };
     const key = (e: KeyboardEvent) => {
-      if (e.key === "Alt") altHeld.current = true;
       if (e.key === "Escape" && (gesture.current || dragArt.current)) {
         e.preventDefault();
         cancelInteraction();
       }
-    };
-    const keyUp = (e: KeyboardEvent) => {
-      if (e.key === "Alt") altHeld.current = false;
     };
     const canvas = gl.domElement;
     const captureControls = (e: PointerEvent) => {
@@ -589,7 +493,6 @@ function MugObject({
     canvas.addEventListener("lostpointercapture", cancelPointer);
     window.addEventListener("blur", cancelInteraction);
     window.addEventListener("keydown", key);
-    window.addEventListener("keyup", keyUp);
     return () => {
       canvas.removeEventListener("pointerdown", captureControls, true);
       canvas.removeEventListener("pointermove", move);
@@ -598,7 +501,6 @@ function MugObject({
       canvas.removeEventListener("lostpointercapture", cancelPointer);
       window.removeEventListener("blur", cancelInteraction);
       window.removeEventListener("keydown", key);
-      window.removeEventListener("keyup", keyUp);
       cancelInteraction();
     };
   }, [gl, camera, id, finishTransform, finishArt, cancelInteraction]);
@@ -702,32 +604,10 @@ function MugObject({
               const active = gesture.current;
               if (!active || active.kind !== "gizmo") return;
               if (active.tool === "move") {
-                const rect = gl.domElement.getBoundingClientRect();
-                const radius = FRAME_MUG_RADIUS * object.scale.x;
-                // Com cenário enquadrado, a caneca não sai do quadro ao
-                // arrastar pelo gizmo: altura REAL do centro e raio COM a
-                // escala (o 4.75 fixo deixava a peça sair do quadro).
-                const clamped = clampCenterToFrame(object.position.clone(), camera, rect, radius);
-                object.position.x = clamped.x;
-                object.position.z = clamped.z;
-                // A seta vertical também não tira a peça do quadro.
-                const clampedY = clampCenterYToFrame(object.position.clone(), camera, rect, radius);
-                if (Math.abs(clampedY - object.position.y) > 0.001) active.movedY = true;
-                object.position.y = clampedY;
-                let delta = planarDragDelta(active.primary.position, { x: 0, z: 0 },
+                const delta = planarDragDelta(active.primary.position, { x: 0, z: 0 },
                   { x: object.position.x - active.primary.position.x, z: object.position.z - active.primary.position.z },
                   active.items.map(item => item.position), false);
-                // Alt = mover livre (pode sobrepor); sem Alt, para ao encostar.
-                if (!altHeld.current) {
-                  const self: ContactPiece = {
-                    posX: active.primary.position.x, posZ: active.primary.position.z,
-                    rotationY: -THREE.MathUtils.radToDeg(active.primary.rotation.y),
-                    scale: active.primary.scale.x,
-                  };
-                  delta = limitDeltaByContact(self, active.others, delta, minDistBetween);
-                }
                 const dy = object.position.y - active.primary.position.y;
-                if (Math.abs(dy) > 0.001) active.movedY = true;
                 for (const item of active.items) item.node.position.set(
                   item.position.x + delta.x, item.position.y + dy, item.position.z + delta.z);
               } else if (active.tool === "scale") {

@@ -37,9 +37,7 @@ import {
   getBackgroundImage,
   loadBgBlob,
   ensureScenes,
-  loadScene2dBackground,
 } from "../lib/background-registry";
-import { findStudioScene } from "@/lib/creative/studio-scenes";
 import {
   blobToDataUrl,
   deleteProject,
@@ -195,18 +193,6 @@ export async function openProjectIntoStore(p: StoredProject) {
     } catch {
       bgId = null;
     }
-  } else if (bgId?.startsWith("scene-2d-")) {
-    // Cenário 2D: a imagem sai do registro ao recarregar a página —
-    // baixa de novo antes de hidratar, senão o quadro fica sem textura
-    // e a viewport aparece vazia mesmo com o cenário marcado no painel.
-    const scene = findStudioScene(bgId.slice("scene-2d-".length));
-    if (scene) {
-      try {
-        await loadScene2dBackground(scene);
-      } catch {
-        bgId = null;
-      }
-    } else bgId = null;
   } else if (bgId?.startsWith("scene-")) {
     ensureScenes(bgId);
   } else if (bgId && !getBackgroundImage(bgId)) {
@@ -257,8 +243,6 @@ export async function openProjectIntoStore(p: StoredProject) {
     },
     bg: { ...(rest.bg ?? {}), imageId: bgId },
   });
-  // Reenquadra a cena restaurada (caneca + cenário) na câmera atual.
-  s.frameAll();
 }
 
 export function ProjectsDialog() {

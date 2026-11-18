@@ -1,8 +1,7 @@
 import { getEnvironment, registerEnvironment } from "./environment-registry";
 import { useMockupStore } from "../state/store";
 import { decodeArtDataUrl, getArtBlob, loadArtBlob } from "./art-registry";
-import { getBgBlob, loadBgBlob, ensureScenes, loadScene2dBackground } from "./background-registry";
-import { findStudioScene } from "@/lib/creative/studio-scenes";
+import { getBgBlob, loadBgBlob, ensureScenes } from "./background-registry";
 import { blobToDataUrl } from "./projects-db";
 import { downloadBlob } from "../exporters/image-exporter";
 /** Portable assets are embedded. No project data or artwork is sent to a server. */
@@ -105,17 +104,6 @@ export async function importPortableProject(file: File) {
   if (p.background) {
     const e = await loadBgBlob(decodeArtDataUrl(p.background), "fundo.png");
     p.state.bg.imageId = e.id;
-  } else if (p.state.bg?.imageId?.startsWith("scene-2d-")) {
-    // Cenário 2D: baixa de novo antes de hidratar, senão o quadro fica
-    // sem textura e a viewport aparece vazia.
-    const scene = findStudioScene(p.state.bg.imageId.slice("scene-2d-".length));
-    if (scene) {
-      try {
-        await loadScene2dBackground(scene);
-      } catch {
-        p.state.bg.imageId = null;
-      }
-    } else p.state.bg.imageId = null;
   } else if (p.state.bg?.imageId?.startsWith("scene-"))
     ensureScenes(p.state.bg.imageId);
   else if (p.state.bg) p.state.bg.imageId = null;

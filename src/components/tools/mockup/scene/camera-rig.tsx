@@ -14,7 +14,6 @@ import { useMockupStore } from "../state/store";
 import { lensToFov } from "../lib/config";
 import { mugsGroup, studioRefs, visibleMugBounds } from "./studio-refs";
 import { fitBoundsToView, framingBounds, interpolateCameraView } from "./framing";
-import { frameNdcBounds, clampNdcToFrame, FRAME_MUG_RADIUS } from "./bg-image";
 import { CAMERA_NEAR, CAMERA_FAR, MAX_CAMERA_DISTANCE, cameraFarFor, sceneFootprint } from "./scene-layout";
 
 type Anim = {
@@ -83,7 +82,6 @@ export function CameraRig() {
   const controlsRef = useRef<OrbitControlsImpl>(null);
   const lens = useMockupStore((s) => s.camera.lens);
   const autoRotateSpeed = useMockupStore((s) => s.camera.autoRotateSpeed);
-  const autoRotate = useMockupStore((s) => s.camera.autoRotate);
   const presetRequest = useMockupStore((s) => s.presetRequest);
   const focusNonce = useMockupStore((s) => s.focusNonce);
   const fitNonce = useMockupStore((s) => s.fitNonce);
@@ -198,14 +196,7 @@ export function CameraRig() {
     const dir = requested && st.fitDirection
       ? new THREE.Vector3(...st.fitDirection)
       : new THREE.Vector3().subVectors(camera.position, controls.target).normalize();
-    // Com cenário enquadrado, o fit mira o quadro (não a viewport): a
-    // caneca passa a ocupar ~80% do quadro, como no Editor 2D. O
-    // afastamento é por eixo — um quadro estreito pede muito mais
-    // distância na horizontal do que na vertical.
-    const frame = frameNdcBounds(camera);
-    const padV = frame ? 1.24 / frame.fh : 1.24;
-    const padH = frame ? 1.24 / frame.fw : 1.24;
-    const { pos, target } = fitBoundsToView(box, dir, camera.fov, aspect, padV, padH);
+    const { pos, target } = fitBoundsToView(box, dir, camera.fov, aspect);
     setOrbitLimit(Math.max(MAX_CAMERA_DISTANCE, camera.position.distanceTo(controls.target) * 1.1, pos.distanceTo(target) * 2));
     setAnim({
       fromPos: camera.position.clone(),
@@ -217,14 +208,7 @@ export function CameraRig() {
     });
   }, [fitNonce, scene, camera, size.width, size.height]);
 
-  // distância mínima dinâmica: com cenário enquadrado, dolly/zoom não
-  // podem tirar a caneca de dentro do quadro
-  const [minDistance, setMinDistance] = useState(6.5);
-  const minDistanceRef = useRef(6.5);
-  const frameCheckAt = useRef(0);
-  const frameMugRef = useRef<{ center: THREE.Vector3; radius: number } | null>(null);
-
-  useFrame((_, delta) => {
+  useFrame(() => {
     if (studioRefs.exporting) return;
     const controls = controlsRef.current;
     if (!controls) return;
@@ -240,96 +224,6 @@ export function CameraRig() {
       controls.update();
     }
     ensureFarPlane(camera, cameraFarFor(camera.position.distanceTo(controls.target), sceneRadius));
-    // --- trava do quadro do cenário ---
-    // (1) distância mínima: quanto mais estreito o quadro ou maior o zoom,
-    // mais longe a câmera precisa ficar para a caneca caber dentro dele.
-    // (2) pan: o alvo não pode levar a caneca para fora do quadro.
-    //
-    // CONGELADA DURANTE O GIRO 360° (bug3-turntable): a caneca gira sobre o
-    // próprio eixo sem transladar, mas o CENTRO da sua AABB orbita o eixo
-    // (±0,75u: a alça estende a caixa de um lado só) e o raio da esfera
-    // oscila (7,7..8,1u) — a cada refresh de 0,5 s a trava perseguia esse
-    // centro fantasma e arrastava controls.target em escada (pico 0,55u ≈
-    // 19 px num único frame; excursão total 1,50u ≈ 52 px), e o minDistance
-    // saltava ~2u a cada refresh: a imagem inteira tremia/respirava no
-    // ritmo do giro, embora o ângulo girasse perfeitamente linear
-    // (simulação: ~/workspace/studio-bug3-turntable-math.mjs). Durante o
-    // giro nada translada, então nada há para travar: o refresh acumula e
-    // dispara sozinho no 1º frame após a pausa, com a pose já parada.
-    frameCheckAt.current += delta;
-    if (!autoRotate && frameCheckAt.current > 0.5) {
-      frameCheckAt.current = 0;
-      const fr = frameNdcBounds(camera);
-      if (fr) {
-        const box = visibleMugBounds(scene);
-        const sphere = box.isEmpty()
-          ? { center: new THREE.Vector3(0, 4.75, 0), radius: FRAME_MUG_RADIUS }
-          : box.getBoundingSphere(new THREE.Sphere());
-        const r = Math.max(FRAME_MUG_RADIUS, sphere.radius || 0);
-        frameMugRef.current = { center: sphere.center.clone(), radius: r };
-        const zoomF = (useMockupStore.getState().zoom ?? 100) / 100;
-        const tanV = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
-        const limit = fr.fh * Math.min(1, fr.fa);
-        // margem de 2%: a caneca nunca encosta exatamente na borda do
-        // quadro, onde a faixa do clamp degenera (largura zero).
-        const next = Math.max(6.5, (r * zoomF) / (tanV * limit * 0.98));
-        if (Math.abs(next - minDistanceRef.current) > 0.5) {
-          minDistanceRef.current = next;
-          setMinDistance(next);
-        }
-      } else {
-        frameMugRef.current = null;
-        if (minDistanceRef.current !== 6.5) {
-          minDistanceRef.current = 6.5;
-          setMinDistance(6.5);
-        }
-      }
-    }
-    const frPan = frameNdcBounds(camera);
-    const mugCache = frameMugRef.current;
-    // Sem o `!autoRotate`, a trava perseguia o centro da AABB, que orbita
-    // o eixo enquanto a caneca gira (ver comentário acima) — tremor.
-    if (!anim && !autoRotate && frPan && controls && mugCache) {
-      const center = mugCache.center;
-      const v = center.clone().project(camera);
-      const dist = Math.max(camera.position.distanceTo(center), 0.01);
-      const zoomF = camera.zoom || 1;
-      const tanV = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
-      const halfH = (mugCache.radius / dist) * zoomF / tanV;
-      const halfW = halfH / (camera.aspect || 1);
-      // clampNdcToFrame nunca inverte a faixa: se a caneca for maior que
-      // o quadro num eixo, o centro fica no meio desse eixo.
-      const { x: ax, y: ay } = clampNdcToFrame(v.x, v.y, frPan, halfW, halfH);
-      if (
-        Number.isFinite(v.x) && Number.isFinite(v.y) && Number.isFinite(dist) &&
-        (Math.abs(ax - v.x) > 0.001 || Math.abs(ay - v.y) > 0.001)
-      ) {
-        const dir = new THREE.Vector3();
-        camera.getWorldDirection(dir);
-        // Base da câmera (direita de verdade): right = dir × cima.
-        // O código anterior usava cima × dir, que é a ESQUERDA da câmera —
-        // a correção horizontal empurrava o alvo para o lado errado, o erro
-        // dobrava a cada frame e a câmera voava para o infinito em ~0,1 s
-        // (a caneca sumia e a viewport ficava bege e vazia).
-        const right = new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0, 1, 0));
-        if (right.lengthSq() < 1e-8) right.set(1, 0, 0); // câmera olhando p/ baixo
-        right.normalize();
-        const up = new THREE.Vector3().crossVectors(right, dir).normalize();
-        const tanH = tanV * (camera.aspect || 1);
-        const correction = new THREE.Vector3()
-          .addScaledVector(right, (v.x - ax) * tanH * dist)
-          .addScaledVector(up, (v.y - ay) * tanV * dist);
-        // Rede de segurança: uma correção nunca move o alvo mais que a
-        // distância até a caneca num único frame, nem com valores inválidos.
-        if (
-          correction.lengthSq() > 0 &&
-          Number.isFinite(correction.x) && Number.isFinite(correction.y) && Number.isFinite(correction.z)
-        ) {
-          if (correction.length() > dist) correction.setLength(dist);
-          controls.target.add(correction);
-        }
-      }
-    }
   });
 
   // perda de foco de contexto WebGL — nada a fazer aqui, tratado no Canvas
@@ -349,7 +243,7 @@ export function CameraRig() {
       screenSpacePanning
       touches={{ ONE: tool === "pan" ? THREE.TOUCH.PAN : THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN }}
       onStart={() => setAnim(null)}
-      minDistance={minDistance}
+      minDistance={6.5}
       maxDistance={orbitLimit}
       maxPolarAngle={1.54}
       autoRotate={false} // o giro agora move a caneca, não a câmera

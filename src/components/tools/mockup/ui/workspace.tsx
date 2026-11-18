@@ -81,7 +81,6 @@ import { PrintLayersPanel } from "./print-layers-panel";
 import { HDRIPanel } from "./hdri-panel";
 import { SceneFraming } from "./scene-framing";
 import { PremiumBackgrounds } from "./premium-backgrounds";
-import { StudioScenesPanel } from "./studio-scenes-panel";
 import { saveCurrentProject } from "./projects-dialog";
 import { exportImage, downloadBlob } from "../exporters/image-exporter";
 import {
@@ -490,7 +489,6 @@ export function Workspace({
           {tab === "base" && <BaseArtPanel />}
           {tab === "backgrounds" && (
             <>
-              <StudioScenesPanel />
               <Section
                 title="Cenas prontas em 1 clique"
                 icon={Sparkles}

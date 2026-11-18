@@ -14,7 +14,7 @@ import {
   studioRefs,
   visibleMugBounds,
 } from "../scene/studio-refs";
-import { alignBackdrop, frameNdcBounds, FRAME_FILL } from "../scene/bg-image";
+import { alignBackdrop } from "../scene/bg-image";
 import { isEditorOverlay } from "../scene/object-interaction";
 import { useMockupStore, type MugState } from "../state/store";
 import { renderArtCanvas, canvasHeightFor } from "../lib/art-canvas";
@@ -461,63 +461,6 @@ export function fitCamera(session: FrameSession): THREE.PerspectiveCamera {
   const dist = Math.max(refCam.position.distanceTo(center), fitDist);
   cam2.position.copy(center).addScaledVector(viewDir, -dist);
   cam2.lookAt(center);
-  return cam2;
-}
-
-/**
- * Câmera FIEL à viewport — usada pela exportação de imagem.
- *
- * O bug: `fitCamera` re-enquadrava (alvo = centro das canecas, distância
- * mínima de fit) e trocava o aspecto sem compensar o fill do quadro, então
- * a exportação saía diferente da tela: a caneca ficava menor (46,7% ->
- * 40,2% da altura do quadro) e a base dela subia ~136 px em 1080×1350,
- * flutuando fora da base de madeira do cenário (prova matemática em
- * ~/workspace/studio-bug3-export-math.mjs).
- *
- * Por que o zoom compensa: na prévia o quadro do cenário ocupa só
- * FRAME_FILL (0,86) da viewport — o resto é margem; na exportação o
- * quadro preenche o canvas. Trocar só o aspecto (viewport -> saída)
- * encolhe a posição relativa da caneca dentro do quadro pelo fator
- * FRAME_FILL nos dois eixos. Multiplicar o zoom por 1/fh (metade da
- * altura do quadro em NDC, cf. `frameNdcBounds`) devolve a caneca para
- * exatamente o mesmo lugar relativo ao cenário, pixel a pixel — e o
- * `alignBackdrop` (fill 1 na exportação) continua preenchendo o canvas
- * com o quadro, então cenário e caneca permanecem grudados como na tela.
- * Sem cenário enquadrado (`frameNdcBounds` null) não há quadro para
- * compensar: mantém a câmera viva com o aspecto da saída (o antigo
- * caminho "current").
- */
-export function fitViewportCamera(session: FrameSession): THREE.PerspectiveCamera {
-  const refCam = studioRefs.camera;
-  if (!refCam) throw new ExportError("Câmera indisponível.");
-  const bounds = visibleMugBounds(session.scene);
-  if (bounds.isEmpty())
-    throw new ExportError("Mostre pelo menos uma peça antes de exportar.");
-
-  const cam2 = refCam.clone();
-  cam2.aspect = session.width / session.height;
-  cam2.updateProjectionMatrix();
-  if (session.objectId) {
-    // Camada isolada p/ o Editor: mesmo fit de fitCamera — a peça inteira
-    // (incluindo a alça) cabe no quadro, mantendo a direção da vista.
-    const sphere = bounds.getBoundingSphere(new THREE.Sphere());
-    cam2.zoom = 1;
-    cam2.updateProjectionMatrix();
-    const vertical = THREE.MathUtils.degToRad(cam2.getEffectiveFOV()) / 2;
-    const horizontal = Math.atan(Math.tan(vertical) * cam2.aspect);
-    const distance = sphere.radius / Math.sin(Math.min(vertical, horizontal)) * 1.06;
-    const direction = refCam.getWorldDirection(new THREE.Vector3());
-    cam2.position.copy(sphere.center).addScaledVector(direction, -distance);
-    cam2.updateMatrixWorld();
-    return cam2;
-  }
-  // O quadro do cenário é o que o usuário vê na tela: medir o fill da
-  // PRÉVIA (FRAME_FILL), não o da exportação — durante a exportação
-  // `studioRefs.exporting` está ligado e o fill padrão seria 1.
-  const frame = frameNdcBounds(refCam, FRAME_FILL);
-  if (frame) cam2.zoom = (refCam.zoom || 1) / frame.fh;
-  cam2.updateProjectionMatrix();
-  cam2.updateMatrixWorld();
   return cam2;
 }
 

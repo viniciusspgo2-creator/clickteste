@@ -56,10 +56,7 @@ import {
   ensureScenes,
   SCENES,
   drawSceneThumb,
-  getBackgroundImage,
-  loadScene2dBackground,
 } from "../lib/background-registry";
-import { findStudioScene } from "@/lib/creative/studio-scenes";
 import {
   AREA_PRESETS,
   BACKGROUND_LABELS,
@@ -821,7 +818,6 @@ function TransparentSwatch() {
 /** galeria de cenários prontos, todos gerados por código */
 function ScenesGallery() {
   const patch = useMockupStore((s) => s.patch);
-  const frameAll = useMockupStore((s) => s.frameAll);
   const current = useMockupStore((s) => s.bg.imageId);
   const bgType = useMockupStore((s) => s.bg.type);
   const refs = useRef<(HTMLCanvasElement | null)[]>([]);
@@ -860,16 +856,6 @@ function ScenesGallery() {
                 imageBlur: 0,
                 imageBright: 1,
               });
-              // Cenários prontos são 1920×1080: a saída acompanha o
-              // tamanho nativo da imagem (quadro sem corte nem distorção).
-              useMockupStore.getState().setExport({
-                ratioId: "custom",
-                customW: 1920,
-                customH: 1080,
-                scale: 1,
-              });
-              // Enquadra a caneca dentro do quadro do cenário.
-              frameAll();
             }}
             title={s.label}
             aria-pressed={bgType === "image" && current === s.id}
@@ -904,7 +890,6 @@ function ScenesGallery() {
 export function ScenePanel() {
   const bg = useMockupStore((s) => s.bg);
   const patch = useMockupStore((s) => s.patch);
-  const frameAll = useMockupStore((s) => s.frameAll);
   const bgAdjustMode = useMockupStore((s) => s.bgAdjustMode);
   const setBgAdjustMode = useMockupStore((s) => s.setBgAdjustMode);
   const { toast } = useToast();
@@ -914,25 +899,6 @@ export function ScenePanel() {
   useEffect(() => {
     if (bg.type === "image" && bg.imageId?.startsWith("scene-"))
       ensureScenes(bg.imageId);
-    // Cenário 2D restaurado de projeto: a imagem sai do registro ao
-    // recarregar a página — baixa de novo e força o re-render do fundo.
-    if (
-      bg.type === "image" &&
-      bg.imageId?.startsWith("scene-2d-") &&
-      !getBackgroundImage(bg.imageId)
-    ) {
-      const scene = findStudioScene(bg.imageId.slice("scene-2d-".length));
-      if (scene) {
-        let cancelled = false;
-        void loadScene2dBackground(scene).then(() => {
-          if (!cancelled)
-            useMockupStore.getState().patch("bg", { imageId: bg.imageId });
-        });
-        return () => {
-          cancelled = true;
-        };
-      }
-    }
   }, [bg.type, bg.imageId]);
 
   const handleBgFile = useCallback(
@@ -953,16 +919,6 @@ export function ScenePanel() {
           imageBlur: 0,
           imageBright: 1,
         });
-        // A saída acompanha a imagem enviada: quadro no tamanho nativo
-        // dela, sem corte nem distorção.
-        useMockupStore.getState().setExport({
-          ratioId: "custom",
-          customW: entry.width,
-          customH: entry.height,
-          scale: 1,
-        });
-        // Enquadra a caneca dentro do quadro do cenário.
-        frameAll();
         toast({
           title: "Fundo aplicado!",
           description: `${file.name} agora é o cenário da cena.`,
@@ -977,7 +933,7 @@ export function ScenePanel() {
         setBusyBg(false);
       }
     },
-    [patch, toast, frameAll],
+    [patch, toast],
   );
 
   return (
