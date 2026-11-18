@@ -231,6 +231,7 @@ export default function CompositionEditor() {
   const [exportScale, setExportScale] = useState("1x");
   const [exporting, setExporting] = useState(false);
   const [exportingWebm, setExportingWebm] = useState(false);
+  const [exportingVideo, setExportingVideo] = useState(false);
   const [handoffLoaded, setHandoffLoaded] = useState(false);
 
   const [showGuides, setShowGuides] = useState(true);
@@ -1053,6 +1054,97 @@ export default function CompositionEditor() {
     }
   }, [layers, canvasSize]);
 
+  /**
+   * Exporta o VÍDEO da composição completa em WebM: cenário + todas as
+   * camadas, com fundo opaco (o cenário entra no vídeo). As camadas de
+   * vídeo tocam seus quadros reais — o giro 3D de vitrine do WebM do
+   * Studio 3D — sem aplicar o giro 2D no plano. Grava 4 s (~30 fps),
+   * reaproveitando o mesmo desenho da exportação PNG (sem seleção nem
+   * guias, que nunca entram em exportação).
+   */
+  const handleExportCompositionVideo = useCallback(async () => {
+    const videos = layers.filter((l) => l.video);
+    if (!videos.length) {
+      setStatus("Adicione uma caneca girando para exportar vídeo.");
+      return;
+    }
+    if (typeof MediaRecorder === "undefined") {
+      setStatus("Este navegador não suporta gravação de WebM.");
+      return;
+    }
+    setExportingVideo(true);
+    let recordingStream: MediaStream | undefined;
+    try {
+      const W = canvasSize.w;
+      const H = canvasSize.h;
+      const c = document.createElement("canvas");
+      c.width = W;
+      c.height = H;
+      const ctx = c.getContext("2d");
+      if (!ctx) throw new Error("Sem contexto 2d.");
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      // Garante que os vídeos estão tocando (quadros reais do giro 3D).
+      for (const layer of videos) {
+        if (layer.video && layer.video.paused) void layer.video.play().catch(() => {});
+      }
+      const stream = c.captureStream(30);
+      recordingStream = stream;
+      const mime = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"].find((m) => {
+        try { return MediaRecorder.isTypeSupported(m); } catch { return false; }
+      }) ?? "";
+      const rec = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: 8_000_000 } : undefined);
+      const chunks: Blob[] = [];
+      const done = new Promise<Blob>((resolve, reject) => {
+        rec.ondataavailable = (ev) => { if (ev.data.size) chunks.push(ev.data); };
+        rec.onstop = () => resolve(new Blob(chunks, { type: "video/webm" }));
+        rec.onerror = () => reject(new Error("Falha ao gravar o WebM."));
+      });
+      rec.start();
+      const duration = 4000;
+      const start = performance.now();
+      await new Promise<void>((resolve) => {
+        const frame = (now: number) => {
+          const t = Math.min(1, (now - start) / duration);
+          ctx.clearRect(0, 0, W, H);
+          if (bg.kind === "scene" && bg.img) ctx.drawImage(bg.img, 0, 0, W, H);
+          else if (bg.kind === "image" && bg.img) {
+            const s = Math.max(W / bg.img.naturalWidth, H / bg.img.naturalHeight);
+            ctx.drawImage(bg.img, (W - bg.img.naturalWidth * s) / 2, (H - bg.img.naturalHeight * s) / 2, bg.img.naturalWidth * s, bg.img.naturalHeight * s);
+          } else if (bg.kind === "color") {
+            ctx.fillStyle = bg.value;
+            ctx.fillRect(0, 0, W, H);
+          }
+          for (const layer of layers) {
+            drawLayerShadow(ctx, layer, canvasSize.h, 1);
+            drawProduct(ctx, layer);
+          }
+          if (t < 1) requestAnimationFrame(frame);
+          else resolve();
+        };
+        requestAnimationFrame(frame);
+      });
+      // Deixa o último quadro gravar antes de parar.
+      await new Promise((r) => setTimeout(r, 120));
+      rec.stop();
+      const blob = await done;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `mockup-2d-composicao-${W}x${H}.webm`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 12000);
+      setStatus(`Vídeo da composição exportado (${W} × ${H}, 4 s, cenário + giro 3D).`);
+    } catch (err) {
+      setStatus("Erro na exportação de vídeo: " + (err instanceof Error ? err.message : "desconhecido"));
+    } finally {
+      recordingStream?.getTracks().forEach(track => track.stop());
+      setExportingVideo(false);
+    }
+  }, [layers, bg, canvasSize]);
+
 
   const activeLayer = selectedLayers[0];
   const finish = activeLayer?.finish ?? DEFAULT_FINISH;
@@ -1368,10 +1460,21 @@ export default function CompositionEditor() {
             >
               {exportingWebm ? "Gravando…" : "WebM transparente · giro 2D"}
             </button>
+            <button
+              type="button"
+              onClick={handleExportCompositionVideo}
+              disabled={exportingVideo || !hasVideoLayer}
+              title={hasVideoLayer ? "Vídeo WebM da composição completa: cenário + caneca girando em 3D, 4 s" : "Adicione uma caneca girando para exportar vídeo"}
+              className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 disabled:opacity-50"
+            >
+              {exportingVideo ? "Gravando…" : "Vídeo da composição · WebM"}
+            </button>
           </div>
           <p className="mt-2 text-[11px] text-neutral-500">
             O WebM sai só com as canecas (sem o cenário), fundo transparente, girando 360° em 4 s — pronto para
             usar como overlay em vídeo. O giro aqui é 2D; o giro 3D de vitrine é o vídeo do Studio 3D.
+            O vídeo da composição grava cenário + canecas por 4 s, com o giro 3D de verdade — precisa de uma
+            caneca girando na composição.
           </p>
 <button onClick={downloadMugs} disabled={!layers.some(l => l.kind !== "logo")}>Baixar canecas originais separadas</button></details>
         </aside>
