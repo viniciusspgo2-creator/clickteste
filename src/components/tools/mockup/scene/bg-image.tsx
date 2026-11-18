@@ -44,6 +44,26 @@ export interface FrameNdc {
   fa: number;
 }
 
+/** Prende um ponto NDC dentro do quadro do cenário, sem nunca inverter a
+ * faixa: quando a caneca é maior que o quadro num eixo (zoom alto ou
+ * quadro estreito), o centro fica preso no meio (0) nesse eixo, em vez
+ * de `MathUtils.clamp` receber min > max e devolver um valor fixo errado
+ * — que empurrava o alvo da câmera todo frame e fazia a caneca sumir. */
+export function clampNdcToFrame(
+  vx: number,
+  vy: number,
+  frame: FrameNdc,
+  halfW: number,
+  halfH: number,
+): { x: number; y: number } {
+  const bx = Math.max(0, frame.fw - halfW);
+  const by = Math.max(0, frame.fh - halfH);
+  return {
+    x: THREE.MathUtils.clamp(vx, -bx, bx),
+    y: THREE.MathUtils.clamp(vy, -by, by),
+  };
+}
+
 /** Limites do quadro do cenário em NDC, ou null sem cenário enquadrado. */
 export function frameNdcBounds(camera: THREE.PerspectiveCamera): FrameNdc | null {
   const st = useMockupStore.getState();

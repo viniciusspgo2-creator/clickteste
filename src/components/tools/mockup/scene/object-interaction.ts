@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { frameNdcBounds } from "./bg-image";
+import { clampNdcToFrame, frameNdcBounds } from "./bg-image";
 
 /** Physical scene bounds, in centimetres; manual placement never resolves collisions. */
 export const POSITION_LIMIT = 150;
@@ -26,8 +26,9 @@ export function clampCenterToFrame(
   const tanV = Math.tan(THREE.MathUtils.degToRad(cam.fov) / 2);
   const halfH = (radius / dist) * zoomF / tanV;
   const halfW = halfH / (cam.aspect || 1);
-  const cx = THREE.MathUtils.clamp(v.x, -(frame.fw - halfW), frame.fw - halfW);
-  const cy = THREE.MathUtils.clamp(v.y, -(frame.fh - halfH), frame.fh - halfH);
+  // clampNdcToFrame nunca inverte a faixa: se a caneca for maior que o
+  // quadro num eixo, o centro fica no meio desse eixo.
+  const { x: cx, y: cy } = clampNdcToFrame(v.x, v.y, frame, halfW, halfH);
   if (Math.abs(cx - v.x) < 0.0005 && Math.abs(cy - v.y) < 0.0005) return center;
   const clientX = rect.left + ((cx + 1) / 2) * rect.width;
   const clientY = rect.top + ((1 - cy) / 2) * rect.height;

@@ -14,7 +14,7 @@ import { useMockupStore } from "../state/store";
 import { lensToFov } from "../lib/config";
 import { mugsGroup, studioRefs, visibleMugBounds } from "./studio-refs";
 import { fitBoundsToView, framingBounds, interpolateCameraView } from "./framing";
-import { frameNdcBounds, FRAME_MUG_RADIUS } from "./bg-image";
+import { frameNdcBounds, clampNdcToFrame, FRAME_MUG_RADIUS } from "./bg-image";
 import { CAMERA_NEAR, CAMERA_FAR, MAX_CAMERA_DISTANCE, cameraFarFor, sceneFootprint } from "./scene-layout";
 
 type Anim = {
@@ -198,10 +198,13 @@ export function CameraRig() {
       ? new THREE.Vector3(...st.fitDirection)
       : new THREE.Vector3().subVectors(camera.position, controls.target).normalize();
     // Com cenário enquadrado, o fit mira o quadro (não a viewport): a
-    // caneca passa a ocupar ~80% do quadro, como no Editor 2D.
+    // caneca passa a ocupar ~80% do quadro, como no Editor 2D. O
+    // afastamento é por eixo — um quadro estreito pede muito mais
+    // distância na horizontal do que na vertical.
     const frame = frameNdcBounds(camera);
-    const pad = frame ? 1.24 / Math.min(frame.fw, frame.fh) : 1.24;
-    const { pos, target } = fitBoundsToView(box, dir, camera.fov, aspect, pad);
+    const padV = frame ? 1.24 / frame.fh : 1.24;
+    const padH = frame ? 1.24 / frame.fw : 1.24;
+    const { pos, target } = fitBoundsToView(box, dir, camera.fov, aspect, padV, padH);
     setOrbitLimit(Math.max(MAX_CAMERA_DISTANCE, camera.position.distanceTo(controls.target) * 1.1, pos.distanceTo(target) * 2));
     setAnim({
       fromPos: camera.position.clone(),
@@ -254,7 +257,9 @@ export function CameraRig() {
         const zoomF = (useMockupStore.getState().zoom ?? 100) / 100;
         const tanV = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
         const limit = fr.fh * Math.min(1, fr.fa);
-        const next = Math.max(6.5, (r * zoomF) / (tanV * limit));
+        // margem de 2%: a caneca nunca encosta exatamente na borda do
+        // quadro, onde a faixa do clamp degenera (largura zero).
+        const next = Math.max(6.5, (r * zoomF) / (tanV * limit * 0.98));
         if (Math.abs(next - minDistanceRef.current) > 0.5) {
           minDistanceRef.current = next;
           setMinDistance(next);
@@ -277,8 +282,9 @@ export function CameraRig() {
       const tanV = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
       const halfH = (mugCache.radius / dist) * zoomF / tanV;
       const halfW = halfH / (camera.aspect || 1);
-      const ax = THREE.MathUtils.clamp(v.x, -(frPan.fw - halfW), frPan.fw - halfW);
-      const ay = THREE.MathUtils.clamp(v.y, -(frPan.fh - halfH), frPan.fh - halfH);
+      // clampNdcToFrame nunca inverte a faixa: se a caneca for maior que
+      // o quadro num eixo, o centro fica no meio desse eixo.
+      const { x: ax, y: ay } = clampNdcToFrame(v.x, v.y, frPan, halfW, halfH);
       if (Math.abs(ax - v.x) > 0.001 || Math.abs(ay - v.y) > 0.001) {
         const dir = new THREE.Vector3();
         camera.getWorldDirection(dir);

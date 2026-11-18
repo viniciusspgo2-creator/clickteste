@@ -860,6 +860,14 @@ function ScenesGallery() {
                 imageBlur: 0,
                 imageBright: 1,
               });
+              // Cenários prontos são 1920×1080: a saída acompanha o
+              // tamanho nativo da imagem (quadro sem corte nem distorção).
+              useMockupStore.getState().setExport({
+                ratioId: "custom",
+                customW: 1920,
+                customH: 1080,
+                scale: 1,
+              });
               // Enquadra a caneca dentro do quadro do cenário.
               frameAll();
             }}
@@ -944,6 +952,14 @@ export function ScenePanel() {
           imageMirror: false,
           imageBlur: 0,
           imageBright: 1,
+        });
+        // A saída acompanha a imagem enviada: quadro no tamanho nativo
+        // dela, sem corte nem distorção.
+        useMockupStore.getState().setExport({
+          ratioId: "custom",
+          customW: entry.width,
+          customH: entry.height,
+          scale: 1,
         });
         // Enquadra a caneca dentro do quadro do cenário.
         frameAll();

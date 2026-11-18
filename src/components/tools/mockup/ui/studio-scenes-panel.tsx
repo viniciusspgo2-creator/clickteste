@@ -29,6 +29,7 @@ export function StudioScenesPanel() {
   const bg = useMockupStore((s) => s.bg);
   const patch = useMockupStore((s) => s.patch);
   const frameAll = useMockupStore((s) => s.frameAll);
+  const setExport = useMockupStore((s) => s.setExport);
   const { toast } = useToast();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("");
@@ -60,6 +61,16 @@ export function StudioScenesPanel() {
         imageMirror: false,
         imageBlur: 0,
         imageBright: 1,
+      });
+      // A saída acompanha o cenário: o quadro casa exatamente com o
+      // tamanho nativo da imagem do cenário (sem corte nem distorção).
+      // Trocar de cenário ajusta a saída de novo; o usuário pode trocar
+      // a saída manualmente depois pelo seletor "Tamanho da saída".
+      setExport({
+        ratioId: "custom",
+        customW: scene.width,
+        customH: scene.height,
+        scale: 1,
       });
       // Enquadra a caneca dentro do quadro do cenário.
       frameAll();

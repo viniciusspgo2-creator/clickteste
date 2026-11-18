@@ -722,9 +722,9 @@ export const ARRANGEMENTS: Record<string, ReturnType<typeof makeCompanion>[]> =
   };
 
 const initialExport: ExportState = {
-  ratioId: "sq",
+  ratioId: "portrait",
   customW: 1080,
-  customH: 1080,
+  customH: 1350,
   scale: 1,
   format: "png",
   quality: 0.92,
@@ -1114,7 +1114,28 @@ export const useMockupStore = create<MockupStore>((set, get) => {
     setExportOpen: (v) => set({ exportOpen: v }),
 
     setExport: (partial) =>
-      set((s) => ({ exportSettings: { ...s.exportSettings, ...partial } })),
+      set((s) => {
+        const next = { ...s.exportSettings, ...partial };
+        // Trocar o tamanho da saída muda o aspecto do quadro do cenário:
+        // reenquadra a caneca junto, para ela nunca ficar fora do quadro
+        // novo. Só dispara quando o aspecto de fato mudou (formato,
+        // qualidade ou escala não mexem no enquadramento).
+        const aspectChanged =
+          (partial.ratioId !== undefined &&
+            partial.ratioId !== s.exportSettings.ratioId) ||
+          (partial.customW !== undefined &&
+            partial.customW !== s.exportSettings.customW) ||
+          (partial.customH !== undefined &&
+            partial.customH !== s.exportSettings.customH);
+        return aspectChanged
+          ? {
+              exportSettings: next,
+              fitNonce: s.fitNonce + 1,
+              fitDirection: null,
+              zoom: 100,
+            }
+          : { exportSettings: next };
+      }),
 
     addCompanion: () => {
       const st = get();

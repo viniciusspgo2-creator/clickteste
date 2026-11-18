@@ -17,13 +17,19 @@ export function interpolateCameraView(fromPos: THREE.Vector3, fromTarget: THREE.
   return { pos: new THREE.Vector3().setFromSpherical(spherical).add(target), target };
 }
 
-/** Enquadra a caixa projetada, considerando perspectiva e o formato do canvas. */
+/** Enquadra a caixa projetada, considerando perspectiva e o formato do canvas.
+ * `padding` vale para o eixo vertical e `paddingH` para o horizontal
+ * (padrão: igual ao vertical). Com cenário enquadrado os dois diferem:
+ * um quadro estreito (4:5 numa viewport larga) exige afastar muito mais
+ * na horizontal do que na vertical — um único multiplicador nos dois
+ * eixos afastava a câmera demais e a caneca ficava pequena no quadro. */
 export function fitBoundsToView(
   bounds: THREE.Box3,
   direction: THREE.Vector3,
   verticalFov: number,
   aspect: number,
   padding = 1.24,
+  paddingH = padding,
 ): { pos: THREE.Vector3; target: THREE.Vector3 } {
   const target = bounds.getCenter(new THREE.Vector3());
   const dir = direction.clone().normalize();
@@ -39,8 +45,8 @@ export function fitBoundsToView(
     for (const y of [bounds.min.y, bounds.max.y])
       for (const z of [bounds.min.z, bounds.max.z]) {
         const point = new THREE.Vector3(x, y, z).sub(target);
-        distance = Math.max(distance, point.dot(dir) + padding * Math.max(
-          Math.abs(point.dot(right)) / tanH, Math.abs(point.dot(up)) / tanV,
+        distance = Math.max(distance, point.dot(dir) + Math.max(
+          paddingH * Math.abs(point.dot(right)) / tanH, padding * Math.abs(point.dot(up)) / tanV,
         ));
       }
   return { target, pos: target.clone().addScaledVector(dir, distance) };
