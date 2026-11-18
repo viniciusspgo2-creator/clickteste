@@ -64,12 +64,14 @@ export function clampNdcToFrame(
   };
 }
 
-/** Limites do quadro do cenário em NDC, ou null sem cenário enquadrado. */
-export function frameNdcBounds(camera: THREE.PerspectiveCamera): FrameNdc | null {
+/** Limites do quadro do cenário em NDC, ou null sem cenário enquadrado.
+ * `fillOverride` fixa o fill do quadro (a exportação fiel usa o fill da
+ * prévia, FRAME_FILL, mesmo com `studioRefs.exporting` ligado). */
+export function frameNdcBounds(camera: THREE.PerspectiveCamera, fillOverride?: number): FrameNdc | null {
   const st = useMockupStore.getState();
   if (st.bg.type !== "image" || !st.bg.imageId || !getBackgroundImage(st.bg.imageId)) return null;
   const fa = getFrameAspect();
-  const fill = studioRefs.exporting ? 1 : FRAME_FILL;
+  const fill = fillOverride ?? (studioRefs.exporting ? 1 : FRAME_FILL);
   const aspect = camera.aspect || 1;
   const fh = Math.min(fill, (fill * aspect) / fa);
   const fw = (fh * fa) / aspect;
