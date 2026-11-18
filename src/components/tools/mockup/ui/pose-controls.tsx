@@ -31,11 +31,15 @@ export function PoseControls() {
       <button type="button" disabled={disabled} aria-pressed={st.tool === "rotate"}
         onClick={() => { st.patch("camera", { autoRotate: false }); st.setTool("rotate"); }}><Rotate3D/> Mão livre · girar</button>
     </div>
-    {st.tool === "move" && <p className="cg-pose-tip">Arraste a caneca para os lados ou profundidade. Para subir/descer, use a seta vertical do controle 3D ou ajuste a altura abaixo. Alt desativa o encaixe.</p>}
+    {st.tool === "move" && <p className="cg-pose-tip">Arraste a caneca para os lados ou profundidade. Segure <strong>Shift</strong> durante o arraste para subir/descer dentro do quadro. <strong>Alt</strong> desativa o encaixe e permite sobrepor de propósito — sem Alt, a caneca para ao encostar noutra.</p>}
     {st.tool === "rotate" && <p className="cg-pose-tip">Arraste sobre a caneca: horizontal gira, vertical inclina. Segure <strong>Alt</strong> para torcer no eixo Z ou <strong>Shift</strong> para precisão. Os arcos coloridos permitem girar um eixo isolado.</p>}
     <SliderRow label="Inclinar para frente / trás" value={mug.tiltX ?? 0} min={-180} max={180} step={1} onChange={tiltX=>{st.patch("camera", {autoRotate:false});st.patchObject(id,{tiltX});}} disabled={disabled} defaultValue={0} format={v=>`${Math.round(v)}°`}/>
     <SliderRow label="Inclinar para os lados" value={mug.tiltZ ?? 0} min={-180} max={180} step={1} onChange={tiltZ=>{st.patch("camera", {autoRotate:false});st.patchObject(id,{tiltZ});}} disabled={disabled} defaultValue={0} format={v=>`${Math.round(v)}°`}/>
     <SliderRow label="Altura em relação ao chão" value={mug.posY ?? 0} min={-15} max={35} step={0.1} onChange={posY=>st.patchObject(id,{posY})} disabled={disabled} defaultValue={0} format={v=>`${v.toFixed(1)} cm`}/>
+    <div className="cg-piece-turns">
+      <button type="button" disabled={disabled} title="Desce a caneca até assentar na base/mesa do cenário"
+        onClick={() => st.patchObject(id, { posY: 0 })}>Assentar na base</button>
+    </div>
     <ToggleRow label="Encaixe magnético (mover)" checked={st.snapEnabled} onChange={st.setSnap} />
     <details className="cg-pose-advanced">
       <summary><SlidersHorizontal/> Posição exata e volta completa</summary>

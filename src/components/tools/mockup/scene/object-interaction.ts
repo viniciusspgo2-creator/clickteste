@@ -46,7 +46,63 @@ export function clampCenterToFrame(
   return pointerOnPlane(clientX, clientY, rect, cam, viewPlane) ?? center;
 }
 
-/** One shared delta keeps a selected group together, including at the scene bounds. */
+/** Prende a ALTURA do centro da peça dentro do quadro (a peça não sai
+ * pela borda de cima nem de baixo ao subir/descer). Devolve a altura
+ * mundial permitida, mantendo x/z: projeta o centro, prende o NDC e volta
+ * pelo mesmo raio da câmera — sem passar pelo plano horizontal, que só
+ * vale para o arraste no chão. */
+export function clampCenterYToFrame(
+  center: THREE.Vector3,
+  camera: THREE.Camera,
+  rect: Pick<DOMRect, "left" | "top" | "width" | "height">,
+  radius: number,
+): number {
+  const cam = camera as THREE.PerspectiveCamera;
+  const frame = frameNdcBounds(cam);
+  if (!frame || !rect.width || !rect.height) return center.y;
+  const v = center.clone().project(cam);
+  const dist = Math.max(cam.position.distanceTo(center), 0.01);
+  const zoomF = cam.zoom || 1;
+  const tanV = Math.tan(THREE.MathUtils.degToRad(cam.fov) / 2);
+  const halfH = (radius / dist) * zoomF / tanV;
+  const halfW = halfH / (cam.aspect || 1);
+  const { x: cx, y: cy } = clampNdcToFrame(v.x, v.y, frame, halfW, halfH);
+  if (Math.abs(cy - v.y) < 0.0005) return center.y;
+  // Ponto no mesmo raio da câmera, na direção do NDC preso.
+  const dir = new THREE.Vector3(cx, cy, 0.5).unproject(cam).sub(cam.position).normalize();
+  return cam.position.y + dir.y * dist;
+}
+
+export interface ContactPiece { posX: number; posZ: number; rotationY: number; scale: number }
+
+/** Encurta um delta de arraste para a peça parar quando encostar noutra,
+ * em vez de atravessá-la por acidente. Se já estiver encostando ou
+ * sobreposta, não trava a saída. `minDist` é o minDistBetween do store
+ * (distância mínima com a alça, por rotação e escala). */
+export function limitDeltaByContact(
+  moving: ContactPiece,
+  others: readonly ContactPiece[],
+  delta: PlanarPosition,
+  minDist: (a: ContactPiece, b: ContactPiece) => number,
+): PlanarPosition {
+  let t = 1;
+  for (const o of others) {
+    const dx0 = moving.posX - o.posX, dz0 = moving.posZ - o.posZ;
+    const d0 = Math.hypot(dx0, dz0);
+    const need = minDist(moving, o);
+    if (d0 <= need) continue; // já encostando/sobreposta: não trava a saída
+    // |p0 + t·d − q| = need → t de entrada no círculo de contato.
+    const a = delta.x * delta.x + delta.z * delta.z;
+    if (a < 1e-12) continue;
+    const b = 2 * (dx0 * delta.x + dz0 * delta.z);
+    const c = dx0 * dx0 + dz0 * dz0 - need * need;
+    const disc = b * b - 4 * a * c;
+    if (disc < 0) continue;
+    const tHit = (-b - Math.sqrt(disc)) / (2 * a);
+    if (tHit >= 0 && tHit < t) t = Math.max(0, tHit);
+  }
+  return { x: delta.x * t, z: delta.z * t };
+}
 export function planarDragDelta(
   origin: PlanarPosition,
   start: PlanarPosition,
