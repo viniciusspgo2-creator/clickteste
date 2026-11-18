@@ -126,7 +126,9 @@ export function ImageBackdrop() {
     t.generateMipmaps = false;
     t.needsUpdate = true;
     return t;
-  }, [bg.imageId]);
+    // Depende da entrada (não só do id): um cenário registrado depois
+    // (restauração de projeto) precisa recriar a textura no re-render.
+  }, [entry]);
 
   useEffect(() => () => texture?.dispose(), [texture]);
 

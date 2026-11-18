@@ -56,7 +56,10 @@ import {
   ensureScenes,
   SCENES,
   drawSceneThumb,
+  getBackgroundImage,
+  loadScene2dBackground,
 } from "../lib/background-registry";
+import { findStudioScene } from "@/lib/creative/studio-scenes";
 import {
   AREA_PRESETS,
   BACKGROUND_LABELS,
@@ -899,6 +902,25 @@ export function ScenePanel() {
   useEffect(() => {
     if (bg.type === "image" && bg.imageId?.startsWith("scene-"))
       ensureScenes(bg.imageId);
+    // Cenário 2D restaurado de projeto: a imagem sai do registro ao
+    // recarregar a página — baixa de novo e força o re-render do fundo.
+    if (
+      bg.type === "image" &&
+      bg.imageId?.startsWith("scene-2d-") &&
+      !getBackgroundImage(bg.imageId)
+    ) {
+      const scene = findStudioScene(bg.imageId.slice("scene-2d-".length));
+      if (scene) {
+        let cancelled = false;
+        void loadScene2dBackground(scene).then(() => {
+          if (!cancelled)
+            useMockupStore.getState().patch("bg", { imageId: bg.imageId });
+        });
+        return () => {
+          cancelled = true;
+        };
+      }
+    }
   }, [bg.type, bg.imageId]);
 
   const handleBgFile = useCallback(

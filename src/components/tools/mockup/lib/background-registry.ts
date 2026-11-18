@@ -154,19 +154,41 @@ export async function loadBgFile(file: File): Promise<BgImageEntry> {
 export async function loadBgBlob(
   blob: Blob,
   name: string,
+  id?: string,
 ): Promise<BgImageEntry> {
   const d = await decode(blob);
-  const id = `bg_${Date.now()}_${++seq}`;
+  const entryId = id ?? `bg_${Date.now()}_${++seq}`;
   const entry: BgImageEntry = {
-    id,
+    id: entryId,
     source: d.source,
     width: d.w,
     height: d.h,
     avg: computeAvg(d.source, d.w, d.h),
     name,
   };
-  registry.set(id, entry);
+  registry.set(entryId, entry);
   return entry;
+}
+
+/**
+ * Cenário de foto do Editor 2D como fundo do Studio 3D.
+ * Id determinístico (`scene-2d-<id do cenário>`) para o mesmo cenário não
+ * ser baixado duas vezes — e para `getBgBlob` não tentar serializá-lo no
+ * projeto (cenários prontos não precisam, igual aos gerados por código).
+ */
+export async function loadScene2dBackground(scene: {
+  id: string;
+  name: string;
+  src: string;
+}): Promise<BgImageEntry> {
+  const id = `scene-2d-${scene.id}`;
+  const existing = registry.get(id);
+  if (existing) return existing;
+  const res = await fetch(scene.src);
+  if (!res.ok)
+    throw new Error("Não foi possível carregar o cenário. Tente novamente.");
+  const blob = await res.blob();
+  return loadBgBlob(blob, scene.name, id);
 }
 
 /** serializa o fundo atual como PNG (para salvar no projeto) — cenários prontos não precisam */
