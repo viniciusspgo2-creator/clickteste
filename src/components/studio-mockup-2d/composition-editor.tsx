@@ -1,10 +1,11 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import styles from "./composition-editor.module.css";
-import { ArrowLeft, Download, Film, Upload, ImagePlus, Layers, SlidersHorizontal, Undo2, Redo2, Maximize, Ruler, Sparkles, RotateCcw, MousePointer2, Plus, Trash2, LayoutDashboard } from "lucide-react";
+import { ArrowLeft, Download, Film, Upload, ImagePlus, Layers, SlidersHorizontal, Undo2, Redo2, Maximize, Ruler, Sparkles, RotateCcw, MousePointer2, Plus, Trash2, LayoutDashboard, PanelRight, Lightbulb, Scan, X } from "lucide-react";
 import NextImage from "next/image";
 import { LIBRARY_URL } from "@/lib/studio-links";
 import { readEditorHandoff } from "@/lib/creative/handoff";
+import { saveDraft, readDraft, clearDraft, type EditorDraft, type DraftLayer, type DraftBg } from "@/lib/creative/editor-draft";
 import studioScenes from "@/lib/creative/studio-scenes.json";
 type StudioScene = typeof studioScenes[number];
 const studioSceneCategories = Array.from(new Set(studioScenes.map(scene => scene.category)));
@@ -235,6 +236,16 @@ export default function CompositionEditor() {
   const [handoffLoaded, setHandoffLoaded] = useState(false);
 
   const [showGuides, setShowGuides] = useState(true);
+  // Layout: painéis recolhíveis para a área de edição ficar maior.
+  const [leftOpen, setLeftOpen] = useState(true);
+  const [rightOpen, setRightOpen] = useState(true);
+  // Gabarito 21 × 9,5 cm (só na prévia, nunca na exportação).
+  const [showGabarito, setShowGabarito] = useState(false);
+  // Rascunho local (autosave) + tour de dicas.
+  const [draftOffer, setDraftOffer] = useState<EditorDraft | null>(null);
+  const [draftSavedAt, setDraftSavedAt] = useState<number | null>(null);
+  const [showTour, setShowTour] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
   const [zoom, setZoom] = useState(1);
   const [viewport, setViewport] = useState({ w: 700, h: 660 });
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -370,6 +381,32 @@ export default function CompositionEditor() {
       }
       ctx.restore();
     }
+    // Gabarito 21 × 9,5 cm — só na prévia, nunca na exportação.
+    if (showGabarito) {
+      const base = selectionBox ?? { x: W * 0.1, y: H * 0.35, w: W * 0.8, h: (W * 0.8 * 9.5) / 21 };
+      const gw = base.w;
+      const gh = (gw * 9.5) / 21;
+      const gx = base.x;
+      const gy = base.y + base.h / 2 - gh / 2;
+      ctx.save();
+      ctx.strokeStyle = "#ff6a00";
+      ctx.lineWidth = Math.max(1.5, W / 720);
+      ctx.setLineDash([12, 8]);
+      ctx.strokeRect(gx, gy, gw, gh);
+      ctx.setLineDash([]);
+      const fs = Math.max(16, W / 36);
+      ctx.font = `700 ${fs}px Arial, sans-serif`;
+      const label = "21 × 9,5 cm — área de impressão";
+      const tw = ctx.measureText(label).width;
+      const labelH = fs + 12;
+      let labelY = gy - labelH - 6;
+      if (labelY < 0) labelY = gy + 6;
+      ctx.fillStyle = "#ff6a00";
+      ctx.fillRect(gx, labelY, tw + 20, labelH);
+      ctx.fillStyle = "#17120e";
+      ctx.fillText(label, gx + 10, labelY + labelH - 8);
+      ctx.restore();
+    }
     // Seleção: uma caneca ou o grupo (várias juntas) — contorno + 4 cantos.
     if (selectionBox) {
       ctx.save();
@@ -501,6 +538,123 @@ export default function CompositionEditor() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ---- Rascunho local (autosave): salva o trabalho neste navegador e
+  // oferece restaurar ao reabrir — sem conta, sem nuvem. O handoff do
+  // Studio 3D sempre tem prioridade sobre o rascunho.
+  const serializeLayer = async (layer: MugLayer): Promise<DraftLayer | null> => {
+    try {
+      const c = document.createElement("canvas");
+      const maxSide = 1600;
+      const s = Math.min(1, maxSide / Math.max(layer.img.naturalWidth, layer.img.naturalHeight));
+      c.width = Math.max(1, Math.round(layer.img.naturalWidth * s));
+      c.height = Math.max(1, Math.round(layer.img.naturalHeight * s));
+      const ctx = c.getContext("2d");
+      if (!ctx) return null;
+      ctx.drawImage(layer.img, 0, 0, c.width, c.height);
+      return {
+        id: layer.id, name: layer.name,
+        kind: layer.kind === "logo" ? "logo" : "mug",
+        x: layer.x, y: layer.y, w: layer.w, h: layer.h,
+        finish: layer.finish ? { ...layer.finish } : undefined,
+        dataUrl: c.toDataURL("image/png"),
+      };
+    } catch { return null; }
+  };
+  const serializeBg = async (b: Bg): Promise<DraftBg> => {
+    if (b.kind === "scene") return { kind: "scene", sceneId: b.scene.id };
+    if (b.kind === "image") {
+      const c = document.createElement("canvas");
+      const maxSide = 1600;
+      const s = Math.min(1, maxSide / Math.max(b.img.naturalWidth, b.img.naturalHeight));
+      c.width = Math.max(1, Math.round(b.img.naturalWidth * s));
+      c.height = Math.max(1, Math.round(b.img.naturalHeight * s));
+      const ctx = c.getContext("2d");
+      if (ctx) ctx.drawImage(b.img, 0, 0, c.width, c.height);
+      return { kind: "image", label: b.label, dataUrl: c.toDataURL("image/png") };
+    }
+    return { kind: "color", value: b.value, label: b.label };
+  };
+  useEffect(() => {
+    if (!handoffLoaded || draftOffer) return;
+    const hasContent = layers.length > 0 || bg.kind !== "color" || guides.length > 0;
+    const t = setTimeout(() => {
+      (async () => {
+        try {
+          if (!hasContent) { await clearDraft(); setDraftSavedAt(null); return; }
+          const serial = (await Promise.all(layers.map(serializeLayer))).filter((l): l is DraftLayer => !!l);
+          await saveDraft({
+            layers: serial, bg: await serializeBg(bg), canvasSize, guides, selectedIds, savedAt: Date.now(),
+          });
+          setDraftSavedAt(Date.now());
+        } catch { /* autosave é melhor esforço — nunca trava o editor */ }
+      })();
+    }, 800);
+    return () => clearTimeout(t);
+  }, [layers, bg, canvasSize, guides, selectedIds, handoffLoaded, draftOffer]);
+
+  // Oferece o rascunho ao abrir sem transferência do Studio 3D.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("from") === "mockup") return;
+    let cancelled = false;
+    readDraft().then((d) => { if (!cancelled && d) setDraftOffer(d); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  const restoreDraft = async (d: EditorDraft) => {
+    try {
+      const loaded: MugLayer[] = [];
+      for (const l of d.layers) {
+        const img = await loadImage(l.dataUrl);
+        loaded.push({ id: l.id, name: l.name, kind: l.kind, img, x: l.x, y: l.y, w: l.w, h: l.h, finish: l.finish as Finish | undefined });
+      }
+      let newBg: Bg = { kind: "color", value: "#ffffff", label: "Branco" };
+      const draftBg = d.bg;
+      if (draftBg.kind === "scene") {
+        const scene = studioScenes.find((s) => s.id === draftBg.sceneId);
+        if (scene) {
+          const img = await loadImage(scene.src);
+          newBg = { kind: "scene", scene, img };
+        }
+      } else if (draftBg.kind === "image") {
+        const img = await loadImage(draftBg.dataUrl);
+        newBg = { kind: "image", img, label: draftBg.label };
+      } else {
+        newBg = { kind: "color", value: draftBg.value, label: draftBg.label };
+      }
+      pushHistory();
+      setLayers(loaded); setBg(newBg); setCanvasSize(d.canvasSize); setGuides(d.guides);
+      setSelectedIds(d.selectedIds.filter((id) => loaded.some((l) => l.id === id)));
+      setDraftOffer(null);
+      setStatus("Rascunho restaurado — ele continua sendo salvo automaticamente neste navegador.");
+    } catch {
+      setDraftOffer(null);
+      setStatus("Não foi possível restaurar o rascunho.");
+    }
+  };
+  const dismissDraft = async () => {
+    setDraftOffer(null);
+    try { await clearDraft(); } catch { /* melhor esforço */ }
+  };
+
+  // Tour de dicas na primeira visita (5 passos, dispensa e não reaparece).
+  const TOUR_STEPS = [
+    { title: "Cenários à esquerda", text: "Escolha um dos 112 cenários — as canecas se posicionam sozinhas no lugar certo. Recolha o painel no trilho para ganhar área de edição." },
+    { title: "Arraste e redimensione", text: "Arraste a caneca para mover. Puxe os cantos laranja para redimensionar. Shift + clique seleciona várias de uma vez." },
+    { title: "Acabamento e sombra", text: "No painel Acabamento ajuste luz, contraste e a sombra de contato — ela vai junto no PNG exportado." },
+    { title: "Camadas e exportação", text: "No painel Camadas você duplica, reordena e remove. Exporte em PNG (até 2x) ou em vídeo WebM com a caneca girando." },
+    { title: "Atalhos que agilizam", text: "Delete apaga a seleção · Ctrl+Z desfaz · Ctrl+Shift+Z refaz · Ctrl+D duplica · Ctrl+A seleciona tudo. Puxe as réguas para criar guias." },
+  ];
+  useEffect(() => {
+    if (!handoffLoaded) return;
+    try {
+      if (window.localStorage.getItem("cg-editor2d-tour") !== "seen") setShowTour(true);
+    } catch { /* sem storage, sem tour */ }
+  }, [handoffLoaded]);
+  const closeTour = () => {
+    setShowTour(false);
+    try { window.localStorage.setItem("cg-editor2d-tour", "seen"); } catch { /* melhor esforço */ }
+  };
 
   const applyScene = useCallback(
     async (scene: StudioScene) => {
@@ -861,7 +1015,7 @@ export default function CompositionEditor() {
     [toLogical, canvasSize],
   );
 
-  // Atalhos: Delete/Backspace apaga a seleção · Ctrl+Z desfaz · Ctrl+Y / Ctrl+Shift+Z refaz.
+  // Atalhos: Delete/Backspace apaga a seleção · Ctrl+Z desfaz · Ctrl+Y / Ctrl+Shift+Z refaz · Ctrl+D duplica · Ctrl+A seleciona tudo.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
@@ -876,11 +1030,17 @@ export default function CompositionEditor() {
       } else if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === "y" || (e.key.toLowerCase() === "z" && e.shiftKey))) {
         e.preventDefault();
         redo();
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "d" && selectedIds.length) {
+        e.preventDefault();
+        selectedIds.forEach((id) => duplicateLayer(id));
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a") {
+        e.preventDefault();
+        setSelectedIds(layersRef.current.map((l) => l.id));
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [selectedIds, deleteSelected, undo, redo]);
+  }, [selectedIds, deleteSelected, undo, redo, duplicateLayer]);
 
   const handleExport = useCallback(async () => {
     if (!layers.length) {
@@ -1170,7 +1330,7 @@ export default function CompositionEditor() {
   return (
     <div className={styles.editor}>
       <header className={styles.header}>
-        <div className={styles.identity}><span className={styles.brand}><NextImage src="/cg-home/mascote-logo-quadrado.webp" alt="Click & Gruda" width={52} height={52} priority /></span><div><span className={styles.eyebrow}>CLICK & GRUDA / STUDIO</span><h1>Editor Mockup <span>2D</span></h1></div><span className={styles.badge}>COMPOSIÇÃO</span></div>
+        <div className={styles.identity}><span className={styles.brand}><NextImage src="/cg-home/mascote-logo-quadrado.webp" alt="Click & Gruda" width={40} height={40} priority /></span><div><span className={styles.eyebrow}>CLICK & GRUDA / STUDIO</span><h1>Editor Mockup <span>2D</span></h1></div><span className={styles.badge}>COMPOSIÇÃO</span></div>
         <nav className={styles.headerActions} aria-label="Navegação do editor">
           <a href={LIBRARY_URL}><LayoutDashboard size={16}/> Voltar à Central</a>
           <a href="/mockup-caneca-3d/studio"><ArrowLeft size={16}/> Voltar ao Studio 3D</a>
@@ -1178,7 +1338,13 @@ export default function CompositionEditor() {
         </nav>
       </header>
       <main className={styles.workspace}>
-        <aside className={styles.library}>
+        <nav className={styles.rail} aria-label="Painéis do editor">
+          <button type="button" onClick={() => setLeftOpen((v) => !v)} aria-pressed={leftOpen} title="Cenários — mostrar ou ocultar"><ImagePlus size={19} /><span>Cenários</span></button>
+          <button type="button" onClick={() => setRightOpen((v) => !v)} aria-pressed={rightOpen} title="Acabamento, camadas e exportação — mostrar ou ocultar"><PanelRight size={19} /><span>Painel</span></button>
+          <button type="button" onClick={() => { setLeftOpen(false); setRightOpen(false); }} title="Tela cheia — esconder os dois painéis"><Maximize size={19} /><span>Tela cheia</span></button>
+          <button type="button" onClick={() => { setTourStep(0); setShowTour(true); }} title="Dicas de uso do editor"><Lightbulb size={19} /><span>Dicas</span></button>
+        </nav>
+        {leftOpen && <aside className={styles.library}>
           <div className={styles.panelTitle}><ImagePlus size={18}/><h2>Cenários</h2><span>{studioScenes.length}</span></div>
           <p className={styles.hint}>O ambiente certo valoriza sua criação.</p>
                     <div className={styles.gallery}>
@@ -1301,12 +1467,13 @@ export default function CompositionEditor() {
           </div>
 
 
-        </aside>
+        </aside>}
         <section className={styles.center} aria-label="Área de composição">
           <div className={styles.toolbar}>
             <div><button title="Desfazer (Ctrl+Z)" aria-label="Desfazer" onClick={undo} disabled={!canUndo}><Undo2 size={17}/></button><button title="Refazer (Ctrl+Shift+Z)" aria-label="Refazer" onClick={redo} disabled={!canRedo}><Redo2 size={17}/></button></div>
             <div><button onClick={() => fileInputRef.current?.click()}><Plus size={16}/> Importar caneca</button><button onClick={() => webmInputRef.current?.click()} title="Caneca girando em WebM com fundo transparente, exportada do Studio 3D"><Film size={16}/> Importar WebM</button><button onClick={() => logoInputRef.current?.click()}><Upload size={16}/> Logo</button></div>
             <button title="Organizar canecas no cenário" onClick={organizeLayers} disabled={!layers.length}><Layers size={16}/> Organizar</button>
+            <button title="Gabarito 21 × 9,5 cm — mostra a faixa de impressão sobre a caneca selecionada (só na prévia)" aria-pressed={showGabarito} onClick={() => setShowGabarito((v) => !v)}><Scan size={16}/> Gabarito</button>
           </div>
           <div className={styles.canvasViewport} ref={viewportRef}>
             <div className={styles.artboard} ref={canvasWrapRef} style={{ width: canvasSize.w * displayScale + 26, height: canvasSize.h * displayScale + 26 }}>
@@ -1324,20 +1491,21 @@ export default function CompositionEditor() {
               {!layers.length && <div className={styles.empty}><MousePointer2 size={30}/><h2>Sua próxima composição<br/>começa aqui.</h2><p>Receba do Studio 3D ou importe<br/>uma caneca em PNG ou WebM girando.</p><button className={styles.primary} onClick={() => fileInputRef.current?.click()}><Plus size={16}/> Importar caneca</button></div>}
             </div>
           </div>
-          <div className={styles.canvasFooter}>
+          <div className={styles.bottomBar}>
             <span>{canvasSize.w} × {canvasSize.h} px</span>
-            <div><button aria-pressed={showGuides} title="Mostrar ou ocultar guias" onClick={() => setShowGuides(v => !v)}><Ruler size={15}/> Guias</button>
-            <button title="Ajustar à tela" onClick={() => setZoom(1)}><Maximize size={15}/></button>
+            <span className={styles.statusText} role="status"><span className={styles.statusDot}/>{status}</span>
+            <span className={styles.savedAt}>{draftSavedAt ? `Salvo neste navegador às ${new Date(draftSavedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}` : ""}</span>
+            <div className={styles.guideButtons}>
+              <button aria-pressed={showGuides} title="Mostrar ou ocultar guias" onClick={() => setShowGuides(v => !v)}><Ruler size={15}/> Guias</button>
+              <button title="Adicionar guia horizontal no meio" onClick={() => { pushHistory(); setGuides(prev => [...prev, { id: uid(), orientation: "h", pos: canvasSize.h / 2 }]); setShowGuides(true); }}>+ Guia H</button>
+              <button title="Adicionar guia vertical no meio" onClick={() => { pushHistory(); setGuides(prev => [...prev, { id: uid(), orientation: "v", pos: canvasSize.w / 2 }]); setShowGuides(true); }}>+ Guia V</button>
+              <button disabled={!guides.length} title="Remover todas as guias" onClick={() => { pushHistory(); setGuides([]); }}>Limpar</button>
+            </div>
+            <div><button title="Ajustar à tela" onClick={() => setZoom(1)}><Maximize size={15}/></button>
             <select aria-label="Zoom da composição" value={zoom} onChange={e => setZoom(Number(e.target.value))}><option value={1}>Ajustar à tela</option><option value={1.5}>Ampliar 150%</option><option value={2}>Ampliar 200%</option><option value={3}>Ampliar 300%</option></select></div>
           </div>
-          <div className={styles.status} role="status"><span className={styles.statusDot}/>{status}</div>
-          <details className={styles.guideHelp}><summary>Guias e atalhos de edição</summary><p>Puxe as réguas para criar guias; devolva à borda para remover. Shift + clique seleciona várias camadas. Delete remove; Ctrl/Cmd + Z desfaz.</p>
-            <button onClick={() => { pushHistory(); setGuides(prev => [...prev, { id: uid(), orientation: "h", pos: canvasSize.h / 2 }]); setShowGuides(true); }}>+ Guia horizontal</button>
-            <button onClick={() => { pushHistory(); setGuides(prev => [...prev, { id: uid(), orientation: "v", pos: canvasSize.w / 2 }]); setShowGuides(true); }}>+ Guia vertical</button>
-            <button disabled={!guides.length} onClick={() => { pushHistory(); setGuides([]); }}>Limpar guias</button>
-          </details>
         </section>
-        <aside className={styles.inspector}>
+        {rightOpen && <aside className={styles.inspector}>
           <div className={styles.panelTitle}><SlidersHorizontal size={18}/><h2>Acabamento</h2><Sparkles size={15}/></div>
           <p className={styles.hint}>{selectedIds.length > 1 ? `${selectedIds.length} camadas selecionadas · ajustes aplicados a todas` : activeLayer?.name ?? "Selecione uma caneca para ajustar."}</p>
           <fieldset className={styles.finishControls} disabled={!activeLayer}>
@@ -1477,11 +1645,33 @@ export default function CompositionEditor() {
             caneca girando na composição.
           </p>
 <button onClick={downloadMugs} disabled={!layers.some(l => l.kind !== "logo")}>Baixar canecas originais separadas</button></details>
-        </aside>
+        </aside>}
       </main>
       <input ref={fileInputRef} type="file" accept="image/png,image/webp" multiple hidden onChange={e => { Array.from(e.target.files ?? []).forEach(addMugFile); e.target.value = ""; }}/>
       <input ref={webmInputRef} type="file" accept="video/webm" hidden onChange={e => { const f = e.target.files?.[0]; if (f) addWebmFile(f); e.target.value = ""; }}/>
       <input ref={logoInputRef} type="file" accept="image/png,image/webp" hidden onChange={e => { const f = e.target.files?.[0]; if (f) addLogoFile(f); e.target.value = ""; }}/>
+      {draftOffer && (
+        <div className={styles.draftBanner} role="dialog" aria-label="Rascunho encontrado">
+          <div><strong>Rascunho encontrado</strong><span>Você tem um trabalho salvo neste navegador ({new Date(draftOffer.savedAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}).</span></div>
+          <button className={styles.primary} onClick={() => void restoreDraft(draftOffer)}>Restaurar rascunho</button>
+          <button onClick={() => void dismissDraft()}>Começar do zero</button>
+        </div>
+      )}
+      {showTour && (
+        <div className={styles.tour} role="dialog" aria-label="Dicas do editor">
+          <div className={styles.tourHead}><Lightbulb size={16}/><strong>{TOUR_STEPS[tourStep].title}</strong><button onClick={closeTour} aria-label="Fechar dicas"><X size={15}/></button></div>
+          <p>{TOUR_STEPS[tourStep].text}</p>
+          <div className={styles.tourFoot}>
+            <span>{TOUR_STEPS.map((_, i) => <i key={i} className={i === tourStep ? styles.tourDotActive : styles.tourDot} />)}</span>
+            <div>
+              {tourStep > 0 && <button onClick={() => setTourStep((s) => s - 1)}>Voltar</button>}
+              {tourStep < TOUR_STEPS.length - 1
+                ? <button className={styles.primary} onClick={() => setTourStep((s) => s + 1)}>Próxima</button>
+                : <button className={styles.primary} onClick={closeTour}>Começar a criar</button>}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
